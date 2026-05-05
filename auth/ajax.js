@@ -5,19 +5,21 @@ document.addEventListener('alpine:init', () => {
         isLoading: false,
 
         init() {
-            // Cek apakah kasir sebelumnya sudah pernah login
-            // Jika sudah ada sesi di IndexedDB, langsung lempar ke halaman Kasir
-            dbAuth.getItem('user_session').then(user => {
-                if (user) {
-                    window.location.href = '../kasir/index.php';
-                }
-            });
+            // Cek apakah user sudah login sebelumnya di IndexedDB
+            // Jika ada sesi, langsung lempar ke Dasbor
+            if(window.dbAuth) {
+                window.dbAuth.getItem('user_session').then(user => {
+                    if (user) {
+                        window.location.href = '../pos/dashboard/';
+                    }
+                });
+            }
         },
 
         async doLogin() {
-            // Wajib online untuk login verifikasi ke server pusat
+            // Wajib online untuk login verifikasi ke server pusat (database MySQL)
             if (!navigator.onLine) {
-                alert('Anda sedang offline! Koneksi internet wajib menyala untuk proses login.');
+                Swal.fire('Offline!', 'Anda sedang offline! Koneksi internet wajib menyala untuk proses login awal.', 'warning');
                 return;
             }
 
@@ -29,10 +31,8 @@ document.addEventListener('alpine:init', () => {
                 formData.append('username', this.username);
                 formData.append('password', this.password);
 
-                // ========================================================
-                // SESUAIKAN DENGAN URL API SISTEM PRODUKSIMU YA!
-                // ========================================================
-                const API_URL = 'http://localhost/sim_produksi_kue/owner/master_produk/api.php'; 
+                // Tembak ke file PHP di folder yang sama
+                const API_URL = 'logic.php'; 
 
                 const response = await fetch(API_URL, {
                     method: 'POST',
@@ -43,24 +43,26 @@ document.addEventListener('alpine:init', () => {
 
                 if (result.status === 'success') {
                     // Simpan data user ke database lokal (IndexedDB)
-                    await dbAuth.setItem('user_session', result.data);
+                    if(window.dbAuth) {
+                        await window.dbAuth.setItem('user_session', result.data);
+                    }
                     
                     Swal.fire({
                         icon: 'success',
                         title: 'Login Berhasil!',
-                        text: 'Mengarahkan ke layar kasir...',
+                        text: 'Mengarahkan ke Dasbor...',
                         timer: 1500,
                         showConfirmButton: false,
                         customClass: { popup: 'rounded-3xl shadow-2xl border border-slate-100', title: 'text-xl font-extrabold text-slate-800' }
                     }).then(() => {
-                        window.location.href = '../kasir/index.php';
+                        window.location.href = '../pos/dashboard/';
                     });
                 } else {
-                    alert(result.message);
+                    Swal.fire('Ups!', result.message, 'error');
                 }
             } catch (error) {
                 console.error(error);
-                alert('Gagal terhubung ke server pusat! Pastikan alamat API benar dan server menyala.');
+                Swal.fire('Error System', 'Gagal memproses login! Cek tab console/network.', 'error');
             } finally {
                 this.isLoading = false;
             }

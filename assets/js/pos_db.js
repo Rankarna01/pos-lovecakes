@@ -1,12 +1,19 @@
+// File: assets/js/pos_db.js
 localforage.config({
-    name: 'POS_Sistem_Kue',
-    version: 1.0,
-    storeName: 'pos_data',
-    description: 'Database offline untuk Aplikasi POS'
+    name: 'LoveCakesPOS', // <- Bebas namanya apa aja, ini cuma buat di browser
+    storeName: 'pos_data'
 });
 
-const dbKatalog = localforage.createInstance({ name: "POS_Sistem_Kue", storeName: "katalog" });
-const dbKeranjang = localforage.createInstance({ name: "POS_Sistem_Kue", storeName: "keranjang" });
-const dbTransaksiOffline = localforage.createInstance({ name: "POS_Sistem_Kue", storeName: "transaksi_pending" });
+// MEMBUAT DATABASE OFFLINE UNTUK MENYIMPAN SESI KASIR (Pakai window.)
+window.dbAuth = localforage.createInstance({ 
+    name: 'LoveCakesPOS', 
+    storeName: 'auth_session' 
+});
 
-console.log("Local Database POS Ready!");
+// MEMBUAT DATABASE OFFLINE UNTUK MENYIMPAN DAFTAR PRODUK (Pakai window.)
+window.dbKatalog = localforage.createInstance({ 
+    name: 'LoveCakesPOS', 
+    storeName: 'katalog_produk' 
+});
+
+console.log('✅ Local Database POS Ready!');

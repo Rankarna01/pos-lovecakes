@@ -107,4 +107,34 @@
             if (result.isConfirmed) { callback(); }
         });
     };
+
+    // =========================================================
+    // 4. FUNGSI LOGOUT GLOBAL (DITAMBAHKAN BARU)
+    // =========================================================
+    window.doLogout = function() {
+        Swal.fire({
+            title: 'Yakin mau Logout?',
+            text: "Sesi kasir Anda akan diakhiri.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#EF4444',
+            cancelButtonColor: '#94A3B8',
+            confirmButtonText: '<i class="fa-solid fa-power-off mr-1"></i> Ya, Keluar!',
+            cancelButtonText: 'Batal',
+            reverseButtons: true,
+            customClass: { popup: 'rounded-3xl shadow-2xl border border-slate-100', title: 'text-xl font-extrabold text-slate-800' }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // 1. Hapus memori sesi di IndexedDB Browser
+                if (window.dbAuth) {
+                    window.dbAuth.removeItem('user_session').then(() => {
+                        // 2. Redirect ke file PHP pembersih sesi server
+                        window.location.href = '../../logout_action.php';
+                    });
+                } else {
+                    window.location.href = '../../logout_action.php';
+                }
+            }
+        });
+    };
 </script>
