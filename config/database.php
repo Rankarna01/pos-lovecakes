@@ -2,7 +2,7 @@
 $host = 'localhost';
 $user = 'root';
 $pass = ''; // Sesuaikan
-$dbname = 'pos-lovely'; // Sesuaikan
+$dbname = 'sim-kue'; // Sesuaikan
 
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname", $user, $pass);

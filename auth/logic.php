@@ -18,8 +18,13 @@ if ($action === 'login_pos') {
     }
 
     try {
-        // Cek user dan rolenya di database
-        $stmt = $pdo->prepare("SELECT u.*, r.role_name FROM users u JOIN roles r ON u.role_id = r.id WHERE u.username = ?");
+        // PERUBAHAN: Cek user dan rolenya di database MENGGUNAKAN TABEL KHUSUS POS (_pos)
+        $stmt = $pdo->prepare("
+            SELECT u.*, r.role_name 
+            FROM users_pos u 
+            JOIN roles_pos r ON u.role_id = r.id 
+            WHERE u.username = ?
+        ");
         $stmt->execute([$username]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 

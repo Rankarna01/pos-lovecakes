@@ -48,7 +48,7 @@ function hasAccess($menu_key) {
 
         <!-- 2. PRODUK & INVENTORY (Dropdown) -->
         <?php if(hasAccess('menu_produk')): 
-            $paths = ['/pos/produk/deposit/', '/pos/produk/spesial/']; 
+            $paths = ['/pos/produk/deposit/', '/pos/produk/']; 
             $isActive = isDropdownActive($paths, $current_uri);
         ?>
         <div>
@@ -60,7 +60,7 @@ function hasAccess($menu_key) {
                 <i id="icon-produk" class="fa-solid fa-chevron-<?= $isActive ? 'down' : 'right' ?> text-[10px] transition-transform duration-200"></i>
             </button>
             <div id="sub-produk" class="<?= $isActive ? 'flex' : 'hidden' ?> flex-col gap-1 mt-1 pl-11 pr-2">
-                <a href="<?= BASE_URL ?>pos/produk/deposit/" class="block px-3 py-2 text-xs rounded-lg transition-all <?= getNavClass('/pos/produk/deposit/', $current_uri) ?>">Deposit</a>
+                <a href="<?= BASE_URL ?>pos/produk" class="block px-3 py-2 text-xs rounded-lg transition-all <?= getNavClass('/pos/produk/', $current_uri) ?>">Produk</a>
                 <a href="<?= BASE_URL ?>pos/produk/spesial/" class="block px-3 py-2 text-xs rounded-lg transition-all <?= getNavClass('/pos/produk/spesial/', $current_uri) ?>">Spesial</a>
             </div>
         </div>
