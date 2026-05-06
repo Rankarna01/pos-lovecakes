@@ -1,29 +1,47 @@
+<?php
+// Pastikan BASE_URL sudah ada. Jika belum, kita set defaultnya.
+if (!defined('BASE_URL')) {
+    define('BASE_URL', 'http://localhost/pos-lovecakes/');
+}
+?>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>POS Sistem Kasir Offline</title>
-<link rel="manifest" href="../manifest.json">
+<title><?= $page_title ?? 'POS Sistem Kasir Offline' ?></title>
+<link rel="manifest" href="<?= BASE_URL ?>manifest.json">
 <meta name="theme-color" content="#2563EB">
 
 <!-- PANGGIL FONT DAN ICON DARI LOKAL -->
-<link rel="stylesheet" href="../assets/css/fontawesome.css">
+<link rel="stylesheet" href="<?= BASE_URL ?>assets/css/fontawesome.css">
 <style>
-    /* Contoh panggil font lokal jika didownload, atau hapus jika pakai font bawaan OS saat offline */
     @font-face {
         font-family: 'Poppins';
-        src: url('../assets/fonts/poppins.woff2') format('woff2');
+        src: url('<?= BASE_URL ?>assets/fonts/poppins.woff2') format('woff2');
         font-weight: normal;
         font-style: normal;
     }
+    
+    /* CSS Global Disatukan di Sini */
+    body { font-family: 'Poppins', sans-serif !important; background-color: #F8FAFC; }
+    .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    [x-cloak] { display: none !important; }
+    #global-loader { display: none; backdrop-filter: blur(4px); }
+    div:where(.swal2-container) { font-family: 'Poppins', sans-serif !important; }
 </style>
 
-<!-- PANGGIL LIBRARY JS DARI LOKAL (WAJIB DOWNLOAD FILENYA) -->
-<script src="../assets/js/sweetalert2.all.js"></script>
-<script src="../assets/js/alpine.min.js" defer></script>
-<script src="../assets/js/localforage.min.js"></script>
-<script src="../assets/js/pos_db.js"></script>
+<!-- ======================================================== -->
+<!-- PERBAIKAN: MENGARAH LANGSUNG KE ROOT SESUAI FOLDERMU -->
+<!-- ======================================================== -->
+<script src="<?= BASE_URL ?>sweetalert2.all.min.js"></script>
 
-<!-- TAILWIND VIA SCRIPT LOKAL (Download https://cdn.tailwindcss.com jadi tailwind.js) -->
-<script src="../assets/js/tailwind.js"></script>
+<!-- LIBRARY LAINNYA TETAP DI ASSETS/JS -->
+<script src="<?= BASE_URL ?>assets/js/alpine.min.js" defer></script>
+<script src="<?= BASE_URL ?>assets/js/localforage.min.js"></script>
+<script src="<?= BASE_URL ?>assets/js/pos_db.js"></script>
+
+<!-- TAILWIND VIA SCRIPT LOKAL -->
+<script src="<?= BASE_URL ?>assets/js/tailwind.js"></script>
 <script>
     tailwind.config = {
         theme: {
@@ -43,23 +61,17 @@
     }
 </script>
 
-<style>
-    body { font-family: 'Poppins', sans-serif; background-color: theme('colors.background'); }
-    #global-loader { display: none; backdrop-filter: blur(4px); }
-    div:where(.swal2-container) { font-family: 'Poppins', sans-serif; }
-</style> 
-
 <script>
     // 1. REGISTRASI SERVICE WORKER UNTUK OFFLINE MODE
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('../sw.js')
+            navigator.serviceWorker.register('<?= BASE_URL ?>sw.js')
                 .then(reg => console.log('Service Worker POS aktif!'))
                 .catch(err => console.error('Service Worker gagal!', err));
         });
     }
 
-    // 2. FUNGSI OVERRIDE ALERT() SEPERTI DI PRODUKSI
+    // 2. FUNGSI OVERRIDE ALERT()
     window.alert = function(message) {
         let type = 'info';
         let msgStr = String(message).toLowerCase();
@@ -69,72 +81,87 @@
         if(msgStr.includes('pilih') || msgStr.includes('wajib') || msgStr.includes('harap')) type = 'warning';
 
         if (type === 'success') {
-            const Toast = Swal.mixin({
-                toast: true, position: 'top-end', showConfirmButton: false, timer: 3500, timerProgressBar: true,
-                customClass: { popup: 'rounded-xl shadow-lg border border-slate-100 mt-4 mr-4' },
-                didOpen: (toast) => {
-                    toast.addEventListener('mouseenter', Swal.stopTimer)
-                    toast.addEventListener('mouseleave', Swal.resumeTimer)
-                }
-            });
-            Toast.fire({ icon: 'success', title: message });
+            if(typeof Swal !== 'undefined') {
+                const Toast = Swal.mixin({
+                    toast: true, position: 'top-end', showConfirmButton: false, timer: 3500, timerProgressBar: true,
+                    customClass: { popup: 'rounded-xl shadow-lg border border-slate-100 mt-4 mr-4' },
+                    didOpen: (toast) => {
+                        toast.addEventListener('mouseenter', Swal.stopTimer)
+                        toast.addEventListener('mouseleave', Swal.resumeTimer)
+                    }
+                });
+                Toast.fire({ icon: 'success', title: message });
+            }
         } else {
-            Swal.fire({
-                title: type === 'error' ? 'Oops! Ada Masalah' : (type === 'warning' ? 'Perhatian' : 'Informasi'),
-                html: `<p style="color: #475569; font-weight: 500; font-size: 14px;">${message}</p>`,
-                icon: type,
-                confirmButtonText: 'Mengerti',
-                confirmButtonColor: type === 'error' ? '#EF4444' : (type === 'warning' ? '#F59E0B' : '#2563EB'),
-                customClass: { popup: 'rounded-3xl shadow-2xl border border-slate-100', title: 'text-xl font-extrabold text-slate-800' }
-            });
+            if(typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: type === 'error' ? 'Oops! Ada Masalah' : (type === 'warning' ? 'Perhatian' : 'Informasi'),
+                    html: `<p style="color: #475569; font-weight: 500; font-size: 14px;">${message}</p>`,
+                    icon: type,
+                    confirmButtonText: 'Mengerti',
+                    confirmButtonColor: type === 'error' ? '#EF4444' : (type === 'warning' ? '#F59E0B' : '#2563EB'),
+                    customClass: { popup: 'rounded-3xl shadow-2xl border border-slate-100', title: 'text-xl font-extrabold text-slate-800' }
+                });
+            }
         }
     };
 
     // 3. FUNGSI CUSTOM CONFIRM ()
     window.customConfirm = function(message, callback) {
-        Swal.fire({
-            title: 'Apakah Anda Yakin?',
-            html: `<p style="color: #475569; font-weight: 500; font-size: 14px;">${message}</p>`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#EF4444', 
-            cancelButtonColor: '#94A3B8',  
-            confirmButtonText: '<i class="fa-solid fa-check mr-1"></i> Ya, Lanjutkan!',
-            cancelButtonText: 'Batal',
-            reverseButtons: true, 
-            customClass: { popup: 'rounded-3xl shadow-2xl border border-slate-100', title: 'text-xl font-extrabold text-slate-800' }
-        }).then((result) => {
-            if (result.isConfirmed) { callback(); }
-        });
+        if(typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Apakah Anda Yakin?',
+                html: `<p style="color: #475569; font-weight: 500; font-size: 14px;">${message}</p>`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#EF4444', 
+                cancelButtonColor: '#94A3B8',  
+                confirmButtonText: '<i class="fa-solid fa-check mr-1"></i> Ya, Lanjutkan!',
+                cancelButtonText: 'Batal',
+                reverseButtons: true, 
+                customClass: { popup: 'rounded-3xl shadow-2xl border border-slate-100', title: 'text-xl font-extrabold text-slate-800' }
+            }).then((result) => {
+                if (result.isConfirmed) { callback(); }
+            });
+        }
     };
 
     // =========================================================
-    // 4. FUNGSI LOGOUT GLOBAL (DITAMBAHKAN BARU)
+    // 4. FUNGSI LOGOUT GLOBAL 
     // =========================================================
-    window.doLogout = function() {
-        Swal.fire({
-            title: 'Yakin mau Logout?',
-            text: "Sesi kasir Anda akan diakhiri.",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#EF4444',
-            cancelButtonColor: '#94A3B8',
-            confirmButtonText: '<i class="fa-solid fa-power-off mr-1"></i> Ya, Keluar!',
-            cancelButtonText: 'Batal',
-            reverseButtons: true,
-            customClass: { popup: 'rounded-3xl shadow-2xl border border-slate-100', title: 'text-xl font-extrabold text-slate-800' }
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // 1. Hapus memori sesi di IndexedDB Browser
-                if (window.dbAuth) {
-                    window.dbAuth.removeItem('user_session').then(() => {
-                        // 2. Redirect ke file PHP pembersih sesi server
-                        window.location.href = '../../logout_action.php';
-                    });
-                } else {
-                    window.location.href = '../../logout_action.php';
+    function eksekusiLogout() {
+        if (window.dbAuth) {
+            window.dbAuth.removeItem('user_session').then(() => {
+                window.location.href = '<?= BASE_URL ?>logout_action.php';
+            }).catch(() => {
+                window.location.href = '<?= BASE_URL ?>logout_action.php';
+            });
+        } else {
+            window.location.href = '<?= BASE_URL ?>logout_action.php';
+        }
+    }
+
+    window.logoutSistem = function() {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Yakin mau Logout?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#94a3b8',
+                confirmButtonText: 'Ya, Keluar!',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    eksekusiLogout();
                 }
+            });
+        } else {
+            if (confirm('Yakin mau Logout?')) {
+                eksekusiLogout();
             }
-        });
+        }
     };
+
+    window.doLogout = window.logoutSistem;
 </script>

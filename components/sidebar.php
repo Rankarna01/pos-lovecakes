@@ -61,7 +61,7 @@ function hasAccess($menu_key) {
             </button>
             <div id="sub-produk" class="<?= $isActive ? 'flex' : 'hidden' ?> flex-col gap-1 mt-1 pl-11 pr-2">
                 <a href="<?= BASE_URL ?>pos/produk" class="block px-3 py-2 text-xs rounded-lg transition-all <?= getNavClass('/pos/produk/', $current_uri) ?>">Produk</a>
-                <a href="<?= BASE_URL ?>pos/produk/spesial/" class="block px-3 py-2 text-xs rounded-lg transition-all <?= getNavClass('/pos/produk/spesial/', $current_uri) ?>">Spesial</a>
+                <a href="<?= BASE_URL ?>pos/produk/inventory/" class="block px-3 py-2 text-xs rounded-lg transition-all <?= getNavClass('/pos/produk/inventory/', $current_uri) ?>">Inventory</a>
             </div>
         </div>
         <?php endif; ?>
@@ -82,7 +82,7 @@ function hasAccess($menu_key) {
             <div id="sub-pemasaran" class="<?= $isActive ? 'flex' : 'hidden' ?> flex-col gap-1 mt-1 pl-11 pr-2">
                 <a href="<?= BASE_URL ?>pos/pemasaran/crm/" class="block px-3 py-2 text-xs rounded-lg transition-all <?= getNavClass('/pos/pemasaran/crm/', $current_uri) ?>">CRM</a>
                 <a href="<?= BASE_URL ?>pos/pemasaran/voucher/" class="block px-3 py-2 text-xs rounded-lg transition-all <?= getNavClass('/pos/pemasaran/voucher/', $current_uri) ?>">Voucher & Diskon</a>
-                <a href="<?= BASE_URL ?>pos/pemasaran/poin/" class="block px-3 py-2 text-xs rounded-lg transition-all <?= getNavClass('/pos/pemasaran/poin/', $current_uri) ?>">Poin Loyalitas</a>
+                <a href="<?= BASE_URL ?>pos/pemasaran/loyalitas/" class="block px-3 py-2 text-xs rounded-lg transition-all <?= getNavClass('/pos/pemasaran/loyalitas/', $current_uri) ?>">Poin Loyalitas</a>
             </div>
         </div>
         <?php endif; ?>
