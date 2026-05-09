@@ -49,42 +49,58 @@ document.addEventListener('alpine:init', () => {
         },
 
         // --- FUNGSI SHIFT ---
-        async checkShiftStatus() {
+      async checkShiftStatus() {
             try {
-                const res = await fetch(`logic_kasir.php?action=check_shift&nocache=${Date.now()}`); 
-                const result = await res.json();
-                if (result.status === 'success') {
-                    this.needsShiftOpen = !result.has_open_shift;
-                    this.masterShifts = result.master_shifts || []; 
-                }
+                // KEMBALIKAN KE logic_shift.php
+                const res = await fetch(`logic_shift.php?action=check_shift&nocache=${Date.now()}`); 
+                const rawText = await res.text();
+                try {
+                    const result = JSON.parse(rawText);
+                    if (result.status === 'success') {
+                        this.needsShiftOpen = !result.has_open_shift;
+                        this.masterShifts = result.master_shifts || []; 
+                    }
+                } catch(err) { console.error("❌ ERROR PHP (Check Shift):", rawText); }
             } catch (e) { console.error("Error Cek Shift:", e); }
         },
 
-        async openShift() {
+       async openShift() {
             this.isLoadingShift = true;
             try {
                 const fd = new FormData(); fd.append('shift_id', this.shiftForm.shift_id); fd.append('start_cash', this.shiftForm.start_cash);
-                const res = await fetch('logic_kasir.php?action=open_shift', { method: 'POST', body: fd });
-                const result = await res.json();
-                if (result.status === 'success') {
-                    this.needsShiftOpen = false; Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: result.message, showConfirmButton: false, timer: 1500 });
-                    await this.loadLocalData(false);
-                } else { Swal.fire('Error', result.message, 'error'); }
+                // KEMBALIKAN KE logic_shift.php
+                const res = await fetch('logic_shift.php?action=open_shift', { method: 'POST', body: fd });
+                const rawText = await res.text();
+                try {
+                    const result = JSON.parse(rawText);
+                    if (result.status === 'success') {
+                        this.needsShiftOpen = false; 
+                        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: result.message, showConfirmButton: false, timer: 1500 });
+                        await this.loadLocalData(false);
+                    } else { Swal.fire('Error', result.message, 'error'); }
+                } catch(err) { console.error("❌ ERROR PHP (Open Shift):", rawText); }
             } catch (e) { Swal.fire('Error', 'Gagal membuka kasir.', 'error'); } 
             finally { this.isLoadingShift = false; }
         },
 
-        openCloseShiftModal() { this.closeShiftCash = ''; this.showCloseShiftModal = true; },
+      openCloseShiftModal() { this.closeShiftCash = ''; this.showCloseShiftModal = true; },
 
         async closeShift() {
             this.isLoadingShift = true;
             try {
                 const fd = new FormData(); fd.append('end_cash', this.closeShiftCash);
-                const res = await fetch('logic_kasir.php?action=close_shift', { method: 'POST', body: fd });
-                const result = await res.json();
-                if (result.status === 'success') {
-                    Swal.fire('Tutup Kasir Sukses', result.message, 'success').then(() => { window.location.reload(); });
-                } else { Swal.fire('Gagal', result.message, 'error'); }
+                // KEMBALIKAN KE logic_shift.php
+                const res = await fetch('logic_shift.php?action=close_shift', { method: 'POST', body: fd });
+                const rawText = await res.text(); // X-RAY ERROR HANDLER
+                try {
+                    const result = JSON.parse(rawText);
+                    if (result.status === 'success') {
+                        Swal.fire('Tutup Kasir Sukses', result.message, 'success').then(() => { window.location.reload(); });
+                    } else { Swal.fire('Gagal', result.message, 'error'); }
+                } catch(err) { 
+                    console.error("❌ ERROR PHP (Close Shift):", rawText); 
+                    Swal.fire('Error Database', 'Cek Console (Cmd+Option+I) untuk melihat penyebab error dari PHP.', 'error');
+                }
             } catch (e) { Swal.fire('Error', 'Gagal menutup kasir.', 'error'); } 
             finally { this.isLoadingShift = false; }
         },
