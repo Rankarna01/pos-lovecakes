@@ -10,13 +10,8 @@ document.addEventListener('alpine:init', () => {
         async init() {
             if(window.dbAuth) {
                 const user = await window.dbAuth.getItem('user_session');
-                if (!user) {
-                    window.location.href = '../../auth/index.php';
-                    return;
-                }
+                if (!user) { window.location.href = '../../auth/index.php'; return; }
             }
-            
-            // Muat data lokal saat baru buka halaman
             await this.loadLocalData();
         },
 
@@ -24,7 +19,6 @@ document.addEventListener('alpine:init', () => {
             this.isLoading = true;
             if (window.dbAuth) {
                 const localCatalog = await window.dbAuth.getItem('katalog_produk');
-                
                 if (localCatalog && localCatalog.length > 0) {
                     this.products = localCatalog;
                     this.filteredProducts = localCatalog;
@@ -35,27 +29,20 @@ document.addEventListener('alpine:init', () => {
             this.isLoading = false;
         },
 
-        // FUNGSI SYNC YANG SUDAH DIBIKIN ANTI-CACHE (MAMPU MEMBACA UPDATE TERBARU DB)
         async syncDataFromPusat() {
             this.isSyncing = true;
             try {
-                // 1. HAPUS PAKSA CACHE LAMA DI BROWSER
-                if(window.dbAuth) {
-                    await window.dbAuth.removeItem('katalog_produk');
-                }
+                if(window.dbAuth) { await window.dbAuth.removeItem('katalog_produk'); }
 
-                // 2. TEMBAK API DENGAN PARAMETER WAKTU AGAR BROWSER TIDAK MENGGUNAKAN CACHE
                 const timestamp = new Date().getTime();
                 const response = await fetch(`logic.php?action=read_produk&nocache=${timestamp}`);
                 const result = await response.json();
 
                 if (result.status === 'success') {
-                    const dataProduk = result.data;
+                    // Pakai JSON.parse(JSON.stringify) agar tidak kena error Proxy DataCloneError
+                    const dataProduk = JSON.parse(JSON.stringify(result.data));
                     
-                    // 3. SIMPAN DATA BARU (YANG SUDAH ADA HARGA ONLINENYA)
-                    if(window.dbAuth) {
-                        await window.dbAuth.setItem('katalog_produk', dataProduk);
-                    }
+                    if(window.dbAuth) { await window.dbAuth.setItem('katalog_produk', dataProduk); }
                     
                     this.products = dataProduk;
                     this.filterProducts(); 
@@ -84,24 +71,77 @@ document.addEventListener('alpine:init', () => {
 
         filterProducts() {
             let temp = this.products;
-
             if (this.activeCategory !== 'Semua') {
                 temp = temp.filter(p => p.category === this.activeCategory);
             }
-
             if (this.searchQuery.trim() !== '') {
                 const q = this.searchQuery.toLowerCase();
-                temp = temp.filter(p => 
-                    p.name.toLowerCase().includes(q) || 
-                    p.code.toLowerCase().includes(q)
-                );
+                temp = temp.filter(p => p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q));
             }
-
             this.filteredProducts = temp;
         },
 
+        // --- FITUR BARU: GENERATE & CETAK BARCODE (STIKER THERMAL) ---
+        printBarcode(product) {
+            if (!product.code) {
+                Swal.fire('Gagal', 'Produk ini belum memiliki Kode SKU.', 'error');
+                return;
+            }
+
+            // Buka window popup kecil seukuran stiker printer thermal
+            const printWindow = window.open('', '_blank', 'width=350,height=300');
+            
+            // Masukkan HTML, CSS, dan Library JsBarcode ke dalam window tersebut
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Cetak Barcode - ${product.name}</title>
+                    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+                    <style>
+                        @page { margin: 0; size: 50mm 30mm; } /* Ukuran standar stiker barcode */
+                        body { 
+                            margin: 0; padding: 5px; 
+                            text-align: center; 
+                            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; 
+                            background: #fff; color: #000;
+                            display: flex; flex-direction: column; align-items: center; justify-content: center;
+                            height: 100vh; box-sizing: border-box;
+                        }
+                        .product-name { font-size: 11px; font-weight: bold; margin-bottom: 2px; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+                        .price { font-size: 10px; font-weight: bold; margin-top: 0px; }
+                        svg { max-width: 100%; height: auto; }
+                    </style>
+                </head>
+                <body>
+                    <div class="product-name">${product.name}</div>
+                    <svg id="barcode"></svg>
+                    <div class="price">Rp ${this.formatRupiah(product.offline_price || product.price)}</div>
+
+                    <script>
+                        // Generate Barcode
+                        JsBarcode("#barcode", "${product.code}", {
+                            format: "CODE128",
+                            width: 1.5,
+                            height: 40,
+                            displayValue: true,
+                            fontSize: 12,
+                            margin: 2
+                        });
+                        
+                        // Otomatis muncul dialog print setelah 0.5 detik, lalu tutup window jika sudah selesai
+                        setTimeout(() => {
+                            window.print();
+                            window.close();
+                        }, 500);
+                    </script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+        },
+
         formatRupiah(angka) {
-            // Memastikan angka yang diformat adalah number yang valid
             const val = parseFloat(angka);
             if (isNaN(val)) return '0';
             return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(val);

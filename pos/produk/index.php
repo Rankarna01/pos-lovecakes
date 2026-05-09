@@ -1,24 +1,18 @@
 <?php
-if (!defined('BASE_URL')) {
-    define('BASE_URL', 'http://localhost/pos-lovecakes/');
-}
-// Set Judul Halaman sebelum memanggil header
+if (!defined('BASE_URL')) { define('BASE_URL', 'http://localhost/pos-lovecakes/'); }
 $page_title = "Katalog Produk - Love Cakes POS";
 ?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <!-- PANGGIL PUSAT KENDALI (HEADER) -->
     <?php include '../../components/header.php'; ?>
 </head>
 <body class="bg-slate-50 flex h-screen overflow-hidden text-slate-800 antialiased font-sans" x-data="produkApp()" x-cloak>
 
-    <!-- SIDEBAR -->
     <?php include '../../components/sidebar.php'; ?>
 
     <div class="flex-1 flex flex-col h-screen overflow-hidden">
         
-        <!-- HEADER KONTEN -->
         <header class="bg-primary text-white shadow-md px-4 sm:px-6 py-4 flex justify-between items-center z-20 shrink-0">
             <div class="flex items-center gap-4">
                 <button onclick="toggleSidebar()" class="md:hidden text-white hover:bg-blue-600 p-2 rounded-lg transition-colors">
@@ -34,7 +28,6 @@ $page_title = "Katalog Produk - Love Cakes POS";
                 </button>
 
                 <div class="border-l border-blue-400 pl-3 ml-1">
-                    <!-- FUNGSI doLogout() DIJALANKAN DARI GLOBAL HEADER -->
                     <button onclick="doLogout()" class="bg-rose-500 hover:bg-red-600 text-white w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-sm shadow-rose-500/30" title="Keluar">
                         <i class="fa-solid fa-power-off"></i>
                     </button>
@@ -42,11 +35,9 @@ $page_title = "Katalog Produk - Love Cakes POS";
             </div>
         </header>
 
-        <!-- KONTEN UTAMA -->
         <main class="flex-1 overflow-x-hidden overflow-y-auto custom-scrollbar p-4 md:p-6 bg-[#f8fafc] relative">
             <div class="max-w-[1400px] mx-auto space-y-6">
                 
-                <!-- Filter & Pencarian Modern -->
                 <div class="bg-white p-2 sm:p-3 rounded-2xl shadow-sm border border-slate-200 flex flex-col xl:flex-row gap-3 justify-between items-center sticky top-0 z-10">
                     <div class="relative w-full xl:w-1/3">
                         <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
@@ -62,18 +53,15 @@ $page_title = "Katalog Produk - Love Cakes POS";
                     </div>
                 </div>
 
-                <!-- Loading Spinner -->
                 <div x-show="isLoading" class="text-center py-20 flex flex-col items-center justify-center">
                     <div class="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-4"></div>
                     <p class="text-slate-500 font-bold tracking-widest uppercase text-sm">Menyiapkan Etalase...</p>
                 </div>
 
-                <!-- GRID KARTU PRODUK -->
                 <div x-show="!isLoading" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5">
                     <template x-for="item in filteredProducts" :key="item.id">
-                        <div class="bg-white rounded-[1.5rem] border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl hover:shadow-primary/5 hover:border-primary/30 transition-all duration-300 group flex flex-col h-full cursor-pointer hover:-translate-y-1">
+                        <div class="bg-white rounded-[1.5rem] border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl hover:shadow-primary/5 hover:border-primary/30 transition-all duration-300 group flex flex-col h-full hover:-translate-y-1">
                             
-                            <!-- Bagian Gambar -->
                             <div class="relative pt-[100%] bg-slate-100 overflow-hidden border-b border-slate-100">
                                 <img :src="item.image && item.image !== 'no-image.png' ? 'http://localhost/sim-produksi-kue/assets/img/' + item.image : '<?= BASE_URL ?>assets/img/no-image.png'" 
                                      class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
@@ -82,11 +70,12 @@ $page_title = "Katalog Produk - Love Cakes POS";
                                 <div class="absolute top-3 left-3 bg-white/95 backdrop-blur-md px-2.5 py-1 rounded-lg text-[9px] font-black text-slate-700 shadow-sm uppercase tracking-widest border border-slate-200/50" x-text="item.category || 'PRODUK'"></div>
                             </div>
                             
-                            <!-- Bagian Konten & Harga -->
                             <div class="p-4 sm:p-5 flex flex-col flex-1 bg-white">
-                                <div class="mb-3">
-                                    <p class="text-[10px] font-black text-slate-400 mb-1 tracking-widest uppercase" x-text="item.code"></p>
-                                    <h3 class="font-bold text-sm sm:text-base text-slate-800 leading-snug line-clamp-2 min-h-[2.5rem]" x-text="item.name"></h3>
+                                <div class="mb-3 flex justify-between items-start">
+                                    <div>
+                                        <p class="text-[10px] font-black text-slate-400 mb-1 tracking-widest uppercase" x-text="item.code"></p>
+                                        <h3 class="font-bold text-sm sm:text-base text-slate-800 leading-snug line-clamp-2 min-h-[2.5rem]" x-text="item.name"></h3>
+                                    </div>
                                 </div>
                                 
                                 <div class="mt-auto flex flex-col gap-2.5">
@@ -95,19 +84,18 @@ $page_title = "Katalog Produk - Love Cakes POS";
                                             <i class="fa-solid fa-store text-[11px]"></i>
                                             <span class="text-[10px] font-black uppercase tracking-wider">Toko</span>
                                         </div>
-                                        <div class="font-black text-emerald-600 text-sm sm:text-base" x-text="'Rp ' + formatRupiah(item.offline_price)"></div>
+                                        <div class="font-black text-emerald-600 text-sm sm:text-base" x-text="'Rp ' + formatRupiah(item.offline_price || item.price)"></div>
                                     </div>
                                     
                                     <div class="flex justify-between items-center gap-2">
-                                        <div class="flex-1 flex items-center gap-1.5 bg-blue-50/50 p-2 rounded-xl border border-blue-100/50">
-                                            <i class="fa-solid fa-motorcycle text-[10px] text-blue-500"></i>
-                                            <span class="text-[11px] font-black text-blue-600" x-text="'Rp ' + formatRupiah(item.online_price)"></span>
-                                        </div>
-                                        
-                                        <div class="px-2.5 py-1.5 rounded-xl border flex items-center justify-center text-[10px] font-black tracking-wide" 
+                                        <div class="px-2.5 py-1.5 rounded-xl border flex-1 flex items-center justify-center text-[10px] font-black tracking-wide" 
                                              :class="item.stock > 0 ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-rose-50 border-rose-100 text-rose-500'">
                                              <span x-text="item.stock > 0 ? 'STOK: ' + item.stock : 'HABIS'"></span>
                                         </div>
+                                        
+                                        <button @click="printBarcode(item)" class="bg-slate-100 hover:bg-slate-800 hover:text-white text-slate-600 w-8 h-8 rounded-xl flex items-center justify-center transition-colors border border-slate-200 hover:border-slate-800 shadow-sm" title="Cetak Stiker Barcode">
+                                            <i class="fa-solid fa-barcode"></i>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -115,7 +103,6 @@ $page_title = "Katalog Produk - Love Cakes POS";
                     </template>
                 </div>
 
-                <!-- Empty State -->
                 <div x-show="filteredProducts.length === 0 && !isLoading" class="text-center py-20 bg-white rounded-[2rem] border border-slate-200 border-dashed">
                     <div class="text-slate-200 text-7xl mb-4 drop-shadow-sm"><i class="fa-solid fa-box-open"></i></div>
                     <h3 class="text-xl font-black text-slate-700">Etalase Kosong</h3>
@@ -130,7 +117,6 @@ $page_title = "Katalog Produk - Love Cakes POS";
         </main>
     </div>
 
-    <!-- Panggil File AJAX -->
     <script src="ajax.js?v=<?= time() ?>"></script>
 </body>
 </html>
