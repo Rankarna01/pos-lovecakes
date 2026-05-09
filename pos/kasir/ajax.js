@@ -2,7 +2,7 @@ document.addEventListener('alpine:init', () => {
     Alpine.data('posApp', () => ({
         // --- DATA MASTER ---
         products: [], 
-        savedCustoms: [], 
+        savedCustoms: [], // Menyimpan data template menu custom (tabel saved_custom_items_pos)
         customers: [], 
         posSettings: {}, 
         loyaltyRules: { is_active: 0, earn_point_ratio: 0, points_required: 0, discount_amount: 0, discount_type: 'IDR' },
@@ -28,6 +28,10 @@ document.addEventListener('alpine:init', () => {
         showCheckoutModal: false, inputUang: '',
         paymentMethod: 'cash', paymentStatus: 'lunas', amountPaid: 0, dpAmount: 0, changeAmount: 0,
 
+        // --- STATE MODAL ITEM CUSTOM ---
+        showCustomItemModal: false,
+        customItemForm: { template: '', name: '', price: '' },
+
         // --- MODAL STATUS & SUCCESS ---
         showStatusModal: false, isFetchingStatus: false, activeOrders: [],
         showSuccessModal: false, lastInvoice: '', totalAmountSaved: 0, paymentStatusSaved: '', dpAmountSaved: 0, amountPaidSaved: 0, changeAmountSaved: 0, paymentMethodSaved: '',
@@ -47,21 +51,19 @@ document.addEventListener('alpine:init', () => {
         // --- FUNGSI SHIFT ---
         async checkShiftStatus() {
             try {
-                // UPDATE: Arahkan ke logic_kasir.php
                 const res = await fetch(`logic_kasir.php?action=check_shift&nocache=${Date.now()}`); 
                 const result = await res.json();
                 if (result.status === 'success') {
                     this.needsShiftOpen = !result.has_open_shift;
                     this.masterShifts = result.master_shifts || []; 
                 }
-            } catch (e) { console.error("Error checkShift:", e); }
+            } catch (e) { console.error("Error Cek Shift:", e); }
         },
 
         async openShift() {
             this.isLoadingShift = true;
             try {
                 const fd = new FormData(); fd.append('shift_id', this.shiftForm.shift_id); fd.append('start_cash', this.shiftForm.start_cash);
-                // UPDATE: Arahkan ke logic_kasir.php
                 const res = await fetch('logic_kasir.php?action=open_shift', { method: 'POST', body: fd });
                 const result = await res.json();
                 if (result.status === 'success') {
@@ -78,7 +80,6 @@ document.addEventListener('alpine:init', () => {
             this.isLoadingShift = true;
             try {
                 const fd = new FormData(); fd.append('end_cash', this.closeShiftCash);
-                // UPDATE: Arahkan ke logic_kasir.php
                 const res = await fetch('logic_kasir.php?action=close_shift', { method: 'POST', body: fd });
                 const result = await res.json();
                 if (result.status === 'success') {
@@ -104,10 +105,11 @@ document.addEventListener('alpine:init', () => {
                 fd.append('amount', this.kasKeluarForm.amount); 
                 fd.append('description', this.kasKeluarForm.description);
                 
-                // UPDATE: Arahkan ke logic_kasir.php
+                // Pastikan nembak ke logic_kasir.php
                 const res = await fetch('logic_kasir.php?action=save_kas_keluar', { method: 'POST', body: fd });
-                const rawText = await res.text(); // X-RAY: Ambil teks mentah dulu
                 
+                // X-Ray Error Handler (Menangkap pesan PHP murni jika crash)
+                const rawText = await res.text();
                 try {
                     const result = JSON.parse(rawText);
                     if(result.status === 'success') {
@@ -117,8 +119,8 @@ document.addEventListener('alpine:init', () => {
                         Swal.fire('Gagal', result.message, 'error');
                     }
                 } catch(err) {
-                    console.error("❌ ERROR PHP MENTAH:", rawText);
-                    Swal.fire('Error Database', 'Cek Console (Option+Cmd+I) untuk detailnya!', 'error');
+                    console.error("❌ ERROR DARI PHP:", rawText);
+                    Swal.fire('Error Database', 'PHP mengalami crash! Cek Console (Cmd+Option+I) untuk melihat penyebabnya.', 'error');
                 }
             } catch(e) { Swal.fire('Error', 'Koneksi server gagal.', 'error'); }
             finally { this.isSavingKas = false; }
@@ -128,8 +130,8 @@ document.addEventListener('alpine:init', () => {
         async loadLocalData(isManualSync = false) {
             this.isLoading = true;
             try {
-                // UPDATE: Arahkan ke logic_kasir.php
-                const response = await fetch(`logic_kasir.php?action=get_master_data&nocache=${Date.now()}`);
+                // Pastikan nembak ke logic_kasir.php
+                const response = await fetch(`logic.php?action=get_master_data&nocache=${Date.now()}`);
                 const result = await response.json(); 
                 if (result.status === 'success') {
                     this.products = result.products; 
@@ -172,42 +174,44 @@ document.addEventListener('alpine:init', () => {
         },
         removeItem(index) { this.cart.splice(index, 1); },
 
-        async addCustomItem() {
-            let optionsHtml = '<option value="" data-name="">-- Ketik Manual Baru --</option>';
-            this.savedCustoms.forEach(c => {
-                optionsHtml += `<option value="${c.price}" data-name="${c.name}">${c.name} - Rp ${this.formatRupiah(c.price)}</option>`;
-            });
+        // --- FUNGSI ITEM CUSTOM BARU ---
+        addCustomItem() {
+            this.customItemForm = { template: '', name: '', price: '' };
+            this.showCustomItemModal = true;
+        },
 
-            const { value: formValues } = await Swal.fire({
-                title: 'Tambah Item Custom',
-                html: `
-                    <select id="swal-custom-select" class="swal2-select w-full max-w-full text-sm mb-3" onchange="
-                        const opt = this.options[this.selectedIndex];
-                        if(this.value) {
-                            document.getElementById('swal-custom-name').value = opt.getAttribute('data-name');
-                            document.getElementById('swal-custom-price').value = this.value;
-                        } else {
-                            document.getElementById('swal-custom-name').value = '';
-                            document.getElementById('swal-custom-price').value = '';
-                        }
-                    ">
-                        ${optionsHtml}
-                    </select>
-                    <input id="swal-custom-name" class="swal2-input" placeholder="Nama Pesanan Khusus">
-                    <input id="swal-custom-price" type="number" class="swal2-input" placeholder="Harga Satuan (Rp)">
-                `,
-                focusConfirm: false, showCancelButton: true, confirmButtonText: 'Tambahkan',
-                preConfirm: () => {
-                    const name = document.getElementById('swal-custom-name').value;
-                    const price = document.getElementById('swal-custom-price').value;
-                    if (!name || !price) { Swal.showValidationMessage('Nama dan Harga wajib diisi!'); }
-                    return { name: name, price: parseFloat(price) };
+        applyCustomTemplate() {
+            if (this.customItemForm.template) {
+                const selected = this.savedCustoms.find(c => c.id == this.customItemForm.template);
+                if (selected) {
+                    this.customItemForm.name = selected.name;
+                    this.customItemForm.price = selected.price;
                 }
+            } else {
+                this.customItemForm.name = '';
+                this.customItemForm.price = '';
+            }
+        },
+
+        submitCustomItem() {
+            const name = this.customItemForm.name.trim();
+            const price = parseFloat(this.customItemForm.price);
+
+            if (!name || isNaN(price) || price <= 0) {
+                Swal.fire('Perhatian', 'Nama dan Harga wajib diisi dengan benar!', 'warning');
+                return;
+            }
+
+            this.cart.push({ 
+                id: 'custom_' + Date.now(), 
+                name: name, 
+                price: price, 
+                qty: 1, 
+                subtotal: price, 
+                is_custom: true 
             });
 
-            if (formValues) {
-                this.cart.push({ id: 'custom_' + Date.now(), name: formValues.name, price: formValues.price, qty: 1, subtotal: formValues.price, is_custom: true });
-            }
+            this.showCustomItemModal = false;
         },
 
         onCustomerSelect() { this.usePoints = false; },
@@ -228,7 +232,6 @@ document.addEventListener('alpine:init', () => {
             if (!this.voucherCode) return;
             try {
                 const fd = new FormData(); fd.append('code', this.voucherCode); fd.append('subtotal', this.subtotal);
-                // UPDATE: Arahkan ke logic_kasir.php
                 const response = await fetch('logic_kasir.php?action=check_voucher', { method: 'POST', body: fd });
                 const result = await response.json();
                 if(result.status === 'success') { this.appliedVoucher = result.data; window.alert('Voucher berhasil dipasang!'); } 
@@ -260,7 +263,7 @@ document.addEventListener('alpine:init', () => {
             return Math.floor(this.totalAmount / this.loyaltyRules.earn_point_ratio);
         },
 
-        // --- FUNGSI CHECKOUT MODAL MEWAH ---
+        // --- FUNGSI CHECKOUT ---
         processCheckout() {
             if(this.activeTab === 'po' && (!this.poForm.pickup_date || !this.poForm.pickup_time)) {
                 Swal.fire('Perhatian', 'Tanggal dan Jam Pengambilan Pesanan PO wajib diisi!', 'warning'); return;
@@ -299,7 +302,6 @@ document.addEventListener('alpine:init', () => {
                 dp_amount: this.dpAmount, amount_paid: this.amountPaid, change_amount: this.changeAmount, items: this.cart
             };
             try {
-                // UPDATE: Arahkan ke logic_kasir.php
                 const response = await fetch('logic_kasir.php?action=checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 const result = await response.json();
                 if (result.status === 'success') {
@@ -327,7 +329,6 @@ document.addEventListener('alpine:init', () => {
         async openStatusModal() {
             this.showStatusModal = true; this.isFetchingStatus = true;
             try {
-                // UPDATE: Arahkan ke logic_kasir.php
                 const response = await fetch(`logic_kasir.php?action=get_active_orders&nocache=${Date.now()}`);
                 const result = await response.json();
                 if(result.status === 'success') { this.activeOrders = result.data; }
