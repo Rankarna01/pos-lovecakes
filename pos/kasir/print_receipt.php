@@ -1,5 +1,5 @@
 <?php
-// NYALAKAN X-RAY ERROR: Agar kalau ada salah, PHP ngasih tau detailnya (bukan blank 500)
+// NYALAKAN X-RAY ERROR: Agar kalau ada salah, PHP ngasih tau detailnya
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -27,9 +27,9 @@ try {
         die("<h3 style='font-family:sans-serif; text-align:center;'>Transaksi tidak valid atau belum tersimpan ke database.</h3>");
     }
 
-    // 2. Tarik Data Detail Item (Pakai LEFT JOIN agar aman walau produknya sudah dihapus dari master)
+    // 2. Tarik Data Detail Item
     $stmtDetail = $pdo->prepare("
-        SELECT sd.*, COALESCE(p.name, 'Produk Tidak Diketahui') as product_name 
+        SELECT sd.*, COALESCE(p.name, sd.custom_name, 'Produk Tidak Diketahui') as product_name 
         FROM sale_details_pos sd 
         LEFT JOIN products p ON sd.product_id = p.id 
         WHERE sd.sale_id = ?
@@ -37,14 +37,12 @@ try {
     $stmtDetail->execute([$sale['id']]);
     $items = $stmtDetail->fetchAll(PDO::FETCH_ASSOC);
 
-    // 3. Tarik Pengaturan Toko (Di-try-catch terpisah, kalau tabelnya belum dibikin dia pakai default)
+    // 3. Tarik Pengaturan Toko
     $toko = false;
     try {
         $stmt_toko = $pdo->query("SELECT * FROM store_settings_pos WHERE id = 1");
         $toko = $stmt_toko->fetch(PDO::FETCH_ASSOC);
-    } catch (Exception $e) {
-        // Abaikan jika tabel store_settings_pos belum ada
-    }
+    } catch (Exception $e) { }
 
     if(!$toko) {
         $toko = [
@@ -55,13 +53,15 @@ try {
         ];
     }
 
-} catch (PDOException $e) {
-    // TANGKAP ERROR DATABASE (Misal tabel belum ada / salah nama kolom)
-    die("<div style='font-family:sans-serif; padding:20px; background:#fee2e2; color:#991b1b; border-radius:10px;'>
-            <h3>⚠️ DATABASE ERROR</h3>
-            <p>" . $e->getMessage() . "</p>
-            <p style='font-size:12px;'>Pastikan tabel <b>sales_pos</b>, <b>sale_details_pos</b>, dan <b>products</b> sudah ada.</p>
-         </div>");
+    // 4. Kalkulasi Cerdas untuk Ongkir / Markup (Karena tidak disimpan di kolom terpisah, kita hitung mundur dari Total)
+    $calculated_ongkir = $sale['total_amount'] - ($sale['subtotal'] - $sale['discount_voucher'] - $sale['discount_points'] - $sale['discount_manual']);
+    
+    // Variabel aman untuk PO
+    $is_po = !empty($sale['is_po']) ? true : false;
+    $channel = !empty($sale['channel']) ? $sale['channel'] : 'Toko';
+    $pickup_date = !empty($sale['pickup_date']) ? date('d/m/Y', strtotime($sale['pickup_date'])) : '-';
+    $pickup_time = !empty($sale['pickup_time']) ? date('H:i', strtotime($sale['pickup_time'])) : '-';
+
 } catch (Exception $e) {
     die("<div style='font-family:sans-serif; padding:20px; background:#fee2e2; color:#991b1b; border-radius:10px;'>
             <h3>⚠️ SYSTEM ERROR</h3>
@@ -124,10 +124,18 @@ try {
     <div class="divider"></div>
     
     <table class="info-table">
-        <tr><td style="width: 30px;">Tgl</td><td>: <?= date('d/m/y H:i', strtotime($sale['created_at'])) ?></td></tr>
+        <tr><td style="width: 35px;">Tgl</td><td>: <?= date('d/m/y H:i', strtotime($sale['created_at'])) ?></td></tr>
         <tr><td>Inv</td><td>: <?= htmlspecialchars($invoice) ?></td></tr>
-        <tr><td>Kasir</td><td>: Admin</td></tr>
-        <tr><td>Tipe</td><td>: <?= strtoupper($sale['order_type']) ?></td></tr>
+        
+        <!-- LOGIC CERDAS: BEDA TAMPILAN JIKA PO / REGULER -->
+        <?php if($is_po): ?>
+            <tr><td>Tipe</td><td>: <span class="text-bold">PESANAN DAPUR (PO)</span></td></tr>
+            <tr><td>Kanal</td><td>: <?= strtoupper($channel) ?></td></tr>
+            <tr><td>Ambil</td><td>: <span class="text-bold"><?= $pickup_date ?> (<?= $pickup_time ?>)</span></td></tr>
+        <?php else: ?>
+            <tr><td>Tipe</td><td>: KASIR REGULER</td></tr>
+        <?php endif; ?>
+
         <?php if(!empty($sale['customer_name'])): ?>
         <tr><td>Cust</td><td>: <?= htmlspecialchars($sale['customer_name']) ?></td></tr>
         <?php endif; ?>
@@ -138,7 +146,7 @@ try {
     <table class="item-table">
         <?php foreach($items as $i): ?>
         <tr>
-            <td colspan="2" class="item-name"><?= htmlspecialchars($i['product_name']) ?></td>
+            <td colspan="2" class="item-name"><?= ($i['is_custom'] ? '🛠️ ' : '') . htmlspecialchars($i['product_name']) ?></td>
         </tr>
         <tr class="item-row">
             <td style="width: 60%;"><?= $i['qty'] ?> x <?= number_format($i['price'], 0, ',', '.') ?></td>
@@ -151,9 +159,18 @@ try {
     
     <table class="summary-table">
         <tr>
-            <td>Subtotal</td>
+            <td>Subtotal Item</td>
             <td class="text-right"><?= number_format($sale['subtotal'], 0, ',', '.') ?></td>
         </tr>
+        
+        <!-- Tampilkan Ongkir hanya jika lebih dari 0 -->
+        <?php if($calculated_ongkir > 0): ?>
+        <tr>
+            <td>Ongkir/Markup</td>
+            <td class="text-right">+<?= number_format($calculated_ongkir, 0, ',', '.') ?></td>
+        </tr>
+        <?php endif; ?>
+
         <?php if($sale['discount_voucher'] > 0): ?>
         <tr>
             <td>Disc. Vcr</td>
@@ -166,15 +183,28 @@ try {
             <td class="text-right">-<?= number_format($sale['discount_points'], 0, ',', '.') ?></td>
         </tr>
         <?php endif; ?>
+        <?php if($sale['discount_manual'] > 0): ?>
         <tr>
-            <td class="text-bold" style="font-size: 13px; padding-top: 5px;">TOTAL</td>
+            <td>Disc. Manual</td>
+            <td class="text-right">-<?= number_format($sale['discount_manual'], 0, ',', '.') ?></td>
+        </tr>
+        <?php endif; ?>
+
+        <tr>
+            <td class="text-bold" style="font-size: 13px; padding-top: 5px;">TOTAL BAYAR</td>
             <td class="text-bold text-right" style="font-size: 13px; padding-top: 5px;"><?= number_format($sale['total_amount'], 0, ',', '.') ?></td>
         </tr>
         <tr>
-            <td style="padding-top: 5px;">Bayar (<?= strtoupper($sale['payment_method']) ?>)</td>
+            <td style="padding-top: 5px;">Dibayar (<?= strtoupper($sale['payment_method']) ?>)</td>
             <td class="text-right" style="padding-top: 5px;"><?= number_format($sale['amount_paid'], 0, ',', '.') ?></td>
         </tr>
-        <?php if($sale['payment_method'] === 'cash'): ?>
+        
+        <?php if($sale['payment_status'] === 'dp'): ?>
+        <tr>
+            <td class="text-bold" style="padding-top: 5px;">SISA HUTANG</td>
+            <td class="text-bold text-right" style="padding-top: 5px;"><?= number_format($sale['total_amount'] - $sale['dp_amount'], 0, ',', '.') ?></td>
+        </tr>
+        <?php elseif($sale['payment_method'] === 'cash'): ?>
         <tr>
             <td>Kembali</td>
             <td class="text-right"><?= number_format($sale['change_amount'], 0, ',', '.') ?></td>
@@ -212,6 +242,7 @@ try {
                 margin: 5
             });
 
+            // Auto print pop-up
             setTimeout(() => {
                 window.print();
             }, 800);
