@@ -1,13 +1,23 @@
+<?php
+session_start();
+
+$is_localhost = (strpos($_SERVER['HTTP_HOST'], 'localhost') !== false || strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false);
+$base_url = $is_localhost ? '/pos-lovecakes/' : '/';
+
+// Cegah user yang sudah login melihat form ini lagi
+if (isset($_SESSION['pos_user_id'])) {
+    header("Location: " . $base_url . "pos/dashboard/");
+    exit;
+}
+?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <!-- Memanggil semua script penting dari header global -->
     <?php include '../components/header.php'; ?>
 </head>
 <body class="bg-slate-50 flex items-center justify-center min-h-screen p-4" x-data="loginApp()">
     
     <div class="bg-white p-8 sm:p-10 rounded-[2rem] shadow-2xl w-full max-w-md border border-slate-100 relative overflow-hidden">
-        <!-- Dekorasi Background -->
         <div class="absolute -top-20 -right-20 w-40 h-40 bg-blue-600/5 rounded-full blur-3xl"></div>
         <div class="absolute -bottom-20 -left-20 w-40 h-40 bg-blue-400/5 rounded-full blur-3xl"></div>
 
@@ -44,13 +54,8 @@
                 <span x-show="isLoading"><i class="fa-solid fa-circle-notch fa-spin"></i> Memverifikasi...</span>
             </button>
         </form>
-        
-        <div class="mt-8 text-center text-[11px] text-slate-400 font-bold bg-slate-50 py-3 rounded-xl border border-slate-100">
-            <i class="fa-solid fa-wifi text-emerald-500 mr-1"></i> Pastikan Anda terhubung ke internet untuk login pertama kali.
-        </div>
     </div>
 
-    <!-- Panggil Logika Login (Ditambah time() agar browser tidak membaca cache lama) -->
     <script src="ajax.js?v=<?= time() ?>"></script>
 
 </body>

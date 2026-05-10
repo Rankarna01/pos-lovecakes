@@ -12,24 +12,39 @@ document.addEventListener('alpine:init', () => {
         payAmount: 0,
 
         async init() {
-            if (window.dbAuth) {
-                const user = await window.dbAuth.getItem('user_session');
-                if (!user) { window.location.href = '../../../auth/index.php'; return; }
-            }
+            // ❌ CEK SESI dbAuth DIHAPUS TOTAL!
+            // Keamanan 100% dijamin oleh config/auth.php dari server.
+            
+            // Langsung tarik data piutang dari server
             await this.fetchData();
         },
 
         async fetchData() {
+            // 🛡️ CEGAT JIKA OFFLINE
+            if (!navigator.onLine) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire('Offline Mode', 'Halaman Data Piutang membutuhkan koneksi internet!', 'warning');
+                } else {
+                    alert('Anda sedang offline! Halaman Piutang membutuhkan koneksi internet.');
+                }
+                this.isLoading = false;
+                return;
+            }
+
             this.isLoading = true;
             try {
                 const response = await fetch(`logic.php?action=get_piutang&nocache=${Date.now()}`);
                 const result = await response.json();
+                
                 if (result.status === 'success') {
                     this.transactions = result.data || [];
+                } else {
+                    console.error("Gagal menarik data piutang:", result.message);
                 }
             } catch (error) {
-                Swal.fire('Error', 'Gagal memuat data piutang.', 'error');
+                if (typeof Swal !== 'undefined') Swal.fire('Error', 'Gagal memuat data piutang dari server.', 'error');
             } finally {
+                // WAJIB: Pastikan spinner selalu mati
                 this.isLoading = false;
             }
         },
@@ -56,13 +71,19 @@ document.addEventListener('alpine:init', () => {
         openModal(trx) {
             this.activeTrx = trx;
             this.payMethod = 'cash';
-            this.payAmount = this.sisaTagihan; // Default input terisi sejumlah tagihan
+            this.payAmount = this.sisaTagihan; // Default input terisi sejumlah sisa tagihan
             this.showModal = true;
         },
 
         async processSettlement() {
+            // 🛡️ CEGAT JIKA OFFLINE SAAT MAU BAYAR
+            if (!navigator.onLine) {
+                if (typeof Swal !== 'undefined') Swal.fire('Offline Mode', 'Koneksi terputus! Tidak dapat memproses pelunasan piutang saat offline.', 'warning');
+                return;
+            }
+
             if (this.payMethod === 'cash' && this.payAmount < this.sisaTagihan) {
-                Swal.fire('Perhatian', 'Jumlah uang diterima kurang dari sisa tagihan!', 'warning');
+                if (typeof Swal !== 'undefined') Swal.fire('Perhatian', 'Jumlah uang diterima kurang dari sisa tagihan!', 'warning');
                 return;
             }
 
@@ -71,6 +92,7 @@ document.addEventListener('alpine:init', () => {
                 const fd = new FormData();
                 fd.append('sale_id', this.activeTrx.id);
                 fd.append('payment_method', this.payMethod);
+                
                 // Kalau QRIS, otomatis uang diterima = sisa tagihan
                 const finalPay = this.payMethod === 'qris' ? this.sisaTagihan : this.payAmount;
                 fd.append('pay_amount', finalPay);
@@ -80,26 +102,29 @@ document.addEventListener('alpine:init', () => {
 
                 if (result.status === 'success') {
                     this.showModal = false;
-                    Swal.fire({
-                        title: 'Pelunasan Berhasil!',
-                        text: `Sisa tagihan untuk Invoice ${this.activeTrx.invoice_no} sudah dilunasi.`,
-                        icon: 'success',
-                        showCancelButton: true,
-                        confirmButtonText: '<i class="fa-solid fa-print"></i> Cetak Struk',
-                        cancelButtonText: 'Tutup',
-                        confirmButtonColor: '#2563EB'
-                    }).then((swalResult) => {
-                        if (swalResult.isConfirmed) {
-                            window.open(`../../kasir/print_receipt.php?invoice=${this.activeTrx.invoice_no}`, '_blank', 'width=400,height=600');
-                        }
-                    });
                     
-                    this.fetchData(); // Refresh tabel
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            title: 'Pelunasan Berhasil!',
+                            text: `Sisa tagihan untuk Invoice ${this.activeTrx.invoice_no} sudah dilunasi.`,
+                            icon: 'success',
+                            showCancelButton: true,
+                            confirmButtonText: '<i class="fa-solid fa-print"></i> Cetak Struk',
+                            cancelButtonText: 'Tutup',
+                            confirmButtonColor: '#2563EB'
+                        }).then((swalResult) => {
+                            if (swalResult.isConfirmed) {
+                                window.open(`../../kasir/print_receipt.php?invoice=${this.activeTrx.invoice_no}`, '_blank', 'width=400,height=600');
+                            }
+                        });
+                    }
+                    
+                    this.fetchData(); // Refresh tabel setelah pelunasan
                 } else {
-                    Swal.fire('Gagal Melunasi', result.message, 'error');
+                    if (typeof Swal !== 'undefined') Swal.fire('Gagal Melunasi', result.message, 'error');
                 }
             } catch (error) {
-                Swal.fire('Error', 'Gagal memproses ke database.', 'error');
+                if (typeof Swal !== 'undefined') Swal.fire('Error', 'Gagal memproses ke database pusat.', 'error');
             } finally {
                 this.isSubmitting = false;
             }

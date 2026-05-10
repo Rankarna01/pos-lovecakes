@@ -16,48 +16,41 @@ document.addEventListener('alpine:init', () => {
         },
 
         async init() {
-            if (window.dbAuth) {
-                const user = await window.dbAuth.getItem('user_session');
-                if (!user) {
-                    window.location.href = '../../../auth/index.php';
-                    return;
-                }
-            }
+            // ❌ CEK SESI dbAuth DIHAPUS TOTAL! 
+            // Keamanan sudah dijaga oleh config/auth.php di server.
             
             // Watcher untuk mereset pagination kalau user mengetik pencarian
             this.$watch('searchQuery', () => this.currentPage = 1);
             
-            await this.loadLocalData();
+            // Langsung tarik data segar dari database MySQL
+            await this.fetchData();
         },
 
-        async loadLocalData() {
-            this.isLoading = true;
-            if (window.dbAuth) {
-                const localData = await window.dbAuth.getItem('suppliers_data');
-                if (localData && localData.length > 0) {
-                    this.suppliers = localData;
-                } else {
-                    await this.fetchData();
-                }
-            }
-            this.isLoading = false;
-        },
-
+        // FUNGSI TARIK DATA LANGSUNG DARI SERVER
         async fetchData() {
+            // CEGAT JIKA OFFLINE
+            if (!navigator.onLine) {
+                window.alert('Anda sedang offline! Halaman Supplier membutuhkan koneksi internet.');
+                this.isLoading = false;
+                return;
+            }
+
             this.isLoading = true;
             try {
                 const response = await fetch(`logic.php?action=read&nocache=${new Date().getTime()}`);
                 const result = await response.json();
                 
                 if (result.status === 'success') {
+                    // Masukkan data mentah dari server langsung ke variabel Alpine
                     this.suppliers = result.data || [];
-                    if (window.dbAuth) {
-                        await window.dbAuth.setItem('suppliers_data', this.suppliers);
-                    }
+                } else {
+                    window.alert('Gagal memuat data: ' + result.message);
                 }
             } catch (error) {
                 console.error("Error loading suppliers", error);
+                window.alert('Error: Gagal memuat data supplier dari server pusat.');
             } finally {
+                // WAJIB: Matikan spinner apapun yang terjadi!
                 this.isLoading = false;
             }
         },
@@ -100,6 +93,12 @@ document.addEventListener('alpine:init', () => {
         },
 
         async simpanData() {
+            // CEGAT JIKA OFFLINE
+            if (!navigator.onLine) {
+                window.alert('Koneksi terputus! Tidak dapat menyimpan data ke server.');
+                return;
+            }
+
             if (!this.form.name || !this.form.phone) {
                 window.alert('Mohon isi Nama Perusahaan dan Nomor Telepon.');
                 return;
@@ -116,13 +115,14 @@ document.addEventListener('alpine:init', () => {
                 const result = await response.json();
 
                 if (result.status === 'success') {
-                    window.alert(result.message);
+                    window.alert(result.message); // Custom alert sukses kamu otomatis kepanggil
                     this.closeModal();
-                    await this.fetchData(); // Ambil ulang data segar
+                    await this.fetchData(); // Ambil ulang data segar dari MySQL
                 } else {
                     window.alert(result.message);
                 }
             } catch (error) {
+                console.error("Error saving data:", error);
                 window.alert('Gagal menghubungi server.');
             } finally {
                 this.isLoading = false;
@@ -130,6 +130,12 @@ document.addEventListener('alpine:init', () => {
         },
 
         hapusData(id) {
+            // CEGAT JIKA OFFLINE
+            if (!navigator.onLine) {
+                window.alert('Koneksi terputus! Tidak dapat menghapus data.');
+                return;
+            }
+
             window.customConfirm('Yakin ingin menghapus supplier ini?', async () => {
                 this.isLoading = true;
                 try {
@@ -140,11 +146,12 @@ document.addEventListener('alpine:init', () => {
 
                     if (result.status === 'success') {
                         window.alert(result.message);
-                        await this.fetchData();
+                        await this.fetchData(); // Segarkan tabel
                     } else {
                         window.alert(result.message);
                     }
                 } catch (error) {
+                    console.error("Error deleting data:", error);
                     window.alert('Gagal menghapus data.');
                 } finally {
                     this.isLoading = false;

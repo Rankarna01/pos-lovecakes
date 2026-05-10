@@ -105,18 +105,12 @@ $page_title = "Dashboard - Love Cakes POS";
     </div>
 
     <!-- SCRIPT LOGIKA DASHBOARD MURNI -->
-    <script>
+<script>
         window.onload = function() {
-            // 1. Cek Sesi Keamanan
-            if (window.dbAuth) {
-                window.dbAuth.getItem('user_session').then(user => {
-                    if (!user) {
-                        window.location.href = '../../auth/index.php';
-                    }
-                });
-            }
+            // HAPUS TOTAL KODE PENGECEKAN dbAuth DI SINI!
+            // Keamanan sudah dijamin 100% oleh require_once '../../config/auth.php' di baris paling atas!
             
-            // 2. Render Grafik
+            // Langsung Render Grafik
             loadChart(); 
         };
 
@@ -139,5 +133,7 @@ $page_title = "Dashboard - Love Cakes POS";
             });
         }
     </script>
+</body>
+</html>
 </body>
 </html>

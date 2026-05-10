@@ -1,15 +1,8 @@
 <?php
-// Pastikan BASE_URL sudah ada. Jika belum, kita set defaultnya.
-// Deteksi apakah sedang di lokal atau production
 $is_localhost = (strpos($_SERVER['HTTP_HOST'], 'localhost') !== false || strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false);
-
-// Deteksi protokol (http atau https)
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
-
-// Tentukan folder dasar
 $folder = $is_localhost ? '/pos-lovecakes/' : '/';
 
-// Definisikan BASE_URL secara dinamis
 if (!defined('BASE_URL')) { 
     define('BASE_URL', $protocol . $_SERVER['HTTP_HOST'] . $folder); 
 }
@@ -19,69 +12,50 @@ if (!defined('BASE_URL')) {
 <title><?= $page_title ?? 'POS Sistem Kasir Offline' ?></title>
 <link rel="manifest" href="<?= BASE_URL ?>manifest.json">
 <meta name="theme-color" content="#2563EB">
+
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
-    <!-- WAJIB: Plugin Collapse Alpine JS (Taruh di atas Alpine utama) -->
-<script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
-    <!-- WAJIB: Alpine JS agar form dan dropdown hidup -->
-      <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-
-<!-- PANGGIL FONT DAN ICON DARI LOKAL -->
 <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/fontawesome.css">
+
+<script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="<?= BASE_URL ?>sweetalert2.all.min.js"></script>
+<script src="<?= BASE_URL ?>assets/js/localforage.min.js"></script>
+<script src="<?= BASE_URL ?>assets/js/pos_db.js"></script>
+
 <style>
     @font-face {
         font-family: 'Poppins';
         src: url('<?= BASE_URL ?>assets/fonts/poppins.woff2') format('woff2');
-        font-weight: normal;
-        font-style: normal;
+        font-weight: normal; font-style: normal;
     }
-    
-    /* CSS Global Disatukan di Sini */
     body { font-family: 'Poppins', sans-serif !important; background-color: #F8FAFC; }
     .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    
+    /* INI KUNCI ANTI KEDAP-KEDIP */
     [x-cloak] { display: none !important; }
+    
     #global-loader { display: none; backdrop-filter: blur(4px); }
     div:where(.swal2-container) { font-family: 'Poppins', sans-serif !important; }
 </style>
 
-<!-- ======================================================== -->
-<!-- PERBAIKAN: MENGARAH LANGSUNG KE ROOT SESUAI FOLDERMU -->
-<!-- ======================================================== -->
-<script src="<?= BASE_URL ?>sweetalert2.all.min.js"></script>
-
-<!-- LIBRARY LAINNYA TETAP DI ASSETS/JS -->
-<script src="<?= BASE_URL ?>assets/js/alpine.min.js" defer></script>
-<script src="<?= BASE_URL ?>assets/js/localforage.min.js"></script>
-<script src="<?= BASE_URL ?>assets/js/pos_db.js"></script>
-
-<!-- TAILWIND VIA SCRIPT LOKAL -->
-<script src="<?= BASE_URL ?>assets/js/tailwind.js"></script>
 <script>
     tailwind.config = {
         theme: {
             extend: {
                 fontFamily: { sans: ['Poppins', 'sans-serif'] },
                 colors: {
-                    surface: '#FFFFFF',
-                    background: '#F8FAFC',
-                    primary: '#2563EB',
-                    secondary: '#94A3B8',
-                    accent: '#F59E0B',
-                    danger: '#EF4444',
-                    success: '#10B981'
+                    surface: '#FFFFFF', background: '#F8FAFC', primary: '#2563EB',
+                    secondary: '#94A3B8', accent: '#F59E0B', danger: '#EF4444', success: '#10B981'
                 }
             }
         }
     }
-</script>
 
-<script>
-    // 1. REGISTRASI SERVICE WORKER UNTUK OFFLINE MODE
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('<?= BASE_URL ?>sw.js')
@@ -90,7 +64,6 @@ if (!defined('BASE_URL')) {
         });
     }
 
-    // 2. FUNGSI OVERRIDE ALERT()
     window.alert = function(message) {
         let type = 'info';
         let msgStr = String(message).toLowerCase();
@@ -103,11 +76,7 @@ if (!defined('BASE_URL')) {
             if(typeof Swal !== 'undefined') {
                 const Toast = Swal.mixin({
                     toast: true, position: 'top-end', showConfirmButton: false, timer: 3500, timerProgressBar: true,
-                    customClass: { popup: 'rounded-xl shadow-lg border border-slate-100 mt-4 mr-4' },
-                    didOpen: (toast) => {
-                        toast.addEventListener('mouseenter', Swal.stopTimer)
-                        toast.addEventListener('mouseleave', Swal.resumeTimer)
-                    }
+                    customClass: { popup: 'rounded-xl shadow-lg border border-slate-100 mt-4 mr-4' }
                 });
                 Toast.fire({ icon: 'success', title: message });
             }
@@ -125,36 +94,22 @@ if (!defined('BASE_URL')) {
         }
     };
 
-    // 3. FUNGSI CUSTOM CONFIRM ()
     window.customConfirm = function(message, callback) {
         if(typeof Swal !== 'undefined') {
             Swal.fire({
                 title: 'Apakah Anda Yakin?',
                 html: `<p style="color: #475569; font-weight: 500; font-size: 14px;">${message}</p>`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#EF4444', 
-                cancelButtonColor: '#94A3B8',  
-                confirmButtonText: '<i class="fa-solid fa-check mr-1"></i> Ya, Lanjutkan!',
-                cancelButtonText: 'Batal',
-                reverseButtons: true, 
-                customClass: { popup: 'rounded-3xl shadow-2xl border border-slate-100', title: 'text-xl font-extrabold text-slate-800' }
-            }).then((result) => {
-                if (result.isConfirmed) { callback(); }
-            });
+                icon: 'warning', showCancelButton: true, confirmButtonColor: '#EF4444', cancelButtonColor: '#94A3B8',  
+                confirmButtonText: '<i class="fa-solid fa-check mr-1"></i> Ya, Lanjutkan!', cancelButtonText: 'Batal',
+                reverseButtons: true, customClass: { popup: 'rounded-3xl shadow-2xl border border-slate-100', title: 'text-xl font-extrabold text-slate-800' }
+            }).then((result) => { if (result.isConfirmed) { callback(); } });
         }
     };
 
-    // =========================================================
-    // 4. FUNGSI LOGOUT GLOBAL 
-    // =========================================================
     function eksekusiLogout() {
         if (window.dbAuth) {
-            window.dbAuth.removeItem('user_session').then(() => {
-                window.location.href = '<?= BASE_URL ?>logout_action.php';
-            }).catch(() => {
-                window.location.href = '<?= BASE_URL ?>logout_action.php';
-            });
+            window.dbAuth.removeItem('user_session').then(() => { window.location.href = '<?= BASE_URL ?>logout_action.php'; })
+            .catch(() => { window.location.href = '<?= BASE_URL ?>logout_action.php'; });
         } else {
             window.location.href = '<?= BASE_URL ?>logout_action.php';
         }
@@ -163,24 +118,12 @@ if (!defined('BASE_URL')) {
     window.logoutSistem = function() {
         if (typeof Swal !== 'undefined') {
             Swal.fire({
-                title: 'Yakin mau Logout?',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#ef4444',
-                cancelButtonColor: '#94a3b8',
-                confirmButtonText: 'Ya, Keluar!',
-                cancelButtonText: 'Batal'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    eksekusiLogout();
-                }
-            });
+                title: 'Yakin mau Logout?', icon: 'warning', showCancelButton: true,
+                confirmButtonColor: '#ef4444', cancelButtonColor: '#94a3b8', confirmButtonText: 'Ya, Keluar!', cancelButtonText: 'Batal'
+            }).then((result) => { if (result.isConfirmed) { eksekusiLogout(); } });
         } else {
-            if (confirm('Yakin mau Logout?')) {
-                eksekusiLogout();
-            }
+            if (confirm('Yakin mau Logout?')) { eksekusiLogout(); }
         }
     };
-
     window.doLogout = window.logoutSistem;
 </script>

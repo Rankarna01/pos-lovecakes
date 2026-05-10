@@ -14,10 +14,9 @@ document.addEventListener('alpine:init', () => {
         customers: [],
 
         async init() {
-            if (window.dbAuth) {
-                const user = await window.dbAuth.getItem('user_session');
-                if (!user) { window.location.href = '../../../auth/index.php'; return; }
-            }
+            // ❌ CEK SESI dbAuth DIHAPUS TOTAL!
+            // Keamanan sudah diamankan 100% oleh config/auth.php di server.
+            
             this.generateEmptyHours();
             await this.fetchData();
         },
@@ -36,6 +35,17 @@ document.addEventListener('alpine:init', () => {
         },
 
         async fetchData() {
+            // 🛡️ CEGAT JIKA OFFLINE
+            if (!navigator.onLine) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire('Offline Mode', 'Halaman Laporan & Ringkasan membutuhkan koneksi internet!', 'warning');
+                } else {
+                    alert('Anda sedang offline! Halaman ini membutuhkan koneksi internet.');
+                }
+                this.isLoading = false;
+                return;
+            }
+
             this.isLoading = true;
             this.generateEmptyHours(); // Reset grafik
             this.maxTrx = 0;
@@ -67,11 +77,14 @@ document.addEventListener('alpine:init', () => {
                     // Masukkan data pelanggan
                     this.customers = result.data.customers || [];
                 } else {
-                    alert("Gagal menarik data ringkasan.");
+                    if (typeof Swal !== 'undefined') Swal.fire('Gagal', 'Gagal menarik data ringkasan.', 'error');
+                    else alert("Gagal menarik data ringkasan.");
                 }
             } catch (error) {
                 console.error("Gagal Request API", error);
+                if (typeof Swal !== 'undefined') Swal.fire('Error Database', 'Gagal terhubung ke server pusat.', 'error');
             } finally {
+                // WAJIB: Spinner dimatikan apapun yang terjadi
                 this.isLoading = false;
             }
         }

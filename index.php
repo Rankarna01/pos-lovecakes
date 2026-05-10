@@ -1,16 +1,19 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+session_start();
 
 $is_localhost = (strpos($_SERVER['HTTP_HOST'], 'localhost') !== false || strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false);
-$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
-$folder = $is_localhost ? '/pos-lovecakes/' : '/';
-$base = $protocol . $_SERVER['HTTP_HOST'] . $folder;
+$base_url = $is_localhost ? '/pos-lovecakes/' : '/';
 
-// CEK SESI KHUSUS POS! Bukan warehouse_id lagi
-if (!isset($_SESSION['pos_user_id'])) {
-    header("Location: " . $base . "auth/");
+// ==========================================
+// Cek sesi aktif seperti di Sistem Produksi
+// ==========================================
+if (isset($_SESSION['pos_user_id'])) {
+    // Kalau sudah login, arahkan ke Dashboard (Pastikan pakai garis miring di akhir!)
+    header("Location: " . $base_url . "pos/dashboard/");
+    exit;
+} else {
+    // Kalau belum login, arahkan ke halaman form login
+    header("Location: " . $base_url . "auth/"); 
     exit;
 }
 ?>

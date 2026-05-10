@@ -10,98 +10,89 @@ document.addEventListener('alpine:init', () => {
         currentPage: 1,
         itemsPerPage: 10,
         
-        isLoading: true,
-        isSyncing: false,
+        isLoading: true, // Untuk spinner loading layar
+        isSyncing: false, // Untuk spinner di tombol refresh
 
         async init() {
-            // Cek Sesi Login
-            if(window.dbAuth) {
-                const user = await window.dbAuth.getItem('user_session');
-                if (!user) {
-                    window.location.href = '../../../auth/index.php';
-                    return;
-                }
-            }
+            // ❌ CEK SESI dbAuth DIHAPUS TOTAL! 
+            // Keamanan sudah diamankan oleh PHP (config/auth.php)
             
             this.$watch('searchQuery', () => this.currentPage = 1);
             this.$watch('dateFilter', () => this.currentPage = 1);
             this.$watch('activeTab', () => this.currentPage = 1);
 
-            await this.loadLocalData();
+            // Langsung panggil fungsi tarik data dari Server MySQL!
+            await this.fetchDataFromServer();
         },
 
-        async loadLocalData() {
-            this.isLoading = true;
-            if (window.dbAuth) {
-                const localIn = await window.dbAuth.getItem('inventory_in');
-                const localOut = await window.dbAuth.getItem('inventory_out');
-                
-                if (localIn || localOut) {
-                    this.dataMasuk = localIn || [];
-                    this.dataKeluar = localOut || [];
-                } else {
-                    await this.syncData();
+        // ✅ FUNGSI BARU: TARIK DATA LANGSUNG DARI SERVER
+        async fetchDataFromServer() {
+            // Cegat kalau internet mati
+            if (!navigator.onLine) {
+                this.isLoading = false;
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire('Offline', 'Halaman Histori membutuhkan koneksi internet!', 'warning');
                 }
+                return;
             }
-            this.isLoading = false;
-        },
 
-        async syncData() {
-            this.isSyncing = true;
+            this.isLoading = true;
             try {
-                // Hapus cache lama
-                if(window.dbAuth) {
-                    await window.dbAuth.removeItem('inventory_in');
-                    await window.dbAuth.removeItem('inventory_out');
-                }
-
                 const timestamp = new Date().getTime();
+                // Menembak file logic.php persis seperti kodemu sebelumnya
                 const response = await fetch(`logic.php?action=get_inventory&nocache=${timestamp}`);
                 const result = await response.json();
 
                 if (result.status === 'success') {
-                    // PERBAIKAN DataCloneError: 
-                    // Simpan data "result" API mentah (bukan milik Alpine) langsung ke IndexedDB
-                    if(window.dbAuth) {
-                        await window.dbAuth.setItem('inventory_in', result.data_masuk || []);
-                        await window.dbAuth.setItem('inventory_out', result.data_keluar || []);
-                    }
-                    
-                    // Setelah aman tersimpan, baru dimasukkan ke variabel Alpine
+                    // LANGSUNG masukkan data mentah ke variabel Alpine (Tanpa simpan ke dbAuth)
                     this.dataMasuk = result.data_masuk || [];
                     this.dataKeluar = result.data_keluar || [];
-                    
-                    // PERBAIKAN Swal is not defined: Cek apakah Swal berhasil diload
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            toast: true, position: 'top-end', icon: 'success',
-                            title: `Riwayat berhasil disinkronkan!`,
-                            showConfirmButton: false, timer: 1500,
-                            customClass: { popup: 'rounded-xl shadow-lg border border-slate-100 mt-4 mr-4' }
-                        });
-                    }
                 } else {
                     if (typeof Swal !== 'undefined') Swal.fire('Gagal Muat Data', result.message, 'error');
-                    else alert('Gagal: ' + result.message);
                 }
             } catch (error) {
-                console.error('Error Sync:', error);
-                if (typeof Swal !== 'undefined') Swal.fire('Error', 'Gagal membaca riwayat database.', 'error');
-                else alert('Error: Gagal membaca database.');
+                console.error('Error Fetch Server:', error);
+                if (typeof Swal !== 'undefined') Swal.fire('Error', 'Gagal membaca riwayat database server.', 'error');
             } finally {
-                this.isSyncing = false;
+                this.isLoading = false;
             }
         },
 
+        // ✅ FUNGSI SYNC DATA DIUBAH JADI FUNGSI REFRESH (Penyegaran Data)
+        // (Nama fungsi tetap syncData agar tombol HTML kamu tidak error)
+        async syncData() {
+            if (!navigator.onLine) {
+                Swal.fire('Offline', 'Koneksi terputus, tidak bisa menyegarkan data.', 'warning');
+                return;
+            }
+
+            this.isSyncing = true;
+            await this.fetchDataFromServer(); // Panggil ulang fungsi fetch
+            this.isSyncing = false;
+
+            // Beri notifikasi kalau sukses di-refresh
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    toast: true, position: 'top-end', icon: 'success',
+                    title: `Data riwayat berhasil diperbarui!`,
+                    showConfirmButton: false, timer: 1500,
+                    customClass: { popup: 'rounded-xl shadow-lg border border-slate-100 mt-4 mr-4' }
+                });
+            }
+        },
+
+        // ==========================================
+        // FUNGSI FILTER & FORMAT BAWAAN (TETAP SAMA)
+        // ==========================================
         get filteredData() {
             let temp = this.activeTab === 'masuk' ? this.dataMasuk : this.dataKeluar;
 
             if (this.searchQuery.trim() !== '') {
                 const q = this.searchQuery.toLowerCase();
                 temp = temp.filter(item => 
-                    item.produk.toLowerCase().includes(q) || 
-                    item.referensi.toLowerCase().includes(q) ||
-                    item.kode_produk.toLowerCase().includes(q)
+                    (item.produk && item.produk.toLowerCase().includes(q)) || 
+                    (item.referensi && item.referensi.toLowerCase().includes(q)) ||
+                    (item.kode_produk && item.kode_produk.toLowerCase().includes(q))
                 );
             }
 

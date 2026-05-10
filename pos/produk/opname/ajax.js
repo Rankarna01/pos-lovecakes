@@ -10,14 +10,19 @@ document.addEventListener('alpine:init', () => {
         html5QrcodeScanner: null,
 
         async init() {
-            if (window.dbAuth) {
-                const user = await window.dbAuth.getItem('user_session');
-                if (!user) { window.location.href = '../../../auth/index.php'; return; }
-            }
+            // ❌ CEK SESI dbAuth DIHAPUS TOTAL! 
+            // Keamanan sudah dijaga oleh config/auth.php di server.
+            // Halaman ini siap standby.
         },
 
         // MENCARI PRODUK BERDASARKAN BARCODE
         async searchBarcode(scannedCode = null) {
+            // CEGAT JIKA INTERNET MATI
+            if (!navigator.onLine) {
+                if (typeof Swal !== 'undefined') Swal.fire('Offline', 'Pencarian barcode ke server membutuhkan koneksi internet!', 'warning');
+                return;
+            }
+
             const codeToSearch = scannedCode || this.barcodeInput;
             if (!codeToSearch) return;
 
@@ -30,20 +35,20 @@ document.addEventListener('alpine:init', () => {
                     this.actualStock = parseInt(this.scannedProduct.stock);
                     this.opnameNotes = '';
                     
-                    // Bunyikan Beep Sukses (Opsional)
+                    // Bunyikan Beep Sukses
                     this.playBeep();
                     
                     // Kalau pakai kamera, tutup kameranya biar fokus input
                     if (this.isCameraOpen) this.toggleCamera();
                     
                 } else {
-                    Swal.fire('Tidak Ditemukan', result.message, 'error');
+                    if (typeof Swal !== 'undefined') Swal.fire('Tidak Ditemukan', result.message, 'error');
                 }
             } catch (error) {
                 console.error("Error Scan:", error);
-                Swal.fire('Error', 'Gagal memproses barcode.', 'error');
+                if (typeof Swal !== 'undefined') Swal.fire('Error', 'Gagal memproses barcode. Pastikan koneksi server stabil.', 'error');
             } finally {
-                this.barcodeInput = ''; // Kosongkan lagi form inputnya
+                this.barcodeInput = ''; // Kosongkan form input
             }
         },
 
@@ -56,6 +61,13 @@ document.addEventListener('alpine:init', () => {
         // MENYIMPAN DATA OPNAME
         async saveOpname() {
             if (this.selisih === 0) return;
+            
+            // CEGAT JIKA INTERNET MATI
+            if (!navigator.onLine) {
+                if (typeof Swal !== 'undefined') Swal.fire('Offline', 'Koneksi terputus! Tidak dapat menyimpan data opname.', 'warning');
+                return;
+            }
+
             this.isSaving = true;
 
             try {
@@ -69,18 +81,21 @@ document.addEventListener('alpine:init', () => {
                 const result = await response.json();
 
                 if (result.status === 'success') {
-                    Swal.fire({
-                        toast: true, position: 'top-end', icon: 'success',
-                        title: 'Stok Berhasil Disesuaikan!',
-                        showConfirmButton: false, timer: 1500,
-                        customClass: { popup: 'rounded-xl shadow-lg border border-slate-100 mt-4 mr-4' }
-                    });
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            toast: true, position: 'top-end', icon: 'success',
+                            title: 'Stok Berhasil Disesuaikan!',
+                            showConfirmButton: false, timer: 1500,
+                            customClass: { popup: 'rounded-xl shadow-lg border border-slate-100 mt-4 mr-4' }
+                        });
+                    }
                     this.resetScan();
                 } else {
-                    Swal.fire('Gagal Menyimpan', result.message, 'error');
+                    if (typeof Swal !== 'undefined') Swal.fire('Gagal Menyimpan', result.message, 'error');
                 }
             } catch (error) {
-                Swal.fire('Error', 'Gagal menyambung ke database.', 'error');
+                console.error("Error Save:", error);
+                if (typeof Swal !== 'undefined') Swal.fire('Error', 'Gagal menyambung ke database.', 'error');
             } finally {
                 this.isSaving = false;
             }
@@ -92,7 +107,7 @@ document.addEventListener('alpine:init', () => {
             this.opnameNotes = '';
         },
 
-        // ===== LOGIKA KAMERA HP (HTML5 QRCODE) =====
+        // ===== LOGIKA KAMERA HP (HTML5 QRCODE) TETAP UTUH =====
         toggleCamera() {
             if (this.isCameraOpen) {
                 this.stopCamera();
@@ -129,7 +144,7 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
-        // Fake Beep Sound
+        // Fake Beep Sound TETAP UTUH
         playBeep() {
             const context = new (window.AudioContext || window.webkitAudioContext)();
             const oscillator = context.createOscillator();

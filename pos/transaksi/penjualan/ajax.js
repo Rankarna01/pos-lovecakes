@@ -15,14 +15,25 @@ document.addEventListener('alpine:init', () => {
         isDetailLoading: false,
 
         async init() {
-            if (window.dbAuth) {
-                const user = await window.dbAuth.getItem('user_session');
-                if (!user) { window.location.href = '../../../auth/index.php'; return; }
-            }
+            // ❌ CEK SESI dbAuth DIHAPUS TOTAL!
+            // Keamanan halaman Transaksi ini 100% dijamin oleh config/auth.php dari server.
+            
+            // Langsung tarik data histori dari MySQL
             await this.fetchSales();
         },
 
         async fetchSales() {
+            // 🛡️ CEGAT JIKA OFFLINE
+            if (!navigator.onLine) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire('Offline Mode', 'Halaman Riwayat Transaksi membutuhkan koneksi internet!', 'warning');
+                } else {
+                    alert('Anda sedang offline! Halaman Transaksi membutuhkan koneksi internet.');
+                }
+                this.isLoading = false;
+                return;
+            }
+
             this.isLoading = true;
             try {
                 const params = new URLSearchParams(this.filters);
@@ -36,15 +47,26 @@ document.addEventListener('alpine:init', () => {
                     this.sales = result.data;
                 } else {
                     console.error(result.message);
+                    if (typeof Swal !== 'undefined') Swal.fire('Gagal', result.message, 'error');
                 }
             } catch (error) {
                 console.error("Gagal menarik data penjualan", error);
+                if (typeof Swal !== 'undefined') Swal.fire('Error Database', 'Gagal menarik data dari server pusat.', 'error');
             } finally {
+                // WAJIB: Pastikan spinner selalu mati
                 this.isLoading = false;
             }
         },
 
         async openDetail(sale) {
+            // 🛡️ CEGAT JIKA OFFLINE
+            if (!navigator.onLine) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire('Offline Mode', 'Koneksi terputus! Tidak dapat melihat detail transaksi saat offline.', 'warning');
+                }
+                return;
+            }
+
             this.activeSale = sale;
             this.activeDetails = [];
             this.showModal = true;
@@ -56,10 +78,14 @@ document.addEventListener('alpine:init', () => {
                 
                 if (result.status === 'success') {
                     this.activeDetails = result.data;
+                } else {
+                    if (typeof Swal !== 'undefined') Swal.fire('Gagal', result.message, 'error');
                 }
             } catch (error) {
                 console.error("Gagal menarik detail", error);
+                if (typeof Swal !== 'undefined') Swal.fire('Error', 'Gagal menarik rincian pesanan dari database.', 'error');
             } finally {
+                // WAJIB: Pastikan spinner detail mati
                 this.isDetailLoading = false;
             }
         },
