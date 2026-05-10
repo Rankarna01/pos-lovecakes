@@ -13,10 +13,12 @@ document.addEventListener('alpine:init', () => {
         },
 
         async init() {
-            // Proteksi Sesi Login
+            // 🛡️ 1. SMART GUARD (ANTI-MEMBAL)
             if (window.dbAuth) {
                 const user = await window.dbAuth.getItem('user_session');
-                if (!user) {
+                // HANYA tendang ke auth/index.php JIKA internet offline DAN sesi lokal hilang.
+                // Jika online, biarkan PHP (config/auth.php) yang memutuskan.
+                if (!user && !navigator.onLine) {
                     window.location.href = '../../../auth/index.php';
                     return;
                 }
@@ -25,6 +27,13 @@ document.addEventListener('alpine:init', () => {
         },
 
         async fetchData() {
+            // 🛡️ 2. CEGAT JIKA OFFLINE SAAT TARIK DATA
+            if (!navigator.onLine) {
+                this.isLoading = false;
+                window.alert('Anda sedang offline! Halaman Voucher membutuhkan koneksi internet.');
+                return;
+            }
+
             this.isLoading = true;
             try {
                 // Tembak backend dengan timestamp agar tidak ter-cache
@@ -69,6 +78,12 @@ document.addEventListener('alpine:init', () => {
         },
 
         async simpanData() {
+            // 🛡️ 3. CEGAT JIKA OFFLINE SAAT SIMPAN
+            if (!navigator.onLine) {
+                window.alert('Koneksi terputus! Tidak dapat menyimpan data voucher.');
+                return;
+            }
+
             if (!this.form.voucher_code || !this.form.voucher_name || !this.form.discount_amount) {
                 window.alert('Mohon lengkapi data wajib bertanda bintang merah (*).');
                 return;
@@ -87,7 +102,7 @@ document.addEventListener('alpine:init', () => {
                 if (result.status === 'success') {
                     window.alert(result.message);
                     this.closeModal();
-                    await this.fetchData();
+                    await this.fetchData(); // Refresh tabel setelah simpan
                 } else {
                     window.alert(result.message);
                 }
@@ -99,6 +114,12 @@ document.addEventListener('alpine:init', () => {
         },
 
         hapusData(id) {
+            // 🛡️ 4. CEGAT JIKA OFFLINE SAAT HAPUS
+            if (!navigator.onLine) {
+                window.alert('Koneksi terputus! Tidak dapat menghapus data voucher.');
+                return;
+            }
+
             // Menggunakan fungsi customConfirm dari header global!
             window.customConfirm('Yakin ingin menghapus voucher ini secara permanen?', async () => {
                 this.isLoading = true;
@@ -110,7 +131,7 @@ document.addEventListener('alpine:init', () => {
 
                     if (result.status === 'success') {
                         window.alert(result.message);
-                        await this.fetchData();
+                        await this.fetchData(); // Refresh tabel
                     } else {
                         window.alert(result.message);
                     }
@@ -123,6 +144,12 @@ document.addEventListener('alpine:init', () => {
         },
 
         async toggleStatus(id, newStatus) {
+            // 🛡️ 5. CEGAT JIKA OFFLINE SAAT UBAH STATUS (ON/OFF)
+            if (!navigator.onLine) {
+                window.alert('Koneksi terputus! Tidak dapat mengubah status voucher.');
+                return;
+            }
+
             try {
                 const fd = new FormData();
                 fd.append('id', id);

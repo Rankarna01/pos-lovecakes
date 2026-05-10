@@ -13,14 +13,24 @@ document.addEventListener('alpine:init', () => {
         activeHistory: [],
 
         async init() {
-            if (window.dbAuth) {
-                const user = await window.dbAuth.getItem('user_session');
-                if (!user) { window.location.href = '../../../auth/index.php'; return; }
-            }
+            // ❌ CEK SESI dbAuth DIHAPUS TOTAL!
+            // Keamanan sudah diamankan 100% oleh config/auth.php di server.
+            
+            // Langsung tarik data saat pertama kali buka
             await this.fetchData(false);
         },
 
         async fetchData(isManualSync = true) {
+            // 🛡️ CEGAT JIKA OFFLINE
+            if (!navigator.onLine) {
+                this.isLoading = false;
+                this.isSyncing = false;
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire('Offline', 'Halaman Laporan Pelanggan membutuhkan koneksi internet!', 'warning');
+                }
+                return;
+            }
+
             if (isManualSync) {
                 this.isSyncing = true;
             } else {
@@ -36,19 +46,21 @@ document.addEventListener('alpine:init', () => {
                     this.customers = result.data || [];
 
                     if (isManualSync) {
-                        Swal.fire({
-                            toast: true, position: 'top-end', icon: 'success',
-                            title: `Data Pelanggan Sinkron!`,
-                            showConfirmButton: false, timer: 1500,
-                            customClass: { popup: 'rounded-xl shadow-lg border border-slate-100 mt-4 mr-4' }
-                        });
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                toast: true, position: 'top-end', icon: 'success',
+                                title: `Data Pelanggan Sinkron!`,
+                                showConfirmButton: false, timer: 1500,
+                                customClass: { popup: 'rounded-xl shadow-lg border border-slate-100 mt-4 mr-4' }
+                            });
+                        }
                     }
                 } else {
-                    Swal.fire('Gagal Muat Laporan', result.message, 'error');
+                    if (typeof Swal !== 'undefined') Swal.fire('Gagal Muat Laporan', result.message, 'error');
                 }
             } catch (error) {
                 console.error('Error Tarik Laporan:', error);
-                Swal.fire('Error Database', 'Gagal menyambung ke server. Cek Console.', 'error');
+                if (typeof Swal !== 'undefined') Swal.fire('Error Database', 'Gagal menyambung ke server.', 'error');
             } finally {
                 this.isLoading = false;
                 this.isSyncing = false;
@@ -56,6 +68,14 @@ document.addEventListener('alpine:init', () => {
         },
 
         async openDetail(cust) {
+            // 🛡️ CEGAT JIKA OFFLINE SAAT MAU LIHAT DETAIL
+            if (!navigator.onLine) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire('Offline Mode', 'Koneksi terputus! Tidak dapat melihat histori belanja saat offline.', 'warning');
+                }
+                return;
+            }
+
             this.activeCustomer = cust;
             this.activeHistory = [];
             this.showModal = true;
@@ -71,6 +91,7 @@ document.addEventListener('alpine:init', () => {
                 }
             } catch (error) {
                 console.error("Gagal menarik histori", error);
+                if (typeof Swal !== 'undefined') Swal.fire('Error', 'Gagal menarik data histori belanja.', 'error');
             } finally {
                 this.isDetailLoading = false;
             }
@@ -79,7 +100,10 @@ document.addEventListener('alpine:init', () => {
         get filteredCustomers() {
             if (this.searchQuery.trim() === '') return this.customers;
             const q = this.searchQuery.toLowerCase();
-            return this.customers.filter(c => c.name.toLowerCase().includes(q) || (c.phone && c.phone.includes(q)));
+            return this.customers.filter(c => 
+                (c.name && c.name.toLowerCase().includes(q)) || 
+                (c.phone && c.phone.includes(q))
+            );
         },
 
         formatDate(dateString) {

@@ -1,16 +1,19 @@
 document.addEventListener('alpine:init', () => {
     Alpine.data('loyaltyApp', () => ({
         isActive: false,
-        earnPointRatio: 0,     // Tambahan: Nominal untuk 1 poin
+        earnPointRatio: 0,     // Nominal untuk 1 poin
         pointsRequired: 0,
         discountAmount: 0,
         discountType: 'IDR',
         isLoading: true,
 
         async init() {
+            // 🛡️ 1. SMART GUARD (ANTI-MEMBAL)
             if (window.dbAuth) {
                 const user = await window.dbAuth.getItem('user_session');
-                if (!user) {
+                // HANYA tendang ke auth/index.php JIKA internet offline DAN sesi lokal hilang.
+                // Jika online, biarkan PHP (config/auth.php) yang memutuskan.
+                if (!user && !navigator.onLine) {
                     window.location.href = '../../../auth/index.php';
                     return;
                 }
@@ -19,6 +22,13 @@ document.addEventListener('alpine:init', () => {
         },
 
         async fetchSettings() {
+            // 🛡️ 2. CEGAT JIKA OFFLINE SAAT TARIK SETTING
+            if (!navigator.onLine) {
+                this.isLoading = false;
+                window.alert('Anda sedang offline! Halaman Pengaturan Loyalty membutuhkan koneksi internet.');
+                return;
+            }
+
             this.isLoading = true;
             try {
                 const response = await fetch(`logic.php?action=get_settings&nocache=${new Date().getTime()}`);
@@ -33,12 +43,20 @@ document.addEventListener('alpine:init', () => {
                 }
             } catch (error) {
                 console.error('Error fetching settings:', error);
+                window.alert('Gagal menarik data pengaturan dari server.');
             } finally {
+                // WAJIB: Pastikan spinner mati
                 this.isLoading = false;
             }
         },
 
         async saveSettings() {
+            // 🛡️ 3. CEGAT JIKA OFFLINE SAAT SIMPAN SETTING
+            if (!navigator.onLine) {
+                window.alert('Koneksi terputus! Tidak dapat menyimpan pengaturan.');
+                return;
+            }
+
             if (this.isActive && (this.pointsRequired <= 0 || this.discountAmount <= 0 || this.earnPointRatio <= 0)) {
                 window.alert('Nilai nominal kelipatan, tukar poin, dan diskon tidak boleh 0 jika fitur diaktifkan!');
                 return;
@@ -60,7 +78,7 @@ document.addEventListener('alpine:init', () => {
                 const result = await response.json();
 
                 if (result.status === 'success') {
-                    // Simpan settingan ke IndexedDB agar Kasir (POS) bisa membacanya tanpa internet!
+                    // ✅ FITUR EMAS: Simpan settingan ke IndexedDB agar Kasir (POS) bisa membacanya tanpa internet!
                     if (window.dbAuth) {
                         await window.dbAuth.setItem('loyalty_rules', {
                             is_active: this.isActive,

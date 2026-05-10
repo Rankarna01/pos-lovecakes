@@ -10,10 +10,12 @@ document.addEventListener('alpine:init', () => {
         },
 
         async init() {
+            // 🛡️ 1. SMART GUARD (ANTI-MEMBAL)
             // Cek Autentikasi User (Header kita sudah nyediain dbAuth)
             if (window.dbAuth) {
                 const user = await window.dbAuth.getItem('user_session');
-                if (!user) {
+                // HANYA tendang ke auth/index.php JIKA internet offline DAN sesi lokal hilang.
+                if (!user && !navigator.onLine) {
                     window.location.href = '../../auth/index.php';
                     return;
                 }
@@ -22,6 +24,17 @@ document.addEventListener('alpine:init', () => {
         },
 
         async fetchSettings() {
+            // 🛡️ 2. CEGAT JIKA OFFLINE SAAT TARIK PENGATURAN
+            if (!navigator.onLine) {
+                this.isLoading = false;
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire('Offline Mode', 'Halaman Pengaturan POS membutuhkan koneksi internet!', 'warning');
+                } else {
+                    window.alert('Anda sedang offline! Halaman Pengaturan POS membutuhkan koneksi internet.');
+                }
+                return;
+            }
+
             this.isLoading = true;
             try {
                 // Tambahkan nocache agar selalu dapat data terbaru
@@ -37,19 +50,31 @@ document.addEventListener('alpine:init', () => {
                     this.form.wa_gateway_api = result.data.wa_gateway_api || '';
                     this.form.wa_number_sender = result.data.wa_number_sender || '';
                     
-                    // Kita juga simpan ke memori lokal kasir
+                    // ✅ FITUR EMAS: Kita juga simpan ke memori lokal kasir
                     if(window.dbAuth) {
                         await window.dbAuth.setItem('pos_settings', result.data);
                     }
                 }
             } catch (error) {
                 console.error('Error fetching POS settings:', error);
+                if (typeof Swal !== 'undefined') Swal.fire('Error', 'Gagal menarik data pengaturan dari server.', 'error');
             } finally {
+                // WAJIB: Pastikan spinner mati
                 this.isLoading = false;
             }
         },
 
         async saveSettings() {
+            // 🛡️ 3. CEGAT JIKA OFFLINE SAAT SIMPAN
+            if (!navigator.onLine) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire('Offline', 'Koneksi terputus! Tidak dapat menyimpan pengaturan POS.', 'warning');
+                } else {
+                    window.alert('Koneksi terputus! Tidak dapat menyimpan pengaturan POS.');
+                }
+                return;
+            }
+
             this.isLoading = true;
             try {
                 const formData = new FormData();
@@ -65,16 +90,26 @@ document.addEventListener('alpine:init', () => {
                 const result = await response.json();
 
                 if (result.status === 'success') {
-                    // Update memori lokal agar mesin kasir langsung terpengaruh
+                    // ✅ UPDATE MEMORI LOKAL agar mesin kasir langsung terpengaruh tanpa perlu refresh
                     if(window.dbAuth) {
                         await window.dbAuth.setItem('pos_settings', this.form);
                     }
-                    window.alert(result.message);
+                    
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            toast: true, position: 'top-end', icon: 'success',
+                            title: result.message, showConfirmButton: false, timer: 1500
+                        });
+                    } else {
+                        window.alert(result.message);
+                    }
                 } else {
-                    window.alert(result.message);
+                    if (typeof Swal !== 'undefined') Swal.fire('Gagal Menyimpan', result.message, 'error');
+                    else window.alert(result.message);
                 }
             } catch (error) {
-                window.alert('Gagal menghubungi server.');
+                if (typeof Swal !== 'undefined') Swal.fire('Error', 'Gagal menghubungi server.', 'error');
+                else window.alert('Gagal menghubungi server.');
             } finally {
                 this.isLoading = false;
             }

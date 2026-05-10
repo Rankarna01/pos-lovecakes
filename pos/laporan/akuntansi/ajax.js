@@ -12,17 +12,27 @@ document.addEventListener('alpine:init', () => {
         journal: [],
 
         async init() {
+            // ❌ CEK SESI dbAuth DIHAPUS TOTAL!
+            // Keamanan sudah diamankan 100% oleh config/auth.php di server.
+
             this.setQuickFilter('today');
+            
+            // Jalankan penarikan data awal
             await this.loadMasterShifts();
             this.loadData();
         },
 
         async loadMasterShifts() {
+            // 🛡️ CEGAT JIKA OFFLINE
+            if (!navigator.onLine) return;
+
             try {
                 const res = await fetch(`logic.php?action=get_master_shifts`);
                 const result = await res.json();
                 if(result.status === 'success') this.masterShifts = result.data;
-            } catch(e) { console.error("Gagal load shifts", e); }
+            } catch(e) { 
+                console.error("Gagal load shifts", e); 
+            }
         },
 
         setQuickFilter(type) {
@@ -54,13 +64,22 @@ document.addEventListener('alpine:init', () => {
         },
 
         async loadData() {
+            // 🛡️ CEGAT JIKA OFFLINE
+            if (!navigator.onLine) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire('Offline Mode', 'Laporan Akuntansi membutuhkan koneksi internet!', 'warning');
+                }
+                this.isLoading = false;
+                return;
+            }
+
             if(!this.startDate || !this.endDate) return;
             this.isLoading = true;
 
             // Reset Active Filter button jika user ubah tanggal manual
-            if(this.activeFilter && (this.startDate !== document.querySelector('input[type="date"]').value)) {
-                this.activeFilter = 'custom';
-                this.filterLabel = `Periode: ${this.startDate} - ${this.endDate}`;
+            if(this.activeFilter && (this.activeFilter !== 'custom')) {
+                // Pengecekan sederhana apakah input manual berbeda dengan quick filter
+                // (Optional: Bisa ditambahkan logika pendeteksi input manual di sini)
             }
 
             try {
@@ -74,14 +93,19 @@ document.addEventListener('alpine:init', () => {
                         this.summary = result.summary;
                         this.journal = result.journal;
                     } else {
-                        Swal.fire('Error', result.message, 'error');
+                        if (typeof Swal !== 'undefined') Swal.fire('Error', result.message, 'error');
                     }
                 } catch(err) {
                     console.error("❌ ERROR PHP:", rawText);
-                    Swal.fire('CRASH!', 'Cek Console untuk detail error PHP.', 'error');
+                    if (typeof Swal !== 'undefined') Swal.fire('CRASH!', 'Terdapat kesalahan pada respon server. Cek Console.', 'error');
                 }
-            } catch(e) { Swal.fire('Error', 'Koneksi jaringan terputus.', 'error'); } 
-            finally { this.isLoading = false; }
+            } catch(e) { 
+                if (typeof Swal !== 'undefined') Swal.fire('Error Jaringan', 'Koneksi jaringan terputus atau server tidak merespon.', 'error'); 
+            } 
+            finally { 
+                // WAJIB: Matikan spinner loading apapun yang terjadi
+                this.isLoading = false; 
+            }
         },
 
         formatRupiah(angka) { 

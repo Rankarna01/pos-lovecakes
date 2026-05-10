@@ -9,14 +9,28 @@ document.addEventListener('alpine:init', () => {
         formData: { id: '', shift_name: '', start_time: '', end_time: '' },
 
         async init() {
+            // 🛡️ 1. SMART GUARD (ANTI-MEMBAL)
             if (window.dbAuth) {
                 const user = await window.dbAuth.getItem('user_session');
-                if (!user) { window.location.href = '../../../auth/index.php'; return; }
+                // HANYA tendang ke auth/index.php JIKA internet offline DAN sesi lokal hilang.
+                if (!user && !navigator.onLine) { 
+                    window.location.href = '../../../auth/index.php'; 
+                    return; 
+                }
             }
             await this.fetchData();
         },
 
         async fetchData() {
+            // 🛡️ 2. CEGAT JIKA OFFLINE
+            if (!navigator.onLine) {
+                this.isLoading = false;
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire('Offline Mode', 'Halaman Pengaturan Shift membutuhkan koneksi internet!', 'warning');
+                }
+                return;
+            }
+
             this.isLoading = true;
             try {
                 const response = await fetch(`logic.php?action=read&nocache=${Date.now()}`);
@@ -26,8 +40,9 @@ document.addEventListener('alpine:init', () => {
                 }
             } catch (error) {
                 console.error(error);
-                Swal.fire('Error', 'Gagal memuat data shift.', 'error');
+                if (typeof Swal !== 'undefined') Swal.fire('Error', 'Gagal memuat data shift.', 'error');
             } finally {
+                // WAJIB: Pastikan spinner mati apapun yang terjadi
                 this.isLoading = false;
             }
         },
@@ -48,6 +63,12 @@ document.addEventListener('alpine:init', () => {
         },
 
         async saveShift() {
+            // 🛡️ 3. CEGAT JIKA OFFLINE SAAT SIMPAN
+            if (!navigator.onLine) {
+                if (typeof Swal !== 'undefined') Swal.fire('Offline', 'Koneksi terputus! Tidak dapat menyimpan data shift.', 'warning');
+                return;
+            }
+
             this.isSaving = true;
             try {
                 const fd = new FormData();
@@ -62,19 +83,27 @@ document.addEventListener('alpine:init', () => {
 
                 if (result.status === 'success') {
                     this.showModal = false;
-                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: result.message, showConfirmButton: false, timer: 1500 });
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: result.message, showConfirmButton: false, timer: 1500 });
+                    }
                     this.fetchData();
                 } else {
-                    Swal.fire('Gagal', result.message, 'error');
+                    if (typeof Swal !== 'undefined') Swal.fire('Gagal', result.message, 'error');
                 }
             } catch (error) {
-                Swal.fire('Error', 'Gagal menyimpan data.', 'error');
+                if (typeof Swal !== 'undefined') Swal.fire('Error', 'Gagal menyimpan data.', 'error');
             } finally {
                 this.isSaving = false;
             }
         },
 
         async deleteShift(id) {
+            // 🛡️ 4. CEGAT JIKA OFFLINE SAAT HAPUS
+            if (!navigator.onLine) {
+                if (typeof Swal !== 'undefined') Swal.fire('Offline', 'Koneksi terputus! Tidak dapat menghapus data.', 'warning');
+                return;
+            }
+
             const confirm = await Swal.fire({
                 title: 'Hapus Shift?',
                 text: "Data shift ini akan dinonaktifkan dari sistem.",

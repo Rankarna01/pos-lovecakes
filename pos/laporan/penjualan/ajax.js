@@ -14,14 +14,32 @@ document.addEventListener('alpine:init', () => {
         activeDetails: [],
 
         async init() {
+            // 🛡️ 1. SMART GUARD ANTI-MEMBAL
             if (window.dbAuth) {
                 const user = await window.dbAuth.getItem('user_session');
-                if (!user) { window.location.href = '../../../auth/index.php'; return; }
+                // HANYA tendang ke auth/index.php JIKA internet offline DAN sesi lokal hilang.
+                if (!user && !navigator.onLine) { 
+                    window.location.href = '../../../auth/index.php'; 
+                    return; 
+                }
             }
+
+            // 🎯 2. WATCHER TANGGAL (Agar filter tanggal berfungsi!)
+            this.$watch('filters.start_date', () => { this.fetchData(false); });
+            this.$watch('filters.end_date', () => { this.fetchData(false); });
+
             await this.fetchData(false);
         },
 
         async fetchData(isManual = true) {
+            // 🛡️ 3. CEGAT JIKA OFFLINE
+            if (!navigator.onLine) {
+                this.isLoading = false;
+                this.isSyncing = false;
+                if (typeof Swal !== 'undefined') Swal.fire('Offline', 'Halaman ini membutuhkan koneksi internet!', 'warning');
+                return;
+            }
+
             if (isManual) this.isSyncing = true;
             else this.isLoading = true;
 
@@ -55,6 +73,12 @@ document.addEventListener('alpine:init', () => {
         },
 
         async openDetail(sale) {
+            // 🛡️ 4. CEGAT JIKA OFFLINE
+            if (!navigator.onLine) {
+                if (typeof Swal !== 'undefined') Swal.fire('Offline', 'Tidak bisa melihat detail saat offline.', 'warning');
+                return;
+            }
+
             this.activeSale = sale;
             this.activeDetails = [];
             this.showModal = true;
@@ -62,7 +86,9 @@ document.addEventListener('alpine:init', () => {
                 const response = await fetch(`logic.php?action=get_detail&id=${sale.id}`);
                 const result = await response.json();
                 if (result.status === 'success') this.activeDetails = result.data;
-            } catch (e) { console.error(e); }
+            } catch (e) { 
+                console.error(e); 
+            }
         },
 
         printReceipt(invoice) {
