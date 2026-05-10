@@ -1,7 +1,5 @@
 <?php
-if (!defined('BASE_URL')) {
-    define('BASE_URL', 'http://localhost/pos-lovecakes/');
-}
+require_once '../../config/auth.php';
 // Set Judul Halaman sebelum header
 $page_title = "Dashboard - Love Cakes POS";
 ?>

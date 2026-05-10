@@ -1,10 +1,12 @@
 <?php
+require_once '../../config/auth.php';
 // Matikan pesan error HTML agar format JSON tidak rusak saat ada warning
 ini_set('display_errors', 0);
 error_reporting(E_ALL);
 
 session_start();
 require_once '../../config/database.php'; 
+require_once '../../config/auth.php';
 
 header('Content-Type: application/json');
 $action = $_REQUEST['action'] ?? '';

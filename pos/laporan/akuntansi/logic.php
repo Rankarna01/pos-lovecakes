@@ -4,6 +4,7 @@ ini_set('display_errors', 0);
 error_reporting(E_ALL);
 session_start();
 require_once '../../../config/database.php'; 
+require_once '../../../config/auth.php';
 
 header('Content-Type: application/json');
 ob_clean();

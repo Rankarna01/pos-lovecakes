@@ -5,19 +5,10 @@ document.addEventListener('alpine:init', () => {
         isLoading: false,
 
         init() {
-            // Cek apakah user sudah login sebelumnya di IndexedDB
-            // Jika ada sesi, langsung lempar ke Dasbor
-            if(window.dbAuth) {
-                window.dbAuth.getItem('user_session').then(user => {
-                    if (user) {
-                        window.location.href = '../pos/dashboard/';
-                    }
-                });
-            }
+            // Kosongkan. Urusan sesi sepenuhnya dipegang oleh PHP.
         },
 
         async doLogin() {
-            // Wajib online untuk login verifikasi ke server pusat (database MySQL)
             if (!navigator.onLine) {
                 Swal.fire('Offline!', 'Anda sedang offline! Koneksi internet wajib menyala untuk proses login awal.', 'warning');
                 return;
@@ -31,34 +22,30 @@ document.addEventListener('alpine:init', () => {
                 formData.append('username', this.username);
                 formData.append('password', this.password);
 
-                // Tembak ke file PHP di folder yang sama
-                const API_URL = 'logic.php'; 
+                const response = await fetch('logic.php', { method: 'POST', body: formData });
+                const rawText = await response.text();
 
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    body: formData
-                });
+                try {
+                    const result = JSON.parse(rawText);
 
-                const result = await response.json();
-
-                if (result.status === 'success') {
-                    // Simpan data user ke database lokal (IndexedDB)
-                    if(window.dbAuth) {
-                        await window.dbAuth.setItem('user_session', result.data);
+                    if (result.status === 'success') {
+                        // TAMPILKAN SWAL, LALU REDIRECT (TANPA INDEXEDDB)
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Login Berhasil!',
+                            text: 'Mengarahkan ke Dasbor...',
+                            timer: 1500,
+                            showConfirmButton: false,
+                            customClass: { popup: 'rounded-3xl shadow-2xl border border-slate-100', title: 'text-xl font-extrabold text-slate-800' }
+                        }).then(() => {
+                            // Mengikuti URL yang dikirim oleh PHP
+                            window.location.href = result.redirect; 
+                        });
+                    } else {
+                        Swal.fire('Ups!', result.message, 'error');
                     }
-                    
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Login Berhasil!',
-                        text: 'Mengarahkan ke Dasbor...',
-                        timer: 1500,
-                        showConfirmButton: false,
-                        customClass: { popup: 'rounded-3xl shadow-2xl border border-slate-100', title: 'text-xl font-extrabold text-slate-800' }
-                    }).then(() => {
-                        window.location.href = '../pos/dashboard/';
-                    });
-                } else {
-                    Swal.fire('Ups!', result.message, 'error');
+                } catch (parseError) {
+                    Swal.fire('Error System', 'Gagal membaca respon server.', 'error');
                 }
             } catch (error) {
                 console.error(error);

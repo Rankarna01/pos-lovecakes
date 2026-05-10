@@ -1,5 +1,9 @@
 <?php
+ini_set('display_errors', 0);
+error_reporting(0);
+session_set_cookie_params(0); // Mati saat browser tutup
 session_start();
+
 require_once '../config/database.php'; 
 
 header('Content-Type: application/json');
@@ -20,15 +24,21 @@ if ($action === 'login_pos') {
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($user && password_verify($password, $user['password'])) {
-            // 1. Simpan ke Session PHP (Sesi Utama)
+            // 1. Simpan ke Session PHP
             $_SESSION['pos_user_id'] = $user['id'];
             $_SESSION['pos_role'] = $user['role_name'];
             $_SESSION['pos_name'] = $user['name'];
 
-            // 2. Data dilempar untuk IndexedDB
-            $userData = ['id' => $user['id'], 'username' => $user['username'], 'name' => $user['name'], 'role' => $user['role_name']];
+            // 2. Tentukan Rute Pintar ke Dashboard
+            $is_localhost = (strpos($_SERVER['HTTP_HOST'], 'localhost') !== false || strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false);
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+            $folder = $is_localhost ? '/pos-lovecakes/' : '/';
+            $full_base_url = $protocol . $_SERVER['HTTP_HOST'] . $folder;
+            
+            $redirect_url = $full_base_url . 'pos/dashboard/'; // Mengarah ke Dashboard
 
-            echo json_encode(['status' => 'success', 'message' => 'Login berhasil!', 'data' => $userData]);
+            // Kembalikan JSON redirect
+            echo json_encode(['status' => 'success', 'message' => 'Login berhasil!', 'redirect' => $redirect_url]);
         } else {
             echo json_encode(['status' => 'error', 'message' => 'Username atau Password salah!']);
         }
