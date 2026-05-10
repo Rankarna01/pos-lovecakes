@@ -1,16 +1,25 @@
 <?php
 session_start();
 
-// PASTIKAN INI SESUAI DENGAN NAMA FOLDER PROJECT-MU
-$base_url = 'http://localhost/pos-lovecakes/'; 
+// Deteksi Routing Dinamis (Apakah ini di localhost atau di server asli?)
+$is_localhost = (strpos($_SERVER['HTTP_HOST'], 'localhost') !== false || strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false);
 
-// Jika sudah ada sesi login aktif, arahkan ke Kasir
+// Jika di XAMPP/lokal, gunakan nama foldernya. Jika di server/cPanel, cukup gunakan '/'
+$base_url = $is_localhost ? '/pos-lovecakes/' : '/';
+
+// ==========================================
+// Pengecekan Sesi Login (Otomatis & Aman)
+// ==========================================
+
+// Jika Sesi PHP untuk kasir sudah aktif
 if (isset($_SESSION['pos_user_id'])) {
+    // Arahkan ke Layar Kasir
     header("Location: " . $base_url . "pos/kasir/");
     exit;
 } else {
-    // Jika belum login, arahkan ke halaman Login
-    header("Location: " . $base_url . "auth/");
+    // Jika belum login atau sesi sudah hangus (browser ditutup), arahkan ke halaman Login
+    // Sesuaikan path-nya dengan letak folder auth kamu
+    header("Location: " . $base_url . "pos/auth/"); 
     exit;
 }
-?>
+// Jangan tambahkan spasi atau karakter apapun di bawah baris ini!

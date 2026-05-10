@@ -5,21 +5,18 @@ document.addEventListener('alpine:init', () => {
         isLoading: false,
 
         init() {
-            // Cek apakah user sudah login sebelumnya di IndexedDB
-            // Jika ada sesi, langsung lempar ke Dasbor
-            if(window.dbAuth) {
-                window.dbAuth.getItem('user_session').then(user => {
-                    if (user) {
-                        window.location.href = '../pos/dashboard/';
-                    }
-                });
+            // Cek SessionStorage: Jika masih ada tiket aktif, langsung lempar ke Layar Kasir
+            // (Ingat: sessionStorage otomatis hilang kalau browser ditutup)
+            const user = sessionStorage.getItem('pos_user_session');
+            if (user) {
+                window.location.href = '../kasir/index.php'; 
             }
         },
 
         async doLogin() {
-            // Wajib online untuk login verifikasi ke server pusat (database MySQL)
+            // Cek konektivitas internet secara dasar
             if (!navigator.onLine) {
-                Swal.fire('Offline!', 'Anda sedang offline! Koneksi internet wajib menyala untuk proses login awal.', 'warning');
+                Swal.fire('Offline!', 'Koneksi internet Anda terputus! Harap hubungkan perangkat ke internet.', 'warning');
                 return;
             }
 
@@ -27,42 +24,46 @@ document.addEventListener('alpine:init', () => {
 
             try {
                 const formData = new FormData();
-                formData.append('action', 'login_pos');
                 formData.append('username', this.username);
                 formData.append('password', this.password);
 
-                // Tembak ke file PHP di folder yang sama
-                const API_URL = 'logic.php'; 
-
-                const response = await fetch(API_URL, {
+                // Tembak ke API login logic.php
+                const response = await fetch('logic.php', {
                     method: 'POST',
                     body: formData
                 });
 
-                const result = await response.json();
+                // X-Ray Error Handler untuk antisipasi server nge-blank
+                const rawText = await response.text();
+                
+                try {
+                    const result = JSON.parse(rawText);
 
-                if (result.status === 'success') {
-                    // Simpan data user ke database lokal (IndexedDB)
-                    if(window.dbAuth) {
-                        await window.dbAuth.setItem('user_session', result.data);
+                    if (result.status === 'success') {
+                        // SIMPAN KE SESSION STORAGE (Bukan dbAuth / IndexedDB lagi)
+                        sessionStorage.setItem('pos_user_session', JSON.stringify(result.data));
+                        
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Login Berhasil!',
+                            text: 'Mengarahkan ke Layar Kasir...',
+                            timer: 1500,
+                            showConfirmButton: false,
+                            customClass: { popup: 'rounded-3xl shadow-2xl border border-slate-100', title: 'text-xl font-extrabold text-slate-800' }
+                        }).then(() => {
+                            // Arahkan ke Layar POS Utama
+                            window.location.href = '../kasir/index.php'; 
+                        });
+                    } else {
+                        Swal.fire('Ups!', result.message, 'error');
                     }
-                    
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Login Berhasil!',
-                        text: 'Mengarahkan ke Dasbor...',
-                        timer: 1500,
-                        showConfirmButton: false,
-                        customClass: { popup: 'rounded-3xl shadow-2xl border border-slate-100', title: 'text-xl font-extrabold text-slate-800' }
-                    }).then(() => {
-                        window.location.href = '../pos/dashboard/';
-                    });
-                } else {
-                    Swal.fire('Ups!', result.message, 'error');
+                } catch (parseError) {
+                    console.error("❌ ERROR PHP:", rawText);
+                    Swal.fire('Error System', 'Server merespons dengan format tidak valid.', 'error');
                 }
             } catch (error) {
-                console.error(error);
-                Swal.fire('Error System', 'Gagal memproses login! Cek tab console/network.', 'error');
+                console.error("Jaringan Gagal:", error);
+                Swal.fire('Error Jaringan', 'Koneksi ke server pusat terputus.', 'error');
             } finally {
                 this.isLoading = false;
             }
