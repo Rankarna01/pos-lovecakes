@@ -9,6 +9,15 @@ if (!defined('BASE_URL')) {
 <title><?= $page_title ?? 'POS Sistem Kasir Offline' ?></title>
 <link rel="manifest" href="<?= BASE_URL ?>manifest.json">
 <meta name="theme-color" content="#2563EB">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
+    <!-- WAJIB: Plugin Collapse Alpine JS (Taruh di atas Alpine utama) -->
+<script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+    <!-- WAJIB: Alpine JS agar form dan dropdown hidup -->
+      <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
 <!-- PANGGIL FONT DAN ICON DARI LOKAL -->
 <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/fontawesome.css">
