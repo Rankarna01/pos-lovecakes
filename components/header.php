@@ -1,7 +1,17 @@
 <?php
 // Pastikan BASE_URL sudah ada. Jika belum, kita set defaultnya.
-if (!defined('BASE_URL')) {
-    define('BASE_URL', 'http://localhost/pos-lovecakes/');
+// Deteksi apakah sedang di lokal atau production
+$is_localhost = (strpos($_SERVER['HTTP_HOST'], 'localhost') !== false || strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false);
+
+// Deteksi protokol (http atau https)
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+
+// Tentukan folder dasar
+$folder = $is_localhost ? '/pos-lovecakes/' : '/';
+
+// Definisikan BASE_URL secara dinamis
+if (!defined('BASE_URL')) { 
+    define('BASE_URL', $protocol . $_SERVER['HTTP_HOST'] . $folder); 
 }
 ?>
 <meta charset="UTF-8">
