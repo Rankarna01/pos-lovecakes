@@ -19,7 +19,7 @@ if (isset($_SESSION['pos_user_id'])) {
 } else {
     // Jika belum login atau sesi sudah hangus (browser ditutup), arahkan ke halaman Login
     // Sesuaikan path-nya dengan letak folder auth kamu
-    header("Location: " . $base_url . "pos/auth/"); 
+    header("Location: " . $base_url . "pos/auth/dashboard"); 
     exit;
 }
 // Jangan tambahkan spasi atau karakter apapun di bawah baris ini!
