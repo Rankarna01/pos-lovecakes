@@ -14,7 +14,7 @@ $base_url = $is_localhost ? '/pos-lovecakes/' : '/';
 // Jika Sesi PHP untuk kasir sudah aktif
 if (isset($_SESSION['pos_user_id'])) {
     // Arahkan ke Layar Kasir
-    header("Location: " . $base_url . "pos/kasir/");
+    header("Location: " . $base_url . "pos/kasir/dashboard");
     exit;
 } else {
     // Jika belum login atau sesi sudah hangus (browser ditutup), arahkan ke halaman Login
