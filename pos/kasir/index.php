@@ -4,16 +4,17 @@ require_once '../../config/auth.php';
 // DETEKSI OTOMATIS LOKAL VS HOSTINGER
 $is_localhost = (strpos($_SERVER['HTTP_HOST'], 'localhost') !== false || strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false);
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
-$domain_utama = $protocol . $_SERVER['HTTP_HOST'];
 
 // URL UNTUK SISTEM POS
 $folder_pos = $is_localhost ? '/sim-produksi-kue/' : '/'; 
-if (!defined('BASE_URL')) { define('BASE_URL', $domain_utama . $folder_pos); }
+if (!defined('BASE_URL')) { define('BASE_URL', $protocol . $_SERVER['HTTP_HOST'] . $folder_pos); }
 
-// 🎯 FIX MUTLAK 404 GAMBAR: Gunakan URL LENGKAP (Absolute URL)
-// Contoh Output Online: https://kokowms.my.id/assets/img/
-// Contoh Output Lokal: http://localhost/sim-produksi-kue/assets/img/
-$IMG_BASE_URL = $is_localhost ? $domain_utama . '/sim-produksi-kue/assets/img/' : $domain_utama . '/assets/img/';
+// 🎯 FIX MUTLAK 404 GAMBAR (CROSS-DOMAIN)
+// Jika lokal: Ambil dari folder localhost
+// Jika online: TEMBAK LANGSUNG KE DOMAIN SISTEM PRODUKSI KOKOWMS.MY.ID !!!
+$IMG_BASE_URL = $is_localhost 
+    ? "http://localhost/sim-produksi-kue/assets/img/" 
+    : "https://kokowms.my.id/assets/img/";
 
 require_once '../../config/database.php';
 try {
