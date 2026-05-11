@@ -4,40 +4,42 @@ require_once '../../config/auth.php';
 // DETEKSI OTOMATIS LOKAL VS HOSTINGER
 $is_localhost = (strpos($_SERVER['HTTP_HOST'], 'localhost') !== false || strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false);
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+$domain_utama = $protocol . $_SERVER['HTTP_HOST'];
 
 // URL UNTUK SISTEM POS
-$folder_pos = $is_localhost ? '/sim-produksi-kue/' : '/'; // Sesuaikan nama folder XAMPP kamu
-if (!defined('BASE_URL')) { define('BASE_URL', $protocol . $_SERVER['HTTP_HOST'] . $folder_pos); }
+$folder_pos = $is_localhost ? '/sim-produksi-kue/' : '/'; 
+if (!defined('BASE_URL')) { define('BASE_URL', $domain_utama . $folder_pos); }
 
-// 🎯 URL KHUSUS GAMBAR PRODUK
-// Jika online (Hostinger), arahkan langsung ke root domain '/assets/img/'
-$IMG_BASE_URL = $is_localhost ? '/sim-produksi-kue/assets/img/' : '/assets/img/';
+// 🎯 FIX MUTLAK 404 GAMBAR: Gunakan URL LENGKAP (Absolute URL)
+// Contoh Output Online: https://kokowms.my.id/assets/img/
+// Contoh Output Lokal: http://localhost/sim-produksi-kue/assets/img/
+$IMG_BASE_URL = $is_localhost ? $domain_utama . '/sim-produksi-kue/assets/img/' : $domain_utama . '/assets/img/';
 
 require_once '../../config/database.php';
-// ... (lanjutkan kode database seperti biasa)
+try {
+    $stmt_toko = $pdo->query("SELECT * FROM store_settings_pos WHERE id = 1");
+    $toko = $stmt_toko->fetch(PDO::FETCH_ASSOC);
+} catch (Exception $e) { $toko = false; }
+if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'store_phone' => '-', 'receipt_footer' => 'Terima Kasih!']; }
 ?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <?php include '../../components/head.php'; ?>
 
-    <!-- ✅ FIX 1: BASE_URL dideklarasikan di dalam <head> agar tersedia sebelum JS dijalankan -->
     <script>
         const BASE_URL = "<?= BASE_URL ?>";
     </script>
 
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { corePlugins: { preflight: true } }
+    </script>
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-    <!-- ✅ FIX 2: localforage DIHAPUS — tidak dipakai di logic JS manapun dan menjadi penyebab
-         browser meminta izin Persistent Storage (IndexedDB quota) di production HTTPS -->
-
-    <!-- ✅ FIX 3: Alpine Collapse plugin HARUS dimuat SEBELUM Alpine utama (urutan penting!) -->
+    
     <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
-
-    <!-- ✅ FIX 4: Alpine JS hanya dimuat SEKALI — sebelumnya ada duplikat yang menyebabkan
-         konflik inisialisasi komponen dan error diam-diam di console -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
     <style>
@@ -55,7 +57,6 @@ require_once '../../config/database.php';
 
     <div class="flex-1 flex flex-col h-screen overflow-hidden no-print relative">
         
-        <!-- HEADER DENGAN TOMBOL KAS KELUAR -->
         <header class="bg-primary text-white shadow-md px-4 sm:px-6 py-4 flex justify-between items-center z-20 shrink-0">
             <div class="flex items-center gap-4">
                 <button onclick="toggleSidebar()" class="md:hidden text-white hover:bg-blue-600 p-2 rounded-lg transition-colors"><i class="fa-solid fa-bars text-xl"></i></button>
@@ -66,7 +67,6 @@ require_once '../../config/database.php';
                     <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div> Kasir Aktif
                 </div>
                 
-                <!-- TOMBOL KAS KELUAR -->
                 <button @click="openKasKeluarModal()" x-show="!needsShiftOpen" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-2">
                     <i class="fa-solid fa-money-bill-transfer"></i> Kas Keluar
                 </button>
@@ -77,7 +77,6 @@ require_once '../../config/database.php';
             </div>
         </header>
 
-        <!-- MODAL AWAL BUKA SHIFT -->
         <div x-show="needsShiftOpen" class="absolute inset-0 z-[100] bg-slate-900/90 backdrop-blur-md flex items-center justify-center">
             <div class="bg-white p-8 rounded-[2rem] shadow-2xl max-w-md w-full border border-slate-200 text-center relative overflow-hidden">
                 <div class="w-20 h-20 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-4"><i class="fa-solid fa-cash-register"></i></div>
@@ -109,7 +108,6 @@ require_once '../../config/database.php';
 
         <main class="flex-1 overflow-hidden flex flex-col lg:flex-row p-3 gap-3">
             
-            <!-- PANEL KATALOG -->
             <div class="flex-1 flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative">
                 <div x-show="isLoading" class="absolute inset-0 z-10 flex items-center justify-center bg-white/70 backdrop-blur-sm"><i class="fa-solid fa-circle-notch fa-spin text-4xl text-primary"></i></div>
 
@@ -131,9 +129,6 @@ require_once '../../config/database.php';
                             <div @click="addToCart(item)" class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:border-primary/50 hover:shadow-md transition-all cursor-pointer group flex flex-col h-full active:scale-95">
                                 <div class="relative pt-[80%] bg-slate-100 overflow-hidden border-b border-slate-100">
                                     <div class="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded text-[9px] font-black shadow-sm text-slate-600" x-text="item.code || '-'"></div>
-                                    <!-- ✅ FIX 5: URL gambar menggunakan BASE_URL dinamis dari PHP
-                                         Sebelumnya: 'http://localhost/sim-produksi-kue/assets/img/' (hardcoded, gagal di production)
-                                         Sekarang: BASE_URL + 'assets/img/' (otomatis menyesuaikan domain & protokol) -->
                                     <img :src="item.image && item.image !== 'no-image.png' ? '<?= $IMG_BASE_URL ?>' + item.image : ''" class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" @error="$el.style.display='none'">
                                 </div>
                                 <div class="p-3 flex flex-col flex-1 bg-white">
@@ -146,7 +141,6 @@ require_once '../../config/database.php';
                 </div>
             </div>
 
-            <!-- PANEL KERANJANG -->
             <div class="w-full lg:w-[420px] flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden shrink-0">
                 <div class="flex p-2 bg-slate-100 border-b border-slate-200 gap-1">
                     <button @click="activeTab = 'reguler'" :class="activeTab === 'reguler' ? 'bg-white shadow-sm text-primary font-black' : 'text-slate-500 hover:bg-slate-200 font-bold'" class="flex-1 py-2.5 rounded-xl text-xs uppercase tracking-widest transition-all"><i class="fa-solid fa-cash-register mr-1"></i> Reguler</button>
@@ -257,9 +251,6 @@ require_once '../../config/database.php';
         </main>
     </div>
 
-    <!-- ======================================================== -->
-    <!-- MODAL CHECKOUT PEMBAYARAN CUSTOM -->
-    <!-- ======================================================== -->
     <div x-show="showCheckoutModal" class="fixed inset-0 z-[110] flex items-center justify-center" style="display: none;" x-cloak>
         <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showCheckoutModal = false"></div>
         <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl relative z-10 p-6 m-4 flex flex-col overflow-hidden">
@@ -325,9 +316,6 @@ require_once '../../config/database.php';
         </div>
     </div>
 
-    <!-- ======================================================== -->
-    <!-- MODAL KAS KELUAR (PETTY CASH) -->
-    <!-- ======================================================== -->
     <div x-show="showKasKeluarModal" class="fixed inset-0 z-[110] flex items-center justify-center" style="display: none;" x-cloak>
         <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showKasKeluarModal = false"></div>
         <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl relative z-10 p-6 m-4 flex flex-col overflow-hidden">
@@ -357,7 +345,6 @@ require_once '../../config/database.php';
         </div>
     </div>
     
-    <!-- MODAL TUTUP SHIFT -->
     <div x-show="showCloseShiftModal" class="fixed inset-0 z-[100] flex items-center justify-center" style="display: none;" x-cloak>
         <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showCloseShiftModal = false"></div>
         <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl relative z-10 p-6 m-4 text-center border border-slate-200">
@@ -380,9 +367,6 @@ require_once '../../config/database.php';
         </div>
     </div>
 
-    <!-- ======================================================== -->
-    <!-- MODAL TAMBAH ITEM CUSTOM (PESANAN KHUSUS) -->
-    <!-- ======================================================== -->
     <div x-show="showCustomItemModal" class="fixed inset-0 z-[120] flex items-center justify-center" style="display: none;" x-cloak>
         <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showCustomItemModal = false"></div>
         <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl relative z-10 p-6 m-4 flex flex-col overflow-hidden">
@@ -396,7 +380,6 @@ require_once '../../config/database.php';
 
             <form @submit.prevent="submitCustomItem()" class="space-y-4">
                 
-                <!-- Opsi Template Tersimpan -->
                 <div>
                     <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Pilih Dari Template (Opsional)</label>
                     <select x-model="customItemForm.template" @change="applyCustomTemplate()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 font-bold text-sm text-slate-700 cursor-pointer">
@@ -433,7 +416,6 @@ require_once '../../config/database.php';
         </div>
     </div>
 
-    <!-- MODAL SUKSES -->
     <div x-show="showSuccessModal" class="fixed inset-0 z-50 flex items-center justify-center" style="display: none;" x-cloak>
         <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"></div>
         <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl relative z-10 flex flex-col p-6 m-4 transform transition-all text-center">
