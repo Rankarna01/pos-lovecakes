@@ -10,10 +10,29 @@ if (!defined('BASE_URL')) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title><?= $page_title ?? 'POS Sistem Kasir Offline' ?></title>
+
 <link rel="manifest" href="<?= BASE_URL ?>manifest.json">
-<meta name="theme-color" content="#2563EB">
+
+<meta name="theme-color" content="#1e293b">
+<link rel="apple-touch-icon" href="<?= BASE_URL ?>assets/img/icon-192.png">
 
 <script src="https://cdn.tailwindcss.com"></script>
+<script>
+    // 🛠️ PERBAIKAN 2: Config Tailwind diletakkan di sini untuk membungkam peringatan kuning
+    tailwind.config = {
+        corePlugins: { preflight: true },
+        theme: {
+            extend: {
+                fontFamily: { sans: ['Poppins', 'sans-serif'] },
+                colors: {
+                    surface: '#FFFFFF', background: '#F8FAFC', primary: '#2563EB',
+                    secondary: '#94A3B8', accent: '#F59E0B', danger: '#EF4444', success: '#10B981'
+                }
+            }
+        }
+    }
+</script>
+
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/fontawesome.css">
 
@@ -44,26 +63,20 @@ if (!defined('BASE_URL')) {
 </style>
 
 <script>
-    tailwind.config = {
-        theme: {
-            extend: {
-                fontFamily: { sans: ['Poppins', 'sans-serif'] },
-                colors: {
-                    surface: '#FFFFFF', background: '#F8FAFC', primary: '#2563EB',
-                    secondary: '#94A3B8', accent: '#F59E0B', danger: '#EF4444', success: '#10B981'
-                }
-            }
-        }
-    }
-
+    // 🛠️ PERBAIKAN 3: Registrasi Service Worker dihilangkan kata "pos/"-nya
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('<?= BASE_URL ?>sw.js')
-                .then(reg => console.log('Service Worker POS aktif!'))
-                .catch(err => console.error('Service Worker gagal!', err));
+                .then(registration => {
+                    console.log('ServiceWorker sukses didaftarkan dengan scope: ', registration.scope);
+                })
+                .catch(err => {
+                    console.log('ServiceWorker gagal didaftarkan: ', err);
+                });
         });
     }
 
+    // --- LOGIKA ALERT CUSTOM BAWAANMU (TIDAK ADA YANG DIHAPUS) ---
     window.alert = function(message) {
         let type = 'info';
         let msgStr = String(message).toLowerCase();

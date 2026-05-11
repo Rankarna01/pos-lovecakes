@@ -8,10 +8,6 @@ $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVE
 // URL UNTUK SISTEM POS
 $folder_pos = $is_localhost ? '/sim-produksi-kue/' : '/'; 
 if (!defined('BASE_URL')) { define('BASE_URL', $protocol . $_SERVER['HTTP_HOST'] . $folder_pos); }
-
-// 🎯 FIX MUTLAK 404 GAMBAR (CROSS-DOMAIN)
-// Jika lokal: Ambil dari folder localhost
-// Jika online: TEMBAK LANGSUNG KE DOMAIN SISTEM PRODUKSI KOKOWMS.MY.ID !!!
 $IMG_BASE_URL = $is_localhost 
     ? "http://localhost/sim-produksi-kue/assets/img/" 
     : "https://kokowms.my.id/assets/img/";
