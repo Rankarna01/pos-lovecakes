@@ -2,18 +2,18 @@
   "name": "Love Cakes POS",
   "short_name": "LoveCakes",
   "description": "Sistem Kasir Pintar Offline-First",
-  "start_url": "/pos-lovecakes/pos/kasir/index.php",
+  "start_url": "/pos/kasir/index.php",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#1e293b",
   "icons": [
     {
-      "src": "/pos-lovecakes/pos/assets/img/icon-92.png",
+      "src": "/pos/assets/img/icon-92.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/pos-lovecakes/pos/assets/img/icon-92.png",
+      "src": "/pos/assets/img/icon-92.png",
       "sizes": "512x512",
       "type": "image/png"
     }
