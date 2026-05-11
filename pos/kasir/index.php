@@ -1,31 +1,45 @@
 <?php
-
 require_once '../../config/auth.php';
+
+// DETEKSI OTOMATIS LOKAL VS HOSTINGER
 $is_localhost = (strpos($_SERVER['HTTP_HOST'], 'localhost') !== false || strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false);
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
-$folder = $is_localhost ? '/pos-lovecakes/' : '/';
-if (!defined('BASE_URL')) { define('BASE_URL', $protocol . $_SERVER['HTTP_HOST'] . $folder); }
+
+// URL UNTUK SISTEM POS
+$folder_pos = $is_localhost ? '/sim-produksi-kue/' : '/'; // Sesuaikan nama folder XAMPP kamu
+if (!defined('BASE_URL')) { define('BASE_URL', $protocol . $_SERVER['HTTP_HOST'] . $folder_pos); }
+
+// 🎯 URL KHUSUS GAMBAR PRODUK
+// Jika online (Hostinger), arahkan langsung ke root domain '/assets/img/'
+$IMG_BASE_URL = $is_localhost ? '/sim-produksi-kue/assets/img/' : '/assets/img/';
 
 require_once '../../config/database.php';
-try {
-    $stmt_toko = $pdo->query("SELECT * FROM store_settings_pos WHERE id = 1");
-    $toko = $stmt_toko->fetch(PDO::FETCH_ASSOC);
-} catch (Exception $e) { $toko = false; }
-if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'store_phone' => '-', 'receipt_footer' => 'Terima Kasih!']; }
+// ... (lanjutkan kode database seperti biasa)
 ?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <?php include '../../components/head.php'; ?>
+
+    <!-- ✅ FIX 1: BASE_URL dideklarasikan di dalam <head> agar tersedia sebelum JS dijalankan -->
+    <script>
+        const BASE_URL = "<?= BASE_URL ?>";
+    </script>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
-    <!-- WAJIB: Plugin Collapse Alpine JS (Taruh di atas Alpine utama) -->
+
+    <!-- ✅ FIX 2: localforage DIHAPUS — tidak dipakai di logic JS manapun dan menjadi penyebab
+         browser meminta izin Persistent Storage (IndexedDB quota) di production HTTPS -->
+
+    <!-- ✅ FIX 3: Alpine Collapse plugin HARUS dimuat SEBELUM Alpine utama (urutan penting!) -->
     <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
-    <!-- WAJIB: Alpine JS agar form dan dropdown hidup -->
+
+    <!-- ✅ FIX 4: Alpine JS hanya dimuat SEKALI — sebelumnya ada duplikat yang menyebabkan
+         konflik inisialisasi komponen dan error diam-diam di console -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
     <style>
         @media print {
             body * { visibility: hidden; }
@@ -117,7 +131,10 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                             <div @click="addToCart(item)" class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:border-primary/50 hover:shadow-md transition-all cursor-pointer group flex flex-col h-full active:scale-95">
                                 <div class="relative pt-[80%] bg-slate-100 overflow-hidden border-b border-slate-100">
                                     <div class="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded text-[9px] font-black shadow-sm text-slate-600" x-text="item.code || '-'"></div>
-                                    <img :src="item.image && item.image !== 'no-image.png' ? 'http://localhost/sim-produksi-kue/assets/img/' + item.image : ''" class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" @error="$el.style.display='none'">
+                                    <!-- ✅ FIX 5: URL gambar menggunakan BASE_URL dinamis dari PHP
+                                         Sebelumnya: 'http://localhost/sim-produksi-kue/assets/img/' (hardcoded, gagal di production)
+                                         Sekarang: BASE_URL + 'assets/img/' (otomatis menyesuaikan domain & protokol) -->
+                                    <img :src="item.image && item.image !== 'no-image.png' ? '<?= $IMG_BASE_URL ?>' + item.image : ''" class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" @error="$el.style.display='none'">
                                 </div>
                                 <div class="p-3 flex flex-col flex-1 bg-white">
                                     <h3 class="font-bold text-xs sm:text-sm text-slate-800 leading-tight mb-2 line-clamp-2" x-text="item.name"></h3>

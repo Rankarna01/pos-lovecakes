@@ -2,7 +2,7 @@ document.addEventListener('alpine:init', () => {
     Alpine.data('posApp', () => ({
         // --- DATA MASTER ---
         products: [], 
-        savedCustoms: [], 
+        savedCustoms: [], // Menyimpan data template menu custom (tabel saved_custom_items_pos)
         customers: [], 
         posSettings: {}, 
         loyaltyRules: { is_active: 0, earn_point_ratio: 0, points_required: 0, discount_amount: 0, discount_type: 'IDR' },
@@ -37,47 +37,21 @@ document.addEventListener('alpine:init', () => {
         showSuccessModal: false, lastInvoice: '', totalAmountSaved: 0, paymentStatusSaved: '', dpAmountSaved: 0, amountPaidSaved: 0, changeAmountSaved: 0, paymentMethodSaved: '',
 
         async init() {
-            // 1. Cek Sesi Login via dbAuth
             if (window.dbAuth) {
                 const user = await window.dbAuth.getItem('user_session');
-                if (!user && !navigator.onLine) { 
-                    window.location.href = '../../auth/index.php'; 
-                    return; 
-                }
-                
-                // 🛠️ PERBAIKAN: Tarik Aturan Loyalty & POS Settings dari memori lokal
-                const savedRules = await window.dbAuth.getItem('loyalty_rules');
-                if (savedRules) this.loyaltyRules = savedRules;
-
-                const savedSettings = await window.dbAuth.getItem('pos_settings');
-                if (savedSettings) this.posSettings = savedSettings;
+                if (!user) { window.location.href = '../../auth/index.php'; return; }
             }
-
             await this.checkShiftStatus();
-            
             if(!this.needsShiftOpen) {
                 await this.loadLocalData(false);
-                
-                // 🎯 FITUR BARU: Auto-focus ke input barcode setelah data termuat
-                setTimeout(() => { 
-                    if(this.$refs.barcodeScanner) this.$refs.barcodeScanner.focus(); 
-                }, 500);
-
-                // 🎯 FITUR BARU: Global Listener untuk Scanner Barcode
-                // Memastikan kapanpun scanner menembak, hurufnya masuk ke input barcode
-                window.addEventListener('keypress', (e) => {
-                    if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
-                        if (this.$refs.barcodeScanner) {
-                            this.$refs.barcodeScanner.focus();
-                        }
-                    }
-                });
+                setTimeout(() => { if(this.$refs.barcodeScanner) this.$refs.barcodeScanner.focus() }, 500);
             }
         },
 
         // --- FUNGSI SHIFT ---
-        async checkShiftStatus() {
+      async checkShiftStatus() {
             try {
+                // KEMBALIKAN KE logic_shift.php
                 const res = await fetch(`logic_shift.php?action=check_shift&nocache=${Date.now()}`); 
                 const rawText = await res.text();
                 try {
@@ -90,50 +64,45 @@ document.addEventListener('alpine:init', () => {
             } catch (e) { console.error("Error Cek Shift:", e); }
         },
 
-        async openShift() {
+       async openShift() {
             this.isLoadingShift = true;
             try {
                 const fd = new FormData(); fd.append('shift_id', this.shiftForm.shift_id); fd.append('start_cash', this.shiftForm.start_cash);
+                // KEMBALIKAN KE logic_shift.php
                 const res = await fetch('logic_shift.php?action=open_shift', { method: 'POST', body: fd });
                 const rawText = await res.text();
                 try {
                     const result = JSON.parse(rawText);
                     if (result.status === 'success') {
                         this.needsShiftOpen = false; 
-                        if (typeof Swal !== 'undefined') Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: result.message, showConfirmButton: false, timer: 1500 });
+                        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: result.message, showConfirmButton: false, timer: 1500 });
                         await this.loadLocalData(false);
-                        setTimeout(() => { if(this.$refs.barcodeScanner) this.$refs.barcodeScanner.focus(); }, 500);
-                    } else { 
-                        if (typeof Swal !== 'undefined') Swal.fire('Error', result.message, 'error'); 
-                    }
+                    } else { Swal.fire('Error', result.message, 'error'); }
                 } catch(err) { console.error("❌ ERROR PHP (Open Shift):", rawText); }
-            } catch (e) { 
-                if (typeof Swal !== 'undefined') Swal.fire('Error', 'Gagal membuka kasir.', 'error'); 
-            } finally { this.isLoadingShift = false; }
+            } catch (e) { Swal.fire('Error', 'Gagal membuka kasir.', 'error'); } 
+            finally { this.isLoadingShift = false; }
         },
 
-        openCloseShiftModal() { this.closeShiftCash = ''; this.showCloseShiftModal = true; },
+      openCloseShiftModal() { this.closeShiftCash = ''; this.showCloseShiftModal = true; },
 
         async closeShift() {
             this.isLoadingShift = true;
             try {
                 const fd = new FormData(); fd.append('end_cash', this.closeShiftCash);
+                // KEMBALIKAN KE logic_shift.php
                 const res = await fetch('logic_shift.php?action=close_shift', { method: 'POST', body: fd });
-                const rawText = await res.text(); 
+                const rawText = await res.text(); // X-RAY ERROR HANDLER
                 try {
                     const result = JSON.parse(rawText);
                     if (result.status === 'success') {
-                        if (typeof Swal !== 'undefined') Swal.fire('Tutup Kasir Sukses', result.message, 'success').then(() => { window.location.reload(); });
-                    } else { 
-                        if (typeof Swal !== 'undefined') Swal.fire('Gagal', result.message, 'error'); 
-                    }
+                        Swal.fire('Tutup Kasir Sukses', result.message, 'success').then(() => { window.location.reload(); });
+                    } else { Swal.fire('Gagal', result.message, 'error'); }
                 } catch(err) { 
                     console.error("❌ ERROR PHP (Close Shift):", rawText); 
-                    if (typeof Swal !== 'undefined') Swal.fire('Error Database', 'Cek Console untuk melihat penyebab error dari PHP.', 'error');
+                    Swal.fire('Error Database', 'Cek Console (Cmd+Option+I) untuk melihat penyebab error dari PHP.', 'error');
                 }
-            } catch (e) { 
-                if (typeof Swal !== 'undefined') Swal.fire('Error', 'Gagal menutup kasir.', 'error'); 
-            } finally { this.isLoadingShift = false; }
+            } catch (e) { Swal.fire('Error', 'Gagal menutup kasir.', 'error'); } 
+            finally { this.isLoadingShift = false; }
         },
 
         // --- FUNGSI KAS KELUAR ---
@@ -144,7 +113,7 @@ document.addEventListener('alpine:init', () => {
 
         async submitKasKeluar() {
             if(!this.kasKeluarForm.amount || !this.kasKeluarForm.description) {
-                if (typeof Swal !== 'undefined') Swal.fire('Perhatian', 'Nominal dan Keterangan wajib diisi!', 'warning'); return;
+                Swal.fire('Perhatian', 'Nominal dan Keterangan wajib diisi!', 'warning'); return;
             }
             this.isSavingKas = true;
             try {
@@ -152,43 +121,42 @@ document.addEventListener('alpine:init', () => {
                 fd.append('amount', this.kasKeluarForm.amount); 
                 fd.append('description', this.kasKeluarForm.description);
                 
+                // Pastikan nembak ke logic_kasir.php
                 const res = await fetch('logic_kasir.php?action=save_kas_keluar', { method: 'POST', body: fd });
+                
+                // X-Ray Error Handler (Menangkap pesan PHP murni jika crash)
                 const rawText = await res.text();
                 try {
                     const result = JSON.parse(rawText);
                     if(result.status === 'success') {
                         this.showKasKeluarModal = false;
-                        if (typeof Swal !== 'undefined') Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: result.message, showConfirmButton: false, timer: 2000 });
+                        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: result.message, showConfirmButton: false, timer: 2000 });
                     } else {
-                        if (typeof Swal !== 'undefined') Swal.fire('Gagal', result.message, 'error');
+                        Swal.fire('Gagal', result.message, 'error');
                     }
                 } catch(err) {
                     console.error("❌ ERROR DARI PHP:", rawText);
-                    if (typeof Swal !== 'undefined') Swal.fire('Error Database', 'PHP mengalami crash! Cek Console.', 'error');
+                    Swal.fire('Error Database', 'PHP mengalami crash! Cek Console (Cmd+Option+I) untuk melihat penyebabnya.', 'error');
                 }
-            } catch(e) { 
-                if (typeof Swal !== 'undefined') Swal.fire('Error', 'Koneksi server gagal.', 'error'); 
-            } finally { this.isSavingKas = false; }
+            } catch(e) { Swal.fire('Error', 'Koneksi server gagal.', 'error'); }
+            finally { this.isSavingKas = false; }
         },
 
         // --- FUNGSI MASTER DATA ---
         async loadLocalData(isManualSync = false) {
-            this.isLoading = true;
-            try {
-                // Perbaiki pemanggilan endpoint agar konsisten
-                const response = await fetch(`logic_kasir.php?action=get_master_data&nocache=${Date.now()}`);
+    this.isLoading = true;
+    try {
+        const response = await fetch(`logic_kasir.php?action=get_master_data&nocache=${Date.now()}`);
                 const result = await response.json(); 
                 if (result.status === 'success') {
-                    this.products = result.products || []; 
-                    this.customers = result.customers || [];
+                    this.products = result.products; 
+                    this.customers = result.customers;
                     this.savedCustoms = result.saved_customs || []; 
                     
-                    if(isManualSync && typeof Swal !== 'undefined') {
-                        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `Database Tersinkronisasi!`, showConfirmButton: false, timer: 1500 });
-                    }
+                    if(isManualSync) Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `Database Tersinkronisasi!`, showConfirmButton: false, timer: 1500 });
                 }
             } catch (error) {
-                if (isManualSync && typeof Swal !== 'undefined') Swal.fire('Mode Offline', 'Memakai data lokal memori.', 'warning');
+                if (isManualSync) Swal.fire('Mode Offline', 'Memakai data lokal memori.', 'warning');
             } finally { this.isLoading = false; }
         },
 
@@ -203,24 +171,8 @@ document.addEventListener('alpine:init', () => {
             const code = this.barcodeInput.trim().toUpperCase();
             if (!code) return;
             const product = this.products.find(p => (p.code || '').toUpperCase() === code);
-            if (product) { 
-                this.addToCart(product); 
-                this.playBeep(); // Bunyi saat sukses scan
-            } else { 
-                if (typeof Swal !== 'undefined') Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'SKU Tidak Ditemukan!', showConfirmButton: false, timer: 1000 }); 
-            }
-            this.barcodeInput = ''; 
-            setTimeout(() => { if(this.$refs.barcodeScanner) this.$refs.barcodeScanner.focus(); }, 10);
-        },
-
-        playBeep() {
-            try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = ctx.createOscillator();
-                osc.type = 'sine'; osc.frequency.value = 1200;
-                osc.connect(ctx.destination);
-                osc.start(); setTimeout(() => { osc.stop(); }, 100);
-            } catch(e) {}
+            if (product) { this.addToCart(product); } else { Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'SKU Tidak Ditemukan!', showConfirmButton: false, timer: 1000 }); }
+            this.barcodeInput = ''; setTimeout(() => { if(this.$refs.barcodeScanner) this.$refs.barcodeScanner.focus(); }, 10);
         },
 
         // --- FUNGSI KERANJANG ---
@@ -261,7 +213,7 @@ document.addEventListener('alpine:init', () => {
             const price = parseFloat(this.customItemForm.price);
 
             if (!name || isNaN(price) || price <= 0) {
-                if (typeof Swal !== 'undefined') Swal.fire('Perhatian', 'Nama dan Harga wajib diisi dengan benar!', 'warning');
+                Swal.fire('Perhatian', 'Nama dan Harga wajib diisi dengan benar!', 'warning');
                 return;
             }
 
@@ -283,17 +235,12 @@ document.addEventListener('alpine:init', () => {
         // --- FUNGSI DISKON & VOUCHER ---
         async applyManualDiscount() {
             if (this.subtotal <= 0) { window.alert('Keranjang masih kosong!'); return; }
-            
-            // 🛠️ PERBAIKAN: Baca PIN dari posSettings (sudah aman)
             const realPin = this.posSettings.pin_supervisor || '123456';
-            
             const { value: inputPin } = await Swal.fire({ title: 'Otorisasi Supervisor', input: 'password', inputPlaceholder: 'Masukkan PIN', showCancelButton: true, confirmButtonText: 'Validasi' });
             if (inputPin === realPin) {
                 const { value: discVal } = await Swal.fire({ title: 'Diskon Manual', input: 'number', inputPlaceholder: 'Masukkan Nominal (Rp)', showCancelButton: true });
                 if (discVal && parseFloat(discVal) > 0) { this.discountManual = parseFloat(discVal); }
-            } else if (inputPin) { 
-                Swal.fire('Akses Ditolak', 'PIN Supervisor Salah!', 'error'); 
-            }
+            } else if (inputPin) { Swal.fire('Akses Ditolak', 'PIN Supervisor Salah!', 'error'); }
         },
 
         async applyVoucher() {
@@ -334,7 +281,7 @@ document.addEventListener('alpine:init', () => {
         // --- FUNGSI CHECKOUT ---
         processCheckout() {
             if(this.activeTab === 'po' && (!this.poForm.pickup_date || !this.poForm.pickup_time)) {
-                if (typeof Swal !== 'undefined') Swal.fire('Perhatian', 'Tanggal dan Jam Pengambilan Pesanan PO wajib diisi!', 'warning'); return;
+                Swal.fire('Perhatian', 'Tanggal dan Jam Pengambilan Pesanan PO wajib diisi!', 'warning'); return;
             }
             this.paymentStatus = 'lunas'; this.paymentMethod = 'cash'; this.inputUang = this.totalAmount; 
             this.showCheckoutModal = true;
@@ -342,13 +289,13 @@ document.addEventListener('alpine:init', () => {
 
         submitCheckout() {
             if (this.paymentStatus === 'dp') {
-                if(!this.selectedCustomerId) { if (typeof Swal !== 'undefined') Swal.fire('Perhatian', 'Transaksi DP/Kasbon wajib memilih nama Pelanggan di sidebar!', 'warning'); return; }
-                if(!this.inputUang || this.inputUang <= 0 || this.inputUang > this.totalAmount) { if (typeof Swal !== 'undefined') Swal.fire('Perhatian', 'Nominal DP tidak valid!', 'warning'); return; }
+                if(!this.selectedCustomerId) { Swal.fire('Perhatian', 'Transaksi DP/Kasbon wajib memilih nama Pelanggan di sidebar!', 'warning'); return; }
+                if(!this.inputUang || this.inputUang <= 0 || this.inputUang > this.totalAmount) { Swal.fire('Perhatian', 'Nominal DP tidak valid!', 'warning'); return; }
                 this.dpAmount = parseFloat(this.inputUang); this.amountPaid = this.dpAmount; this.changeAmount = 0; this.paymentMethod = 'cash';
             } else {
                 this.dpAmount = 0;
                 if (this.paymentMethod === 'cash') {
-                    if (!this.inputUang || parseFloat(this.inputUang) < this.totalAmount) { if (typeof Swal !== 'undefined') Swal.fire('Perhatian', 'Uang diterima kurang dari total tagihan!', 'warning'); return; }
+                    if (!this.inputUang || parseFloat(this.inputUang) < this.totalAmount) { Swal.fire('Perhatian', 'Uang diterima kurang dari total tagihan!', 'warning'); return; }
                     this.amountPaid = parseFloat(this.inputUang); this.changeAmount = this.amountPaid - this.totalAmount;
                 } else if (this.paymentMethod === 'qris') {
                     this.amountPaid = this.totalAmount; this.changeAmount = 0;
