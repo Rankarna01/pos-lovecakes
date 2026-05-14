@@ -11,6 +11,36 @@ header('Content-Type: application/json');
 $action = $_REQUEST['action'] ?? '';
 $user_id = $_SESSION['pos_user_id'] ?? 1;
 
+// --- FUNGSI SHIFT KASIR ---
+if ($action === 'check_shift') {
+    $stmt = $pdo->prepare("SELECT id FROM shifts_history_pos WHERE user_id = ? AND status = 'open' LIMIT 1");
+    $stmt->execute([$user_id]);
+    $shift = $stmt->fetch(PDO::FETCH_ASSOC);
+    echo json_encode([
+        'status' => 'success', 
+        'has_open_shift' => !!$shift, 
+        'shift_id_active' => $shift ? $shift['id'] : null
+    ]);
+    exit;
+}
+
+if ($action === 'open_shift') {
+    $start_cash = $_POST['start_cash'] ?? 0;
+    // Gunakan shift_id 0 karena sudah tidak relasi ke master shift
+    $stmt = $pdo->prepare("INSERT INTO shifts_history_pos (user_id, shift_id, start_time, start_cash, status) VALUES (?, 0, NOW(), ?, 'open')");
+    $stmt->execute([$user_id, $start_cash]);
+    echo json_encode(['status' => 'success', 'message' => 'Shift berhasil dibuka!']);
+    exit;
+}
+
+if ($action === 'close_shift') {
+    $end_cash = $_POST['end_cash'] ?? 0;
+    $stmt = $pdo->prepare("UPDATE shifts_history_pos SET status = 'closed', end_time = NOW(), end_cash = ? WHERE user_id = ? AND status = 'open'");
+    $stmt->execute([$end_cash, $user_id]);
+    echo json_encode(['status' => 'success', 'message' => 'Kasir Berhasil Ditutup!']);
+    exit;
+}
+
 // --- FUNGSI MASTER DATA ---
 if ($action === 'get_master_data') {
     $products = $pdo->query("SELECT * FROM products ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);

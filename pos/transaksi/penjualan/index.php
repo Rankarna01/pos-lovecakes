@@ -31,22 +31,22 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                 <div class="bg-white p-4 rounded-[1.5rem] shadow-sm border border-slate-200 flex flex-col md:flex-row gap-3">
                     <div class="relative flex-1">
                         <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                        <input type="text" x-model="filters.search" @input.debounce.500ms="fetchSales()" placeholder="Cari No. Invoice / Pelanggan..." class="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-primary font-bold text-sm">
+                        <input type="text" x-model="filters.search" @input.debounce.500ms="applyFilter()" placeholder="Cari No. Invoice / Pelanggan..." class="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-primary font-bold text-sm">
                     </div>
-                    <select x-model="filters.channel" @change="fetchSales()" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary font-bold text-sm text-slate-600">
+                    <select x-model="filters.channel" @change="applyFilter()" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary font-bold text-sm text-slate-600">
                         <option value="">Semua Channel</option>
                         <option value="toko">Toko (Offline)</option>
                         <option value="grab">GrabFood</option>
                         <option value="gojek">GoFood</option>
                         <option value="wa_delivery">WA / Delivery</option>
                     </select>
-                    <select x-model="filters.payment" @change="fetchSales()" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary font-bold text-sm text-slate-600">
+                    <select x-model="filters.payment" @change="applyFilter()" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary font-bold text-sm text-slate-600">
                         <option value="">Semua Pembayaran</option>
                         <option value="cash">Cash</option>
                         <option value="qris">QRIS</option>
                         <option value="app">Saldo App</option>
                     </select>
-                    <button @click="fetchSales()" class="bg-primary hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-sm flex items-center justify-center gap-2">
+                    <button @click="applyFilter()" class="bg-primary hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-sm flex items-center justify-center gap-2">
                         <i class="fa-solid fa-filter"></i> Filter
                     </button>
                 </div>
@@ -102,6 +102,17 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                                 </template>
                             </tbody>
                         </table>
+                    </div>
+                    <div class="p-4 border-t border-slate-200 bg-slate-50 flex flex-col sm:flex-row gap-3 items-center justify-between">
+                        <span class="text-xs text-slate-500 font-bold" x-text="'Halaman ' + currentPage + ' dari ' + totalPages"></span>
+                        <div class="flex gap-2">
+                            <button @click="prevPage()" :disabled="currentPage <= 1" class="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-100 disabled:opacity-50 transition-colors shadow-sm">
+                                <i class="fa-solid fa-chevron-left mr-1"></i> Sebelumnya
+                            </button>
+                            <button @click="nextPage()" :disabled="currentPage >= totalPages" class="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-100 disabled:opacity-50 transition-colors shadow-sm">
+                                Selanjutnya <i class="fa-solid fa-chevron-right ml-1"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

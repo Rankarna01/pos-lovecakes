@@ -34,13 +34,33 @@ if ($action === 'get_sales') {
             $params[] = $payment;
         }
 
-        $query .= " ORDER BY s.created_at DESC LIMIT 100"; // Batasi 100 terakhir agar ringan
+        // Hitung total data untuk pagination
+        $countQuery = str_replace("s.*, COALESCE(c.name, 'Pelanggan Umum') as customer_name", "COUNT(*) as total", $query);
+        $stmtCount = $pdo->prepare($countQuery);
+        $stmtCount->execute($params);
+        $totalData = $stmtCount->fetch(PDO::FETCH_ASSOC)['total'];
+
+        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+        $limit = 10;
+        $offset = ($page - 1) * $limit;
+        $totalPages = ceil($totalData / $limit);
+
+        $query .= " ORDER BY s.created_at DESC LIMIT $limit OFFSET $offset";
 
         $stmt = $pdo->prepare($query);
         $stmt->execute($params);
         $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        echo json_encode(['status' => 'success', 'data' => $data]);
+        echo json_encode([
+            'status' => 'success', 
+            'data' => $data, 
+            'pagination' => [
+                'current_page' => $page,
+                'total_pages' => $totalPages,
+                'total_data' => $totalData,
+                'limit' => $limit
+            ]
+        ]);
     } catch (PDOException $e) {
         echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
     }

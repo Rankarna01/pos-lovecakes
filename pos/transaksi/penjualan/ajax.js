@@ -7,6 +7,8 @@ document.addEventListener('alpine:init', () => {
             channel: '',
             payment: ''
         },
+        currentPage: 1,
+        totalPages: 1,
 
         // State Modal Detail
         showModal: false,
@@ -38,6 +40,7 @@ document.addEventListener('alpine:init', () => {
             try {
                 const params = new URLSearchParams(this.filters);
                 params.append('action', 'get_sales');
+                params.append('page', this.currentPage);
                 params.append('nocache', Date.now());
 
                 const response = await fetch(`logic.php?${params.toString()}`);
@@ -45,6 +48,7 @@ document.addEventListener('alpine:init', () => {
 
                 if (result.status === 'success') {
                     this.sales = result.data;
+                    this.totalPages = result.pagination.total_pages;
                 } else {
                     console.error(result.message);
                     if (typeof Swal !== 'undefined') Swal.fire('Gagal', result.message, 'error');
@@ -55,6 +59,25 @@ document.addEventListener('alpine:init', () => {
             } finally {
                 // WAJIB: Pastikan spinner selalu mati
                 this.isLoading = false;
+            }
+        },
+
+        applyFilter() {
+            this.currentPage = 1;
+            this.fetchSales();
+        },
+
+        nextPage() {
+            if (this.currentPage < this.totalPages) {
+                this.currentPage++;
+                this.fetchSales();
+            }
+        },
+
+        prevPage() {
+            if (this.currentPage > 1) {
+                this.currentPage--;
+                this.fetchSales();
             }
         },
 

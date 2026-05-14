@@ -51,14 +51,13 @@ document.addEventListener('alpine:init', () => {
         // --- FUNGSI SHIFT ---
       async checkShiftStatus() {
             try {
-                // KEMBALIKAN KE logic_shift.php
-                const res = await fetch(`logic_shift.php?action=check_shift&nocache=${Date.now()}`); 
+                // ARAHKAN KE logic_kasir.php
+                const res = await fetch(`logic_kasir.php?action=check_shift&nocache=${Date.now()}`); 
                 const rawText = await res.text();
                 try {
                     const result = JSON.parse(rawText);
                     if (result.status === 'success') {
                         this.needsShiftOpen = !result.has_open_shift;
-                        this.masterShifts = result.master_shifts || []; 
                     }
                 } catch(err) { console.error("❌ ERROR PHP (Check Shift):", rawText); }
             } catch (e) { console.error("Error Cek Shift:", e); }
@@ -67,9 +66,9 @@ document.addEventListener('alpine:init', () => {
        async openShift() {
             this.isLoadingShift = true;
             try {
-                const fd = new FormData(); fd.append('shift_id', this.shiftForm.shift_id); fd.append('start_cash', this.shiftForm.start_cash);
-                // KEMBALIKAN KE logic_shift.php
-                const res = await fetch('logic_shift.php?action=open_shift', { method: 'POST', body: fd });
+                const fd = new FormData(); fd.append('start_cash', this.shiftForm.start_cash);
+                // ARAHKAN KE logic_kasir.php
+                const res = await fetch('logic_kasir.php?action=open_shift', { method: 'POST', body: fd });
                 const rawText = await res.text();
                 try {
                     const result = JSON.parse(rawText);
@@ -89,8 +88,8 @@ document.addEventListener('alpine:init', () => {
             this.isLoadingShift = true;
             try {
                 const fd = new FormData(); fd.append('end_cash', this.closeShiftCash);
-                // KEMBALIKAN KE logic_shift.php
-                const res = await fetch('logic_shift.php?action=close_shift', { method: 'POST', body: fd });
+                // ARAHKAN KE logic_kasir.php
+                const res = await fetch('logic_kasir.php?action=close_shift', { method: 'POST', body: fd });
                 const rawText = await res.text(); // X-RAY ERROR HANDLER
                 try {
                     const result = JSON.parse(rawText);

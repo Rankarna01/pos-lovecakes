@@ -6,7 +6,8 @@ document.addEventListener('alpine:init', () => {
             markup_gojek: '0',
             pin_supervisor: '',
             wa_gateway_api: '',
-            wa_number_sender: ''
+            wa_number_sender: '',
+            default_start_cash: '0'
         },
 
         async init() {
@@ -49,6 +50,7 @@ document.addEventListener('alpine:init', () => {
                     this.form.pin_supervisor = result.data.pin_supervisor || '';
                     this.form.wa_gateway_api = result.data.wa_gateway_api || '';
                     this.form.wa_number_sender = result.data.wa_number_sender || '';
+                    this.form.default_start_cash = result.data.default_start_cash || '0';
                     
                     // ✅ FITUR EMAS: Kita juga simpan ke memori lokal kasir
                     if(window.dbAuth) {

@@ -25,7 +25,8 @@ if ($action === 'save') {
         'markup_gojek'     => $_POST['markup_gojek'] ?? '0',
         'pin_supervisor'   => $_POST['pin_supervisor'] ?? '',
         'wa_gateway_api'   => $_POST['wa_gateway_api'] ?? '',
-        'wa_number_sender' => $_POST['wa_number_sender'] ?? ''
+        'wa_number_sender' => $_POST['wa_number_sender'] ?? '',
+        'default_start_cash' => $_POST['default_start_cash'] ?? '0'
     ];
 
     try {

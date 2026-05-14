@@ -96,6 +96,22 @@ $page_title = "Pengaturan POS - Love Cakes";
                     </div>
                 </div>
 
+                <div class="bg-white rounded-[1.5rem] border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="p-5 border-b border-slate-100 bg-amber-50/50">
+                        <h4 class="font-black text-slate-800 text-lg flex items-center gap-2">
+                            <i class="fa-solid fa-money-bill-wave text-amber-500"></i> Modal Awal Kasir (Deposit Default)
+                        </h4>
+                        <p class="text-xs font-bold text-slate-500 mt-1">Nilai default untuk modal uang fisik di laci saat kasir membuka shift baru.</p>
+                    </div>
+                    <div class="p-6">
+                        <label class="block text-xs font-black text-slate-500 mb-2 uppercase tracking-wide">Nominal Default (Rp)</label>
+                        <div class="flex max-w-xs">
+                            <span class="bg-slate-100 border border-slate-200 border-r-0 rounded-l-xl px-4 py-3 flex items-center font-black text-amber-500">Rp</span>
+                            <input type="number" x-model="form.default_start_cash" class="w-full bg-white border border-slate-200 rounded-r-xl px-4 py-3 outline-none focus:border-amber-500 font-black text-xl text-slate-700 transition-colors" placeholder="Misal: 100000">
+                        </div>
+                    </div>
+                </div>
+
                 <div class="flex justify-end pt-4 pb-10">
                     <button @click="saveSettings()" class="w-full sm:w-auto bg-primary hover:bg-blue-700 text-white font-black px-10 py-4 rounded-xl transition-all shadow-md shadow-primary/30 flex justify-center items-center gap-2 text-base">
                         <i class="fa-solid fa-floppy-disk"></i> Simpan Pengaturan POS

@@ -80,15 +80,7 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                 <h2 class="text-2xl font-black text-slate-800 mb-2">Mulai Shift Kasir</h2>
                 <p class="text-sm font-bold text-slate-500 mb-6">Masukkan uang modal awal di laci kasir (Cash) untuk mulai transaksi.</p>
                 <form @submit.prevent="openShift()" class="space-y-4 text-left">
-                    <div>
-                        <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Pilih Shift Kerja</label>
-                        <select x-model="shiftForm.shift_id" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/20 font-bold text-slate-700">
-                            <option value="">-- Pilih Shift --</option>
-                            <template x-for="s in masterShifts" :key="s.id">
-                                <option :value="s.id" x-text="s.shift_name + ' (' + s.start_time + ' - ' + s.end_time + ')'"></option>
-                            </template>
-                        </select>
-                    </div>
+
                     <div>
                         <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Modal Awal Cash (Di Laci)</label>
                         <div class="relative">
