@@ -1,9 +1,11 @@
-document.addEventListener('alpine:init', () => {
+ document.addEventListener('alpine:init', () => {
     Alpine.data('posApp', () => ({
         // --- DATA MASTER ---
         products: [], 
         savedCustoms: [], // Menyimpan data template menu custom (tabel saved_custom_items_pos)
         customers: [], 
+        searchCustomer: '',
+        isCustomerDropdownOpen: false,
         posSettings: {}, 
         loyaltyRules: { is_active: 0, earn_point_ratio: 0, points_required: 0, discount_amount: 0, discount_type: 'IDR' },
         
@@ -22,15 +24,21 @@ document.addEventListener('alpine:init', () => {
         // --- KERANJANG & CHECKOUT ---
         orderType: 'offline', cart: [], selectedCustomerId: '',
         voucherCode: '', appliedVoucher: null, usePoints: false, discountManual: 0, 
-        poForm: { channel: 'toko', pickup_date: '', pickup_time: '', ongkir: 0 },
+        orderNotes: '',
+        poForm: { channel: 'toko', pickup_date: '', pickup_time: '', ongkir: 0, notes: '' },
         
         // --- STATE MODAL CHECKOUT MEWAH ---
         showCheckoutModal: false, inputUang: '',
         paymentMethod: 'cash', paymentStatus: 'lunas', amountPaid: 0, dpAmount: 0, changeAmount: 0,
 
-        // --- STATE MODAL ITEM CUSTOM ---
+        // --- STATE MODAL ITEM CUSTOM & CATATAN ---
         showCustomItemModal: false,
         customItemForm: { template: '', name: '', price: '' },
+        showNotesModal: false,
+
+        // --- TAMBAH PELANGGAN ---
+        showAddCustomerModal: false, isSavingCustomer: false,
+        newCustomerForm: { name: '', phone: '', address: '' },
 
         // --- MODAL STATUS & SUCCESS ---
         showStatusModal: false, isFetchingStatus: false, activeOrders: [],
@@ -151,6 +159,9 @@ document.addEventListener('alpine:init', () => {
                     this.products = result.products; 
                     this.customers = result.customers;
                     this.savedCustoms = result.saved_customs || []; 
+                    if(result.default_start_cash && !this.shiftForm.start_cash) {
+                        this.shiftForm.start_cash = result.default_start_cash;
+                    }
                     
                     if(isManualSync) Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `Database Tersinkronisasi!`, showConfirmButton: false, timer: 1500 });
                 }
@@ -164,7 +175,49 @@ document.addEventListener('alpine:init', () => {
             const q = this.searchQuery.toLowerCase();
             return this.products.filter(p => p.name && p.name.toLowerCase().includes(q));
         },
+        get filteredCustomers() {
+            if (this.searchCustomer.trim() === '') return this.customers;
+            const q = this.searchCustomer.toLowerCase();
+            return this.customers.filter(c => c.name && c.name.toLowerCase().includes(q));
+        },
         get selectedCustomer() { return this.selectedCustomerId ? this.customers.find(c => c.id == this.selectedCustomerId) : null; },
+        
+        selectCustomer(id) {
+            this.selectedCustomerId = id;
+            this.isCustomerDropdownOpen = false;
+            this.searchCustomer = '';
+            this.onCustomerSelect();
+        },
+
+        async submitNewCustomer() {
+            if(!this.newCustomerForm.name) {
+                Swal.fire('Perhatian', 'Nama pelanggan wajib diisi!', 'warning'); return;
+            }
+            this.isSavingCustomer = true;
+            try {
+                const fd = new FormData();
+                fd.append('name', this.newCustomerForm.name);
+                fd.append('phone', this.newCustomerForm.phone);
+                fd.append('address', this.newCustomerForm.address);
+                
+                const res = await fetch('logic_kasir.php?action=add_customer', { method: 'POST', body: fd });
+                const result = await res.json();
+                
+                if (result.status === 'success') {
+                    this.customers = result.customers;
+                    this.selectCustomer(result.new_id);
+                    this.showAddCustomerModal = false;
+                    this.newCustomerForm = { name: '', phone: '', address: '' };
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: result.message, showConfirmButton: false, timer: 1500 });
+                } else {
+                    Swal.fire('Error', result.message, 'error');
+                }
+            } catch(e) {
+                Swal.fire('Error', 'Gagal menyimpan pelanggan.', 'error');
+            } finally {
+                this.isSavingCustomer = false;
+            }
+        },
 
         scanBarcode() {
             const code = this.barcodeInput.trim().toUpperCase();
@@ -207,7 +260,7 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
-        submitCustomItem() {
+        async submitCustomItem() {
             const name = this.customItemForm.name.trim();
             const price = parseFloat(this.customItemForm.price);
 
@@ -216,13 +269,34 @@ document.addEventListener('alpine:init', () => {
                 return;
             }
 
+            let template_id = this.customItemForm.template || null;
+
+            // Jika tidak pilih dari template, simpan ke database sebagai template baru
+            if (!template_id) {
+                try {
+                    const fd = new FormData();
+                    fd.append('name', name);
+                    fd.append('price', price);
+                    const res = await fetch('logic_kasir.php?action=save_custom_item', { method: 'POST', body: fd });
+                    const data = await res.json();
+                    if (data.status === 'success' && data.new_id) {
+                        template_id = data.new_id;
+                        // Reload master data diam-diam untuk meng-update dropdown template
+                        fetch(`logic_kasir.php?action=get_master_data&nocache=${Date.now()}`)
+                            .then(r => r.json())
+                            .then(d => { if(d.status === 'success') this.savedCustoms = d.saved_customs || []; });
+                    }
+                } catch(e) { console.error("Gagal simpan template item custom:", e); }
+            }
+
             this.cart.push({ 
-                id: 'custom_' + Date.now(), 
+                id: template_id ? ('custom_' + template_id + '_' + Date.now()) : ('custom_' + Date.now()), 
                 name: name, 
                 price: price, 
                 qty: 1, 
                 subtotal: price, 
-                is_custom: true 
+                is_custom: true,
+                template_id: template_id
             });
 
             this.showCustomItemModal = false;
@@ -290,7 +364,8 @@ document.addEventListener('alpine:init', () => {
             if (this.paymentStatus === 'dp') {
                 if(!this.selectedCustomerId) { Swal.fire('Perhatian', 'Transaksi DP/Kasbon wajib memilih nama Pelanggan di sidebar!', 'warning'); return; }
                 if(!this.inputUang || this.inputUang <= 0 || this.inputUang > this.totalAmount) { Swal.fire('Perhatian', 'Nominal DP tidak valid!', 'warning'); return; }
-                this.dpAmount = parseFloat(this.inputUang); this.amountPaid = this.dpAmount; this.changeAmount = 0; this.paymentMethod = 'cash';
+                this.dpAmount = parseFloat(this.inputUang); this.amountPaid = this.dpAmount; this.changeAmount = 0; 
+                // paymentMethod is already chosen by toggle
             } else {
                 this.dpAmount = 0;
                 if (this.paymentMethod === 'cash') {
@@ -305,10 +380,15 @@ document.addEventListener('alpine:init', () => {
 
         async executeCheckout() {
             this.isLoading = true;
+            let finalNotes = this.orderNotes;
+            if (this.activeTab === 'po' && this.poForm.notes) {
+                finalNotes = finalNotes ? (finalNotes + " | " + this.poForm.notes) : this.poForm.notes;
+            }
+
             const payload = {
                 is_po: this.activeTab === 'po', channel: this.activeTab === 'po' ? this.poForm.channel : 'toko',
                 pickup_date: this.activeTab === 'po' ? this.poForm.pickup_date : null, pickup_time: this.activeTab === 'po' ? this.poForm.pickup_time : null,
-                ongkir: this.activeTab === 'po' ? this.poForm.ongkir : 0,
+                ongkir: this.activeTab === 'po' ? this.poForm.ongkir : 0, notes: finalNotes,
                 order_type: this.orderType, customer_id: this.selectedCustomerId, subtotal: this.subtotal,
                 discount_voucher: this.discountVoucher, voucher_code: this.appliedVoucher ? this.appliedVoucher.voucher_code : null,
                 discount_points: this.discountPoints, discount_manual: this.discountManual, points_used: this.usePoints ? this.loyaltyRules.points_required : 0, points_earned: this.pointsEarned, 
@@ -335,7 +415,8 @@ document.addEventListener('alpine:init', () => {
             this.cart = []; this.selectedCustomerId = ''; this.voucherCode = ''; this.appliedVoucher = null;
             this.usePoints = false; this.discountManual = 0; this.paymentMethod = 'cash'; this.paymentStatus = 'lunas';
             this.amountPaid = 0; this.dpAmount = 0; this.changeAmount = 0; this.inputUang = 0;
-            this.poForm = { channel: 'toko', pickup_date: '', pickup_time: '', ongkir: 0 };
+            this.orderNotes = '';
+            this.poForm = { channel: 'toko', pickup_date: '', pickup_time: '', ongkir: 0, notes: '' };
             this.showSuccessModal = false;
         },
 

@@ -14,7 +14,7 @@ if (empty($invoice)) {
 
 try {
     // 1. Tarik Data Master Transaksi
-    $stmtHead = $pdo->prepare("SELECT s.*, c.name as customer_name FROM sales_pos s LEFT JOIN customers_pos c ON s.customer_id = c.id WHERE s.invoice_no = ?");
+    $stmtHead = $pdo->prepare("SELECT s.*, c.name as customer_name, c.phone as customer_phone FROM sales_pos s LEFT JOIN customers_pos c ON s.customer_id = c.id WHERE s.invoice_no = ?");
     $stmtHead->execute([$invoice]);
     $sale = $stmtHead->fetch(PDO::FETCH_ASSOC);
 
@@ -97,6 +97,15 @@ try {
         <?php endif; ?>
         <?php if(!empty($sale['customer_name'])): ?>
         <tr><td>Cust</td><td>: <?= htmlspecialchars($sale['customer_name']) ?></td></tr>
+        <?php if(!empty($sale['customer_phone'])): ?>
+        <tr><td>Telp</td><td>: <?= htmlspecialchars($sale['customer_phone']) ?></td></tr>
+        <?php endif; ?>
+        <?php endif; ?>
+        <?php if(strtolower($channel) == 'delivery'): ?>
+        <tr><td colspan="2" class="text-bold text-center" style="padding-top: 5px;">[ DELIVERY ]</td></tr>
+        <?php endif; ?>
+        <?php if(!empty($sale['notes'])): ?>
+        <tr><td colspan="2" style="padding-top: 5px; font-style: italic;">Catatan: <br><?= nl2br(htmlspecialchars($sale['notes'])) ?></td></tr>
         <?php endif; ?>
     </table>
     
