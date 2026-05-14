@@ -23,10 +23,10 @@ if (!isset($_SESSION['pos_user_id']) || empty($_SESSION['pos_user_id'])) {
 // KUNCI PINTU URL (ROUTE BLOCKER 403)
 // ==========================================
 $current_uri = $_SERVER['REQUEST_URI'];
-$role = strtolower($_SESSION['pos_role'] ?? '');
+$role = strtolower(trim($_SESSION['pos_role'] ?? ''));
 
-// JIKA YANG LOGIN ADALAH KASIR, KITA BATASI RUANG GERAKNYA!
-if (in_array($role, ['kasir', 'cashier'])) {
+// 🎯 LOGIKA DIBALIK: Jika BUKAN Admin, maka dia adalah Kasir (Batasi ruang geraknya!)
+if (!in_array($role, ['admin', 'owner', 'superadmin', 'backoffice'])) {
     
     // Daftar folder yang HARAM dimasuki oleh Kasir
     $blocked_folders = [
@@ -35,7 +35,6 @@ if (in_array($role, ['kasir', 'cashier'])) {
         '/pos/karyawan/',
         '/pos/laporan/',
         '/pos/pemasaran/',
-        '/pos/online/', 
         '/pos/kemitraan/',
         '/pos/pengaturan/toko/',
         '/pos/pengaturan/pajak/',
@@ -59,25 +58,26 @@ if (in_array($role, ['kasir', 'cashier'])) {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>403 - Akses Ditolak</title>
-            <script src="https://cdn.tailwindcss.com"></script>
-            <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;900&display=swap" rel="stylesheet">
+            <style>
+                body { font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+                .error-card { background: white; padding: 40px; border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); text-align: center; max-width: 400px; width: 90%; border: 1px solid #ffe4e6; }
+                .icon { font-size: 70px; margin-bottom: 20px; display: inline-block; background: #fff1f2; padding: 20px; border-radius: 50%; color: #e11d48; }
+                h1 { color: #0f172a; margin-bottom: 10px; font-size: 24px; font-weight: 800; }
+                p { color: #64748b; margin-bottom: 30px; font-size: 14px; line-height: 1.6; }
+                .btn { display: inline-block; background: #2563eb; color: white; text-decoration: none; padding: 14px 24px; border-radius: 12px; font-weight: bold; font-size: 14px; width: 100%; box-sizing: border-box; transition: 0.3s; }
+                .btn:hover { background: #1d4ed8; }
+            </style>
         </head>
-        <body class="bg-slate-100 flex items-center justify-center h-screen p-4" style="font-family: \'Poppins\', sans-serif;">
-            <div class="bg-white p-8 md:p-10 rounded-[2rem] shadow-xl max-w-md w-full text-center border border-rose-100">
-                <div class="w-24 h-24 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <span class="text-5xl">🚫</span>
-                </div>
-                <h1 class="text-3xl font-black text-slate-800 mb-2">Akses Ditolak!</h1>
-                <p class="text-slate-500 mb-8 text-sm font-medium leading-relaxed">
-                    Mohon maaf, peran akun Anda (<b>KASIR</b>) tidak memiliki izin untuk membuka halaman ini.
-                </p>
-                <a href="' . BASE_URL . 'pos/kasir/" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-6 rounded-xl transition-all w-full block shadow-lg shadow-blue-600/30">
-                    Kembali ke Mesin Kasir
-                </a>
+        <body>
+            <div class="error-card">
+                <div class="icon">🚫</div>
+                <h1>Akses Ditolak!</h1>
+                <p>Mohon maaf, peran akun Anda tidak memiliki izin untuk membuka halaman Backoffice ini.</p>
+                <a href="' . BASE_URL . 'pos/kasir/" class="btn">Kembali ke Mesin Kasir</a>
             </div>
         </body>
         </html>';
-        exit(); // MATIKAN PROSES PHP AGAR HALAMAN ADMIN TIDAK TER-LOAD!
+        exit(); // MATIKAN PROSES PHP DISINI!
     }
 }
 ?>
