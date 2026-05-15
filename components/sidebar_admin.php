@@ -167,6 +167,25 @@ function isDropdownActive($paths, $current_uri) {
             </div>
         </div>
 
+        <!-- ===== TOMBOL LOGOUT ADMIN ===== -->
+        <div class="mt-4 px-2 pb-4">
+            <div class="border-t border-slate-100 pt-4">
+                <div class="flex items-center gap-3 px-3 py-2.5 mb-3">
+                    <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                        <i class="fa-solid fa-user text-primary text-xs"></i>
+                    </div>
+                    <div class="overflow-hidden">
+                        <p class="text-xs font-black text-slate-700 truncate"><?= htmlspecialchars($_SESSION['pos_nama'] ?? $_SESSION['pos_username'] ?? 'Admin') ?></p>
+                        <p class="text-[10px] text-slate-400 font-medium capitalize"><?= htmlspecialchars($_SESSION['pos_role'] ?? 'admin') ?></p>
+                    </div>
+                </div>
+                <button onclick="doLogoutAdmin()" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold transition-all group border border-rose-100 hover:border-rose-200">
+                    <i class="fa-solid fa-power-off w-5 text-center text-base shrink-0 group-hover:rotate-12 transition-transform"></i>
+                    <span class="text-sm whitespace-nowrap">Keluar</span>
+                </button>
+            </div>
+        </div>
+
     </nav>
 </aside>
 
@@ -204,6 +223,30 @@ function isDropdownActive($paths, $current_uri) {
             menu.classList.remove('flex');
             icon.classList.remove('fa-chevron-down');
             icon.classList.add('fa-chevron-right');
+        }
+    }
+
+    // ===== FUNGSI LOGOUT ADMIN - SELF CONTAINED =====
+    function doLogoutAdmin() {
+        var jalankanLogout = function() {
+            try {
+                var dbAuth = localforage.createInstance({ name: 'pos_db', storeName: 'auth_store' });
+                dbAuth.removeItem('user_session').finally(function() {
+                    window.location.href = '<?= BASE_URL ?>logout_action.php';
+                });
+            } catch(e) {
+                window.location.href = '<?= BASE_URL ?>logout_action.php';
+            }
+        };
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Yakin mau Keluar?', text: 'Sesi Anda akan dihapus.',
+                icon: 'warning', showCancelButton: true,
+                confirmButtonColor: '#ef4444', cancelButtonColor: '#94a3b8',
+                confirmButtonText: 'Ya, Keluar!', cancelButtonText: 'Batal'
+            }).then(function(result) { if (result.isConfirmed) { jalankanLogout(); } });
+        } else {
+            if (confirm('Yakin mau Keluar?')) { jalankanLogout(); }
         }
     }
 </script>

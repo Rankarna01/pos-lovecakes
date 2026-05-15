@@ -149,7 +149,7 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                         </div>
                     </div>
 
-                    <div x-show="activeTab === 'po'" class="space-y-3">
+                    <div x-show="activeTab === 'po'" class="space-y-3 overflow-y-auto custom-scrollbar" style="max-height: 260px; padding-right: 2px;">
                         <div class="flex gap-2">
                             <button @click="openStatusModal()" class="flex-1 bg-orange-100 hover:bg-orange-200 text-orange-600 px-3 py-2.5 rounded-xl text-xs font-black transition-all border border-orange-200 shadow-sm flex items-center justify-center gap-2"><i class="fa-solid fa-list-check"></i> Status PO Dapur</button>
                             <button @click="addCustomItem()" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white px-3 py-2.5 rounded-xl text-xs font-black transition-all shadow-sm flex items-center justify-center gap-2"><i class="fa-solid fa-pen-to-square"></i> Item Custom</button>
@@ -208,47 +208,59 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                     </div>
                 </div>
 
-                <div class="p-4 bg-slate-50 border-t border-slate-200 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
-                    <div class="flex gap-2 mb-3">
-                        <input type="text" x-model="voucherCode" placeholder="Kode Promo..." class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-primary font-bold text-sm uppercase">
-                        <button @click="applyVoucher()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-black transition-all">Promo</button>
-                        <button @click="applyManualDiscount()" class="bg-rose-500 hover:bg-rose-600 text-white px-3 py-2 rounded-xl text-xs font-black transition-all shadow-sm" title="Diskon SPV"><i class="fa-solid fa-percent"></i></button>
+                <!-- BOTTOM PANEL: flex-col agar bisa dibagi scrollable + sticky button -->
+                <div class="bg-slate-50 border-t border-slate-200 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] flex flex-col" style="max-height: 320px;">
+
+                    <!-- AREA SCROLLABLE: Promo, Poin, Subtotal, 4 Tombol -->
+                    <div class="overflow-y-auto custom-scrollbar px-4 pt-4 flex-1">
+
+                        <div class="flex gap-2 mb-3">
+                            <input type="text" x-model="voucherCode" placeholder="Kode Promo..." class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-primary font-bold text-sm uppercase">
+                            <button @click="applyVoucher()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-black transition-all">Promo</button>
+                            <button @click="applyManualDiscount()" class="bg-rose-500 hover:bg-rose-600 text-white px-3 py-2 rounded-xl text-xs font-black transition-all shadow-sm" title="Diskon SPV"><i class="fa-solid fa-percent"></i></button>
+                        </div>
+
+                        <div x-show="selectedCustomer && loyaltyRules.is_active" class="flex items-center justify-between bg-amber-50 border border-amber-200 p-2 rounded-xl mb-3">
+                            <div><p class="text-[10px] font-black text-amber-600 uppercase tracking-tight">Poin: <span x-text="selectedCustomer?.points || 0"></span></p></div>
+                            <button @click="togglePoints()" :disabled="(selectedCustomer?.points < loyaltyRules.points_required) && !usePoints" class="px-3 py-1 rounded-lg text-[10px] font-black transition-all" :class="usePoints ? 'bg-amber-500 text-white' : 'bg-white text-amber-500 border border-amber-200 disabled:opacity-50'">
+                                <span x-text="usePoints ? 'POIN DIPAKAI' : 'PAKAI POIN'"></span>
+                            </button>
+                        </div>
+
+                        <div class="space-y-1.5 mb-3 border-t border-slate-200 border-dashed pt-2">
+                            <div class="flex justify-between text-xs font-bold text-slate-500"><span>Subtotal Barang</span> <span x-text="'Rp ' + formatRupiah(subtotal)"></span></div>
+                            <div x-show="activeTab === 'po' && poForm.ongkir > 0" class="flex justify-between text-xs font-bold text-orange-500"><span>Ongkir / Markup</span> <span x-text="'+ Rp ' + formatRupiah(poForm.ongkir)"></span></div>
+                            <div x-show="discountVoucher > 0" class="flex justify-between text-xs font-bold text-emerald-500"><span>Diskon Voucher</span> <span x-text="'- Rp ' + formatRupiah(discountVoucher)"></span></div>
+                            <div x-show="discountPoints > 0" class="flex justify-between text-xs font-bold text-amber-500"><span>Diskon Poin</span> <span x-text="'- Rp ' + formatRupiah(discountPoints)"></span></div>
+                            <div x-show="discountManual > 0" class="flex justify-between text-xs font-bold text-rose-500"><span>Diskon Manual <i @click="discountManual = 0" class="fa-solid fa-xmark cursor-pointer ml-1"></i></span> <span x-text="'- Rp ' + formatRupiah(discountManual)"></span></div>
+                        </div>
+
+                        <div class="flex justify-between items-end mb-3 border-t border-slate-200 pt-3">
+                            <div>
+                                <p class="text-[10px] font-black text-slate-400 uppercase">Total Tagihan</p>
+                                <div class="text-3xl font-black text-primary leading-none" x-text="'Rp ' + formatRupiah(totalAmount)"></div>
+                            </div>
+                            <div x-show="pointsEarned > 0" class="text-[10px] font-bold text-amber-500 bg-amber-50 px-2 py-1 rounded-md border border-amber-100">+<span x-text="pointsEarned"></span> Poin</div>
+                        </div>
+
+                        <div class="grid grid-cols-4 gap-2 mb-3">
+                            <button @click="showNotesModal = true" class="flex flex-col items-center justify-center p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold"><i class="fa-solid fa-note-sticky text-base mb-1"></i> Catatan</button>
+                            <button @click="applyManualDiscount()" class="flex flex-col items-center justify-center p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold"><i class="fa-solid fa-percent text-base mb-1"></i> Diskon</button>
+                            <button onclick="window.open('print_receipt.php?invoice=' + (posApp().lastInvoice || ''), '_blank', 'width=400,height=600')" class="flex flex-col items-center justify-center p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold"><i class="fa-solid fa-print text-base mb-1"></i> Cetak Cek</button>
+                            <button @click="activeTab = 'po'" class="flex flex-col items-center justify-center p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold"><i class="fa-solid fa-fire-burner text-base mb-1"></i> Dapur</button>
+                        </div>
+
                     </div>
 
-                    <div x-show="selectedCustomer && loyaltyRules.is_active" class="flex items-center justify-between bg-amber-50 border border-amber-200 p-2 rounded-xl mb-3">
-                        <div><p class="text-[10px] font-black text-amber-600 uppercase tracking-tight">Poin: <span x-text="selectedCustomer?.points || 0"></span></p></div>
-                        <button @click="togglePoints()" :disabled="(selectedCustomer?.points < loyaltyRules.points_required) && !usePoints" class="px-3 py-1 rounded-lg text-[10px] font-black transition-all" :class="usePoints ? 'bg-amber-500 text-white' : 'bg-white text-amber-500 border border-amber-200 disabled:opacity-50'">
-                            <span x-text="usePoints ? 'POIN DIPAKAI' : 'PAKAI POIN'"></span>
+                    <!-- TOMBOL CHECKOUT: SELALU TERLIHAT DI PALING BAWAH -->
+                    <div class="px-4 pb-4 pt-2 shrink-0">
+                        <button @click="processCheckout()" :disabled="cart.length === 0" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-black py-4 rounded-xl shadow-lg transition-all flex justify-center items-center gap-2 text-lg disabled:opacity-50" :class="activeTab === 'po' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/30' : ''">
+                            <span x-text="activeTab === 'po' ? 'KIRIM KE DAPUR' : 'BAYAR SEKARANG'"></span> <i class="fa-solid fa-arrow-right"></i>
                         </button>
                     </div>
 
-                    <div class="space-y-1.5 mb-3 border-t border-slate-200 border-dashed pt-2">
-                        <div class="flex justify-between text-xs font-bold text-slate-500"><span>Subtotal Barang</span> <span x-text="'Rp ' + formatRupiah(subtotal)"></span></div>
-                        <div x-show="activeTab === 'po' && poForm.ongkir > 0" class="flex justify-between text-xs font-bold text-orange-500"><span>Ongkir / Markup</span> <span x-text="'+ Rp ' + formatRupiah(poForm.ongkir)"></span></div>
-                        <div x-show="discountVoucher > 0" class="flex justify-between text-xs font-bold text-emerald-500"><span>Diskon Voucher</span> <span x-text="'- Rp ' + formatRupiah(discountVoucher)"></span></div>
-                        <div x-show="discountPoints > 0" class="flex justify-between text-xs font-bold text-amber-500"><span>Diskon Poin</span> <span x-text="'- Rp ' + formatRupiah(discountPoints)"></span></div>
-                        <div x-show="discountManual > 0" class="flex justify-between text-xs font-bold text-rose-500"><span>Diskon Manual <i @click="discountManual = 0" class="fa-solid fa-xmark cursor-pointer ml-1"></i></span> <span x-text="'- Rp ' + formatRupiah(discountManual)"></span></div>
-                    </div>
-                    
-                    <div class="flex justify-between items-end mb-3 border-t border-slate-200 pt-3">
-                        <div>
-                            <p class="text-[10px] font-black text-slate-400 uppercase">Total Tagihan</p>
-                            <div class="text-3xl font-black text-primary leading-none" x-text="'Rp ' + formatRupiah(totalAmount)"></div>
-                        </div>
-                        <div x-show="pointsEarned > 0" class="text-[10px] font-bold text-amber-500 bg-amber-50 px-2 py-1 rounded-md border border-amber-100">+<span x-text="pointsEarned"></span> Poin</div>
-                    </div>
-
-                    <div class="grid grid-cols-4 gap-2 mb-3">
-                        <button @click="showNotesModal = true" class="flex flex-col items-center justify-center p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold"><i class="fa-solid fa-note-sticky text-base mb-1"></i> Catatan</button>
-                        <button @click="applyManualDiscount()" class="flex flex-col items-center justify-center p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold"><i class="fa-solid fa-percent text-base mb-1"></i> Diskon</button>
-                        <button onclick="window.open('print_receipt.php?invoice=' + (posApp().lastInvoice || ''), '_blank', 'width=400,height=600')" class="flex flex-col items-center justify-center p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold"><i class="fa-solid fa-print text-base mb-1"></i> Cetak Cek</button>
-                        <button @click="activeTab = 'po'" class="flex flex-col items-center justify-center p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold"><i class="fa-solid fa-fire-burner text-base mb-1"></i> Dapur</button>
-                    </div>
-
-                    <button @click="processCheckout()" :disabled="cart.length === 0" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-black py-4 rounded-xl shadow-lg transition-all flex justify-center items-center gap-2 text-lg disabled:opacity-50" :class="activeTab === 'po' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/30' : ''">
-                        <span x-text="activeTab === 'po' ? 'KIRIM KE DAPUR' : 'BAYAR SEKARANG'"></span> <i class="fa-solid fa-arrow-right"></i>
-                    </button>
                 </div>
+
             </div>
 
             <!-- PRODUK DI KANAN -->
