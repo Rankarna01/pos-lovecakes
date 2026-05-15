@@ -76,6 +76,17 @@ if (!defined('BASE_URL')) {
         });
     }
 
+    // 🛠️ PERBAIKAN: Paksa bersihkan Cache lama dari memori Safari/Chrome
+    if ('caches' in window) {
+        caches.keys().then(function(names) {
+            for (let name of names) {
+                if (name !== 'lovecakes-pos-v5') {
+                    caches.delete(name);
+                }
+            }
+        });
+    }
+
     // --- LOGIKA ALERT CUSTOM BAWAANMU (TIDAK ADA YANG DIHAPUS) ---
     window.alert = function(message) {
         let type = 'info';

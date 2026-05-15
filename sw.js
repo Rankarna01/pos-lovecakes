@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lovecakes-pos-v3';
+const CACHE_NAME = 'lovecakes-pos-v5';
 
 // Daftar file Rangkaian UI yang wajib disimpan di brankas HP Kasir
 const urlsToCache = [
@@ -58,7 +58,7 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // 2. JIKA MINTA HALAMAN WEB & ASET (HTML, JS, CSS, Gambar)
+  // 2. JIKA MINTA HALAMAN WEB & ASET
   event.respondWith(
     caches.match(event.request).then(response => {
       // Jika ada di cache (memori lokal), langsung berikan tanpa loading!
@@ -66,8 +66,10 @@ self.addEventListener('fetch', event => {
 
       // Jika tidak ada di cache, coba tarik dari internet
       return fetch(event.request).then(fetchRes => {
-        // Simpan file baru ke cache (khusus GET) agar besok bisa dibuka offline (CDN CSS/JS/Image)
-        if (event.request.method === 'GET' && fetchRes.status === 200) {
+        // HANYA CACHE FILE STATIS MURNI (CSS, JS, GAMBAR, FONT) - TIDAK PERNAH CACHE FILE PHP!
+        const isStaticAsset = url.pathname.match(/\.(css|js|png|jpg|jpeg|gif|svg|woff|woff2)$/i);
+
+        if (event.request.method === 'GET' && fetchRes.status === 200 && isStaticAsset) {
           const responseClone = fetchRes.clone();
           caches.open(CACHE_NAME).then(cache => {
             cache.put(event.request, responseClone);
@@ -76,9 +78,9 @@ self.addEventListener('fetch', event => {
         return fetchRes;
       }).catch(() => {
         // Jika internet mati dan file tidak ada di cache sama sekali
-        // Paksa kembalikan ke halaman kasir utama
+        // Paksa kembalikan ke halaman kasir utama jika ini navigasi halaman
         if (event.request.mode === 'navigate') {
-          return caches.match('./kasir/index.php');
+          return caches.match('./pos/kasir/index.php');
         }
       });
     })
