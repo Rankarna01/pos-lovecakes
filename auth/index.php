@@ -6,7 +6,11 @@ $base_url = $is_localhost ? '/pos-lovecakes/' : '/';
 
 // Cegah user yang sudah login melihat form ini lagi
 if (isset($_SESSION['pos_user_id'])) {
-    header("Location: " . $base_url . "pos/dashboard/");
+    if (strtolower($_SESSION['pos_role']) === 'kasir' || strtolower($_SESSION['pos_role']) === 'cashier') {
+        header("Location: " . $base_url . "pos/kasir/");
+    } else {
+        header("Location: " . $base_url . "pos/dashboard/");
+    }
     exit;
 }
 ?>

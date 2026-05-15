@@ -88,23 +88,6 @@ function isDropdownActive($paths, $current_uri) {
             </div>
         </div>
 
-        <?php 
-            $paths = ['/pos/karyawan/data/', '/pos/karyawan/presensi/']; 
-            $isActive = isDropdownActive($paths, $current_uri);
-        ?>
-        <div class="mb-1">
-            <button onclick="toggleSubmenu('sub-karyawan', 'icon-karyawan')" class="w-full flex items-center justify-between px-4 py-2.5 rounded-xl transition-all <?= $isActive ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600 font-medium' ?>">
-                <div class="flex items-center gap-3">
-                    <i class="fa-solid fa-id-badge w-5 text-center text-lg shrink-0"></i>
-                    <span class="text-sm whitespace-nowrap">Manaj. Karyawan</span>
-                </div>
-                <i id="icon-karyawan" class="fa-solid fa-chevron-<?= $isActive ? 'down' : 'right' ?> text-[10px] transition-transform duration-200"></i>
-            </button>
-            <div id="sub-karyawan" class="<?= $isActive ? 'flex' : 'hidden' ?> flex-col gap-1 mt-1 pl-11 pr-2">
-                <a href="<?= BASE_URL ?>pos/karyawan/data/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/karyawan/data/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Data Karyawan</a>
-                <a href="<?= BASE_URL ?>pos/karyawan/presensi/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/karyawan/presensi/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Rekap Presensi</a>
-            </div>
-        </div>
 
         <div class="px-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mt-6 mb-2">Keuangan & Sales</div>
 

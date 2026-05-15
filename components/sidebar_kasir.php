@@ -79,7 +79,7 @@ function isDropdownActive($paths, $current_uri) {
             </div>
         </div>
 
-        <a href="<?= BASE_URL ?>pos/pengaturan/shift/" title="Laporan Shift" class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all mb-1 <?= getNavClass('/pos/pengaturan/shift/', $current_uri) ?>">
+        <a href="<?= BASE_URL ?>pos/kasir/laporan_shift/" title="Laporan Shift" class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all mb-1 <?= getNavClass('/pos/kasir/laporan_shift/', $current_uri) ?>">
             <i class="fa-solid fa-clock-rotate-left w-5 text-center text-lg shrink-0"></i> 
             <span class="text-sm whitespace-nowrap transition-all duration-300">Laporan Shift</span>
         </a>

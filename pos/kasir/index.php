@@ -63,6 +63,20 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                 <div x-show="!needsShiftOpen" class="hidden sm:flex bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-xs font-black items-center gap-2">
                     <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div> Kasir Aktif
                 </div>
+
+                <!-- INDIKATOR OFFLINE -->
+                <div x-show="!isOnline" class="bg-rose-500/20 text-rose-100 border border-rose-500/30 px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-2" x-cloak>
+                    <i class="fa-solid fa-wifi text-rose-400"></i> Mode Offline
+                </div>
+
+                <!-- TOMBOL SYNC PENDING -->
+                <button @click="syncOfflineTransactions()" x-show="isOnline && pendingSyncCount > 0" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-2 relative" x-cloak>
+                    <i class="fa-solid fa-rotate" :class="isSyncing ? 'fa-spin' : ''"></i> Sync (<span x-text="pendingSyncCount"></span>)
+                    <span class="absolute -top-1 -right-1 flex h-3 w-3">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+                    </span>
+                </button>
                 
                 <button @click="openKasKeluarModal()" x-show="!needsShiftOpen" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-2">
                     <i class="fa-solid fa-money-bill-transfer"></i> Kas Keluar

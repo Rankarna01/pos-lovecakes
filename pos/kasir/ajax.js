@@ -1,4 +1,74 @@
- document.addEventListener('alpine:init', () => {
+// --- HELPER INDEXEDDB PWA OFFLINE ---
+const POS_DB_NAME = 'LoveCakesPOSDB';
+const POS_DB_VERSION = 1;
+
+const idbPos = {
+    db: null,
+    async init() {
+        return new Promise((resolve, reject) => {
+            const req = indexedDB.open(POS_DB_NAME, POS_DB_VERSION);
+            req.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains('master_data')) db.createObjectStore('master_data', { keyPath: 'key' });
+                if (!db.objectStoreNames.contains('offline_transactions')) db.createObjectStore('offline_transactions', { keyPath: 'id' });
+            };
+            req.onsuccess = (e) => { this.db = e.target.result; resolve(); };
+            req.onerror = (e) => reject(e);
+        });
+    },
+    async setMasterData(key, value) {
+        if (!this.db) await this.init();
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction('master_data', 'readwrite');
+            // Menghapus sifat Proxy bawaan Alpine.js agar bisa disimpan di IndexedDB
+            const rawValue = JSON.parse(JSON.stringify(value));
+            tx.objectStore('master_data').put({ key: key, value: rawValue });
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject();
+        });
+    },
+    async getMasterData(key) {
+        if (!this.db) await this.init();
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction('master_data', 'readonly');
+            const req = tx.objectStore('master_data').get(key);
+            req.onsuccess = () => resolve(req.result ? req.result.value : null);
+            req.onerror = () => reject();
+        });
+    },
+    async saveOfflineTransaction(payload) {
+        if (!this.db) await this.init();
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction('offline_transactions', 'readwrite');
+            const rawPayload = JSON.parse(JSON.stringify(payload));
+            rawPayload.id = 'OFFLINE-' + Date.now();
+            rawPayload.created_at_local = new Date().toISOString();
+            tx.objectStore('offline_transactions').put(rawPayload);
+            tx.oncomplete = () => resolve(rawPayload.id);
+            tx.onerror = () => reject();
+        });
+    },
+    async getOfflineTransactions() {
+        if (!this.db) await this.init();
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction('offline_transactions', 'readonly');
+            const req = tx.objectStore('offline_transactions').getAll();
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => reject();
+        });
+    },
+    async deleteOfflineTransaction(id) {
+        if (!this.db) await this.init();
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction('offline_transactions', 'readwrite');
+            tx.objectStore('offline_transactions').delete(id);
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject();
+        });
+    }
+};
+
+document.addEventListener('alpine:init', () => {
     Alpine.data('posApp', () => ({
         // --- DATA MASTER ---
         products: [], 
@@ -44,16 +114,31 @@
         showStatusModal: false, isFetchingStatus: false, activeOrders: [],
         showSuccessModal: false, lastInvoice: '', totalAmountSaved: 0, paymentStatusSaved: '', dpAmountSaved: 0, amountPaidSaved: 0, changeAmountSaved: 0, paymentMethodSaved: '',
 
+        // --- OFFLINE STATE ---
+        isOnline: navigator.onLine,
+        pendingSyncCount: 0,
+        isSyncing: false,
+
         async init() {
             if (window.dbAuth) {
                 const user = await window.dbAuth.getItem('user_session');
                 if (!user) { window.location.href = '../../auth/index.php'; return; }
             }
+            
+            window.addEventListener('online', () => { this.isOnline = true; this.syncOfflineTransactions(); });
+            window.addEventListener('offline', () => { this.isOnline = false; });
+            await this.updatePendingCount();
+
             await this.checkShiftStatus();
             if(!this.needsShiftOpen) {
                 await this.loadLocalData(false);
                 setTimeout(() => { if(this.$refs.barcodeScanner) this.$refs.barcodeScanner.focus() }, 500);
             }
+        },
+
+        async updatePendingCount() {
+            const pending = await idbPos.getOfflineTransactions();
+            this.pendingSyncCount = pending.length;
         },
 
         // --- FUNGSI SHIFT ---
@@ -151,9 +236,11 @@
 
         // --- FUNGSI MASTER DATA ---
         async loadLocalData(isManualSync = false) {
-    this.isLoading = true;
-    try {
-        const response = await fetch(`logic_kasir.php?action=get_master_data&nocache=${Date.now()}`);
+            this.isLoading = true;
+            try {
+                if (!navigator.onLine) throw new Error("Offline");
+                const response = await fetch(`logic_kasir.php?action=get_master_data&nocache=${Date.now()}`);
+                if (!response.ok) throw new Error("Server Error");
                 const result = await response.json(); 
                 if (result.status === 'success') {
                     this.products = result.products; 
@@ -162,10 +249,23 @@
                     if(result.default_start_cash && !this.shiftForm.start_cash) {
                         this.shiftForm.start_cash = result.default_start_cash;
                     }
+
+                    // Save to IndexedDB
+                    await idbPos.setMasterData('products', this.products);
+                    await idbPos.setMasterData('customers', this.customers);
+                    await idbPos.setMasterData('saved_customs', this.savedCustoms);
+                    await idbPos.setMasterData('default_start_cash', result.default_start_cash);
                     
                     if(isManualSync) Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `Database Tersinkronisasi!`, showConfirmButton: false, timer: 1500 });
                 }
             } catch (error) {
+                // Tarik dari IndexedDB jika offline atau error
+                this.products = (await idbPos.getMasterData('products')) || [];
+                this.customers = (await idbPos.getMasterData('customers')) || [];
+                this.savedCustoms = (await idbPos.getMasterData('saved_customs')) || [];
+                const defCash = await idbPos.getMasterData('default_start_cash');
+                if (defCash && !this.shiftForm.start_cash) this.shiftForm.start_cash = defCash;
+
                 if (isManualSync) Swal.fire('Mode Offline', 'Memakai data lokal memori.', 'warning');
             } finally { this.isLoading = false; }
         },
@@ -396,14 +496,57 @@
                 dp_amount: this.dpAmount, amount_paid: this.amountPaid, change_amount: this.changeAmount, items: this.cart
             };
             try {
+                if (!this.isOnline) throw new Error("Offline");
                 const response = await fetch('logic_kasir.php?action=checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!response.ok) throw new Error("Server Error");
                 const result = await response.json();
                 if (result.status === 'success') {
                     this.lastInvoice = result.invoice; this.totalAmountSaved = this.totalAmount; this.paymentStatusSaved = this.paymentStatus;
                     this.dpAmountSaved = this.dpAmount; this.amountPaidSaved = this.amountPaid; this.changeAmountSaved = this.changeAmount; this.paymentMethodSaved = this.paymentMethod;
                     this.showSuccessModal = true;
                 } else { window.alert(result.message); }
-            } catch (e) { window.alert('Gagal memproses transaksi ke database.'); } finally { this.isLoading = false; }
+            } catch (e) {
+                // Mode Offline: Simpan ke IndexedDB
+                console.warn("Koneksi offline, menyimpan transaksi ke memori lokal...");
+                const offlineId = await idbPos.saveOfflineTransaction(payload);
+                this.lastInvoice = offlineId; this.totalAmountSaved = this.totalAmount; this.paymentStatusSaved = this.paymentStatus;
+                this.dpAmountSaved = this.dpAmount; this.amountPaidSaved = this.amountPaid; this.changeAmountSaved = this.changeAmount; this.paymentMethodSaved = this.paymentMethod;
+                this.showSuccessModal = true;
+                await this.updatePendingCount();
+            } finally { this.isLoading = false; }
+        },
+
+        async syncOfflineTransactions() {
+            if (this.isSyncing || !this.isOnline) return;
+            const pending = await idbPos.getOfflineTransactions();
+            if (pending.length === 0) return;
+
+            this.isSyncing = true;
+            let successCount = 0;
+            
+            for (let i = 0; i < pending.length; i++) {
+                const tx = pending[i];
+                try {
+                    const response = await fetch('logic_kasir.php?action=checkout', { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify(tx) 
+                    });
+                    const result = await response.json();
+                    if (result.status === 'success') {
+                        await idbPos.deleteOfflineTransaction(tx.id);
+                        successCount++;
+                    }
+                } catch(e) { console.error("Sync failed for", tx.id); }
+            }
+            
+            this.isSyncing = false;
+            await this.updatePendingCount();
+            
+            if (successCount > 0) {
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `${successCount} Transaksi Offline Berhasil Diunggah!`, showConfirmButton: false, timer: 3000 });
+                this.loadLocalData(false); // Update list stok lokal (opsional)
+            }
         },
 
         printReceipt() {

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lovecakes-pos-v1';
+const CACHE_NAME = 'lovecakes-pos-v3';
 
 // Daftar file Rangkaian UI yang wajib disimpan di brankas HP Kasir
 const urlsToCache = [
@@ -52,6 +52,12 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  // BYPASS CACHE UNTUK PROSES LOGOUT DAN ROUTER AUTENTIKASI
+  if (url.pathname.includes('logout_action.php') || url.pathname === '/pos-lovecakes/' || url.pathname === '/pos-lovecakes/index.php' || url.pathname.includes('/auth/')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
   // 2. JIKA MINTA HALAMAN WEB & ASET (HTML, JS, CSS, Gambar)
   event.respondWith(
     caches.match(event.request).then(response => {
@@ -60,7 +66,13 @@ self.addEventListener('fetch', event => {
 
       // Jika tidak ada di cache, coba tarik dari internet
       return fetch(event.request).then(fetchRes => {
-        // (Opsional) Simpan file baru ke cache agar besok bisa dibuka offline
+        // Simpan file baru ke cache (khusus GET) agar besok bisa dibuka offline (CDN CSS/JS/Image)
+        if (event.request.method === 'GET' && fetchRes.status === 200) {
+          const responseClone = fetchRes.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseClone);
+          });
+        }
         return fetchRes;
       }).catch(() => {
         // Jika internet mati dan file tidak ada di cache sama sekali
