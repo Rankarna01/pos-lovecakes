@@ -2,15 +2,10 @@ document.addEventListener('alpine:init', () => {
     Alpine.data('shiftReportApp', () => ({
         shifts: [],
         isLoading: false,
-        
-        // Pagination & Filters
         currentPage: 1,
         totalPages: 1,
-        filters: {
-            search: ''
-        },
+        filters: { search: '' },
 
-        // Modal Details
         showModal: false,
         isDetailLoading: false,
         activeShift: null,
@@ -18,9 +13,7 @@ document.addEventListener('alpine:init', () => {
         activeSettlements: [],
         activePettyCash: [],
 
-        init() {
-            this.fetchShifts();
-        },
+        init() { this.fetchShifts(); },
 
         formatRupiah(number) {
             if (!number) return '0';
@@ -36,12 +29,7 @@ document.addEventListener('alpine:init', () => {
         async fetchShifts() {
             this.isLoading = true;
             try {
-                const params = new URLSearchParams({
-                    action: 'get_shifts',
-                    page: this.currentPage,
-                    search: this.filters.search
-                });
-
+                const params = new URLSearchParams({ action: 'get_shifts', page: this.currentPage, search: this.filters.search });
                 const response = await fetch(`logic.php?${params.toString()}`);
                 const result = await response.json();
                 
@@ -49,34 +37,14 @@ document.addEventListener('alpine:init', () => {
                     this.shifts = result.data;
                     this.currentPage = result.pagination.current_page;
                     this.totalPages = result.pagination.total_pages;
-                } else {
-                    console.error('Error fetching shifts:', result.message);
                 }
-            } catch (error) {
-                console.error('Fetch error:', error);
-            } finally {
-                this.isLoading = false;
-            }
+            } catch (error) { console.error('Fetch error:', error); } 
+            finally { this.isLoading = false; }
         },
 
-        applyFilter() {
-            this.currentPage = 1;
-            this.fetchShifts();
-        },
-
-        nextPage() {
-            if (this.currentPage < this.totalPages) {
-                this.currentPage++;
-                this.fetchShifts();
-            }
-        },
-
-        prevPage() {
-            if (this.currentPage > 1) {
-                this.currentPage--;
-                this.fetchShifts();
-            }
-        },
+        applyFilter() { this.currentPage = 1; this.fetchShifts(); },
+        nextPage() { if (this.currentPage < this.totalPages) { this.currentPage++; this.fetchShifts(); } },
+        prevPage() { if (this.currentPage > 1) { this.currentPage--; this.fetchShifts(); } },
 
         async openDetail(shift) {
             this.activeShift = shift;
@@ -91,15 +59,8 @@ document.addEventListener('alpine:init', () => {
                 const result = await response.json();
 
                 if (result.status === 'success') {
-                    // Gunakan data total dari server (sudah termasuk pelunasan)
-                    this.activeShift = { ...result.shift, ...{
-                        total_cash_sales: shift.total_cash_sales,
-                        total_qris_sales: shift.total_qris_sales,
-                        total_kas_keluar: shift.total_kas_keluar,
-                        system_balance:   shift.system_balance,
-                        difference:       shift.difference
-                    }};
-
+                    // Ambil object shift matang yang sudah dihitung server
+                    this.activeShift = result.shift;
                     this.activeTransactions = result.transactions;
                     this.activeSettlements  = result.settlements || [];
                     this.activePettyCash    = result.petty_cash;
