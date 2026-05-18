@@ -21,17 +21,16 @@ if (isset($_SESSION['pos_user_id'])) {
     <title>Login — Love Cakes POS</title>
     <meta name="description" content="Masuk ke sistem kasir Love Cakes untuk memulai sesi Anda.">
 
-    <!-- Tailwind CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-
     <!-- Lottie Player -->
     <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
 
-    <!-- Google Fonts -->
+    <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
+    <!-- ajax.js dimuat di sini agar loginApp() terdefinisi sebelum Alpine parse x-data -->
+    <script src="ajax.js?v=<?= time() ?>"></script>
     <style>
         * { font-family: 'Inter', sans-serif; }
 
@@ -285,37 +284,6 @@ if (isset($_SESSION['pos_user_id'])) {
         </div>
     </div>
 
-    <!-- Inject showPass property BEFORE ajax.js defines loginApp -->
-    <script>
-        // We intercept Alpine.data to extend loginApp with showPass
-        document.addEventListener('alpine:init', () => {
-            Alpine.data('loginApp_base', () => ({ showPass: false }));
-        });
-    </script>
-
-    <script src="ajax.js?v=<?= time() ?>"></script>
-
-    <!-- Patch showPass into loginApp after ajax.js has registered it -->
-    <script>
-        document.addEventListener('alpine:init', () => {
-            const origLoginApp = Alpine._data?.loginApp || null;
-            // showPass is referenced in x-data="loginApp()" on body
-            // We extend by re-registering with showPass mixed in
-            const _prev = Alpine.data;
-            // The body's x-data will init with loginApp()
-            // We need showPass available — safest way: override after ajax.js
-            const _intercept = () => {
-                const body = document.querySelector('body');
-                if (body && body._x_dataStack) {
-                    body._x_dataStack.forEach(d => {
-                        if (!('showPass' in d)) d.showPass = false;
-                    });
-                }
-            };
-            // Try to inject after DOM ready
-            setTimeout(_intercept, 0);
-        }, { capture: true });
-    </script>
 
 </body>
 </html>
