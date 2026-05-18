@@ -2,6 +2,7 @@ document.addEventListener('alpine:init', () => {
     Alpine.data('piutangApp', () => ({
         transactions: [],
         searchQuery: '',
+        timeRange: '', // Menyimpan nilai filter dropdown
         isLoading: false,
         isSubmitting: false,
 
@@ -12,10 +13,6 @@ document.addEventListener('alpine:init', () => {
         payAmount: 0,
 
         async init() {
-            // ❌ CEK SESI dbAuth DIHAPUS TOTAL!
-            // Keamanan 100% dijamin oleh config/auth.php dari server.
-            
-            // Langsung tarik data piutang dari server
             await this.fetchData();
         },
 
@@ -33,7 +30,15 @@ document.addEventListener('alpine:init', () => {
 
             this.isLoading = true;
             try {
-                const response = await fetch(`logic.php?action=get_piutang&nocache=${Date.now()}`);
+                // Susun URL Parameter untuk filter search & time
+                const params = new URLSearchParams({
+                    action: 'get_piutang',
+                    search: this.searchQuery,
+                    time_range: this.timeRange,
+                    nocache: Date.now()
+                });
+
+                const response = await fetch(`logic.php?${params.toString()}`);
                 const result = await response.json();
                 
                 if (result.status === 'success') {
@@ -44,18 +49,8 @@ document.addEventListener('alpine:init', () => {
             } catch (error) {
                 if (typeof Swal !== 'undefined') Swal.fire('Error', 'Gagal memuat data piutang dari server.', 'error');
             } finally {
-                // WAJIB: Pastikan spinner selalu mati
                 this.isLoading = false;
             }
-        },
-
-        get filteredData() {
-            if (this.searchQuery.trim() === '') return this.transactions;
-            const q = this.searchQuery.toLowerCase();
-            return this.transactions.filter(t => 
-                t.invoice_no.toLowerCase().includes(q) || 
-                (t.customer_name && t.customer_name.toLowerCase().includes(q))
-            );
         },
 
         get sisaTagihan() {

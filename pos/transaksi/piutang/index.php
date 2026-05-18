@@ -40,11 +40,18 @@ $page_title = "Pelunasan DP (Piutang) - Love Cakes POS";
         <main class="flex-1 overflow-x-hidden overflow-y-auto custom-scrollbar p-4 md:p-6 bg-[#f8fafc] relative">
             <div class="max-w-[1400px] mx-auto space-y-6">
                 
-                <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex items-center sticky top-0 z-10">
-                    <div class="relative w-full md:w-1/2 lg:w-1/3">
+                <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center gap-3 sticky top-0 z-10">
+                    <div class="relative flex-1 min-w-[250px]">
                         <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                        <input type="text" x-model="searchQuery" placeholder="Cari No. Invoice atau Nama Pelanggan..." class="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-bold text-sm transition-all text-slate-700">
+                        <input type="text" x-model="searchQuery" @input.debounce.500ms="fetchData()" placeholder="Cari No. Invoice atau Nama Pelanggan..." class="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-bold text-sm transition-all text-slate-700">
                     </div>
+                    
+                    <select x-model="timeRange" @change="fetchData()" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-bold text-sm text-slate-600">
+                        <option value="">Semua Waktu</option>
+                        <option value="today">Hari Ini</option>
+                        <option value="week">Minggu Ini</option>
+                        <option value="month">Bulan Ini</option>
+                    </select>
                 </div>
 
                 <div x-show="isLoading" class="text-center py-20 flex flex-col items-center justify-center">
@@ -66,13 +73,13 @@ $page_title = "Pelunasan DP (Piutang) - Love Cakes POS";
                                 </tr>
                             </thead>
                             <tbody class="text-sm divide-y divide-slate-100">
-                                <tr x-show="filteredData.length === 0">
+                                <tr x-show="transactions.length === 0">
                                     <td colspan="6" class="p-16 text-center text-slate-400 font-bold">
                                         <i class="fa-solid fa-check-circle text-5xl mb-4 text-emerald-300 block"></i> 
                                         Hore! Tidak ada pelanggan yang berhutang (menunggak DP).
                                     </td>
                                 </tr>
-                                <template x-for="trx in filteredData" :key="trx.id">
+                                <template x-for="trx in transactions" :key="trx.id">
                                     <tr class="hover:bg-amber-50/30 transition-colors">
                                         <td class="p-4">
                                             <div class="font-black text-slate-800" x-text="trx.invoice_no"></div>

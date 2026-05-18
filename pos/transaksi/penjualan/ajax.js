@@ -5,7 +5,9 @@ document.addEventListener('alpine:init', () => {
         filters: {
             search: '',
             channel: '',
-            payment: ''
+            payment: '',
+            time_range: '', // FITUR BARU
+            status: ''      // FITUR BARU
         },
         currentPage: 1,
         totalPages: 1,
@@ -17,15 +19,10 @@ document.addEventListener('alpine:init', () => {
         isDetailLoading: false,
 
         async init() {
-            // ❌ CEK SESI dbAuth DIHAPUS TOTAL!
-            // Keamanan halaman Transaksi ini 100% dijamin oleh config/auth.php dari server.
-            
-            // Langsung tarik data histori dari MySQL
             await this.fetchSales();
         },
 
         async fetchSales() {
-            // 🛡️ CEGAT JIKA OFFLINE
             if (!navigator.onLine) {
                 if (typeof Swal !== 'undefined') {
                     Swal.fire('Offline Mode', 'Halaman Riwayat Transaksi membutuhkan koneksi internet!', 'warning');
@@ -38,6 +35,7 @@ document.addEventListener('alpine:init', () => {
 
             this.isLoading = true;
             try {
+                // Semua filter dimasukkan secara otomatis
                 const params = new URLSearchParams(this.filters);
                 params.append('action', 'get_sales');
                 params.append('page', this.currentPage);
@@ -57,7 +55,6 @@ document.addEventListener('alpine:init', () => {
                 console.error("Gagal menarik data penjualan", error);
                 if (typeof Swal !== 'undefined') Swal.fire('Error Database', 'Gagal menarik data dari server pusat.', 'error');
             } finally {
-                // WAJIB: Pastikan spinner selalu mati
                 this.isLoading = false;
             }
         },
@@ -82,7 +79,6 @@ document.addEventListener('alpine:init', () => {
         },
 
         async openDetail(sale) {
-            // 🛡️ CEGAT JIKA OFFLINE
             if (!navigator.onLine) {
                 if (typeof Swal !== 'undefined') {
                     Swal.fire('Offline Mode', 'Koneksi terputus! Tidak dapat melihat detail transaksi saat offline.', 'warning');
@@ -108,14 +104,12 @@ document.addEventListener('alpine:init', () => {
                 console.error("Gagal menarik detail", error);
                 if (typeof Swal !== 'undefined') Swal.fire('Error', 'Gagal menarik rincian pesanan dari database.', 'error');
             } finally {
-                // WAJIB: Pastikan spinner detail mati
                 this.isDetailLoading = false;
             }
         },
 
         printReceipt(invoice) {
             if (!invoice) return;
-            // Kita numpang cetak pakai file print_receipt.php milik Kasir biar formatnya seragam 58mm
             const printUrl = `../../kasir/print_receipt.php?invoice=${invoice}`;
             window.open(printUrl, '_blank', 'width=400,height=600');
         },

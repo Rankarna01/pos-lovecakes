@@ -15,6 +15,7 @@ document.addEventListener('alpine:init', () => {
         isDetailLoading: false,
         activeShift: null,
         activeTransactions: [],
+        activeSettlements: [],
         activePettyCash: [],
 
         init() {
@@ -80,6 +81,7 @@ document.addEventListener('alpine:init', () => {
         async openDetail(shift) {
             this.activeShift = shift;
             this.activeTransactions = [];
+            this.activeSettlements = [];
             this.activePettyCash = [];
             this.showModal = true;
             this.isDetailLoading = true;
@@ -89,17 +91,18 @@ document.addEventListener('alpine:init', () => {
                 const result = await response.json();
 
                 if (result.status === 'success') {
-                    // Update dengan data ter-refresh
-                    this.activeShift = result.shift;
-                    // Kalkulasi ulang total on the fly untuk detail tampilan
-                    this.activeShift.total_cash_sales = shift.total_cash_sales;
-                    this.activeShift.total_qris_sales = shift.total_qris_sales;
-                    this.activeShift.total_kas_keluar = shift.total_kas_keluar;
-                    this.activeShift.system_balance = shift.system_balance;
-                    this.activeShift.difference = shift.difference;
+                    // Gunakan data total dari server (sudah termasuk pelunasan)
+                    this.activeShift = { ...result.shift, ...{
+                        total_cash_sales: shift.total_cash_sales,
+                        total_qris_sales: shift.total_qris_sales,
+                        total_kas_keluar: shift.total_kas_keluar,
+                        system_balance:   shift.system_balance,
+                        difference:       shift.difference
+                    }};
 
                     this.activeTransactions = result.transactions;
-                    this.activePettyCash = result.petty_cash;
+                    this.activeSettlements  = result.settlements || [];
+                    this.activePettyCash    = result.petty_cash;
                 } else {
                     alert(result.message);
                     this.showModal = false;

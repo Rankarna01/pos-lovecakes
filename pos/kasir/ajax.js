@@ -105,6 +105,7 @@ document.addEventListener('alpine:init', () => {
         showCustomItemModal: false,
         customItemForm: { template: '', name: '', price: '' },
         showNotesModal: false,
+        showDapurModal: false,
 
         // --- TAMBAH PELANGGAN ---
         showAddCustomerModal: false, isSavingCustomer: false,

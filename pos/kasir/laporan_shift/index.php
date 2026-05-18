@@ -162,6 +162,7 @@ $page_title = "Laporan Shift - Love Cakes POS";
                                     <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider">
                                         <th class="p-3 font-bold">Waktu</th>
                                         <th class="p-3 font-bold">No. Invoice</th>
+                                        <th class="p-3 font-bold">Status / Deskripsi</th>
                                         <th class="p-3 font-bold">Metode</th>
                                         <th class="p-3 font-bold text-right">Cash Diterima</th>
                                         <th class="p-3 font-bold text-right">Total Transaksi</th>
@@ -175,9 +176,52 @@ $page_title = "Laporan Shift - Love Cakes POS";
                                         <tr class="hover:bg-slate-50">
                                             <td class="p-3 text-slate-600" x-text="new Date(trx.created_at).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'})"></td>
                                             <td class="p-3 font-bold text-slate-700" x-text="trx.invoice_no"></td>
+                                            <td class="p-3">
+                                                <span x-show="trx.payment_status === 'dp'" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-100 text-amber-700 text-[9px] font-black uppercase border border-amber-200">
+                                                    <i class="fa-solid fa-clock"></i> DP / Piutang
+                                                </span>
+                                                <span x-show="trx.payment_status === 'lunas'" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-100 text-emerald-700 text-[9px] font-black uppercase border border-emerald-200">
+                                                    <i class="fa-solid fa-check"></i> Lunas
+                                                </span>
+                                                <div class="text-[10px] text-slate-400 mt-0.5" x-text="trx.deskripsi"></div>
+                                            </td>
                                             <td class="p-3"><span class="px-2 py-1 rounded bg-slate-100 text-[9px] font-black uppercase" x-text="trx.payment_method"></span></td>
-                                            <td class="p-3 text-right text-emerald-600 font-bold" x-text="trx.payment_method === 'cash' ? 'Rp ' + formatRupiah(trx.amount_paid - trx.change_amount) : '-'"></td>
+                                            <td class="p-3 text-right text-emerald-600 font-bold" x-text="trx.payment_method === 'cash' && trx.payment_status !== 'dp' ? 'Rp ' + formatRupiah(trx.amount_paid - trx.change_amount) : (trx.payment_status === 'dp' ? 'Rp ' + formatRupiah(trx.dp_amount) : '-')"></td>
                                             <td class="p-3 text-right font-black text-slate-800" x-text="'Rp ' + formatRupiah(trx.total_amount)"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TABEL PELUNASAN PIUTANG -->
+                    <div class="mb-6" x-show="activeSettlements.length > 0">
+                        <h4 class="text-xs font-black text-slate-800 uppercase tracking-widest mb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-money-bill-transfer text-emerald-500"></i>
+                            Pelunasan Piutang di Shift Ini (<span x-text="activeSettlements.length"></span>)
+                        </h4>
+                        <div class="bg-emerald-50 border border-emerald-200 rounded-xl overflow-hidden">
+                            <table class="w-full text-left border-collapse whitespace-nowrap text-xs">
+                                <thead>
+                                    <tr class="bg-emerald-100 border-b border-emerald-200 text-emerald-700 uppercase tracking-wider">
+                                        <th class="p-3 font-bold">Waktu Lunas</th>
+                                        <th class="p-3 font-bold">No. Invoice</th>
+                                        <th class="p-3 font-bold">Pelanggan</th>
+                                        <th class="p-3 font-bold">Deskripsi</th>
+                                        <th class="p-3 font-bold">Metode</th>
+                                        <th class="p-3 font-bold text-right">Cash Dilunasi</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-emerald-100">
+                                    <template x-for="s in activeSettlements" :key="s.id">
+                                        <tr class="hover:bg-emerald-50">
+                                            <td class="p-3 text-slate-600" x-text="new Date(s.settled_at).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'})"></td>
+                                            <td class="p-3 font-bold text-emerald-700" x-text="s.invoice_no"></td>
+                                            <td class="p-3 text-slate-700 font-bold" x-text="s.customer_name"></td>
+                                            <td class="p-3 text-slate-500 whitespace-normal" x-text="s.deskripsi"></td>
+                                            <td class="p-3"><span class="px-2 py-1 rounded bg-white text-[9px] font-black uppercase border border-emerald-200" x-text="s.payment_method"></span></td>
+                                            <td class="p-3 text-right text-emerald-600 font-black" x-text="s.payment_method === 'cash' ? 'Rp ' + formatRupiah((s.amount_paid - s.dp_amount) - s.change_amount) : 'Rp ' + formatRupiah(s.amount_paid - s.dp_amount)"></td>
                                         </tr>
                                     </template>
                                 </tbody>

@@ -28,11 +28,25 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
         <main class="flex-1 overflow-x-hidden overflow-y-auto custom-scrollbar p-4 md:p-6 bg-slate-100/50">
             <div class="max-w-7xl mx-auto space-y-4">
                 
-                <div class="bg-white p-4 rounded-[1.5rem] shadow-sm border border-slate-200 flex flex-col md:flex-row gap-3">
-                    <div class="relative flex-1">
+                <div class="bg-white p-4 rounded-[1.5rem] shadow-sm border border-slate-200 flex flex-wrap gap-3">
+                    <div class="relative flex-1 min-w-[200px]">
                         <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
                         <input type="text" x-model="filters.search" @input.debounce.500ms="applyFilter()" placeholder="Cari No. Invoice / Pelanggan..." class="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-primary font-bold text-sm">
                     </div>
+                    
+                    <select x-model="filters.time_range" @change="applyFilter()" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary font-bold text-sm text-slate-600">
+                        <option value="">Semua Waktu</option>
+                        <option value="today">Hari Ini</option>
+                        <option value="week">Minggu Ini</option>
+                        <option value="month">Bulan Ini</option>
+                    </select>
+
+                    <select x-model="filters.status" @change="applyFilter()" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary font-bold text-sm text-slate-600">
+                        <option value="">Semua Status</option>
+                        <option value="lunas">Lunas (Cash/QRIS)</option>
+                        <option value="dp">Menunggak (DP)</option>
+                    </select>
+
                     <select x-model="filters.channel" @change="applyFilter()" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary font-bold text-sm text-slate-600">
                         <option value="">Semua Channel</option>
                         <option value="toko">Toko (Offline)</option>
@@ -40,12 +54,7 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                         <option value="gojek">GoFood</option>
                         <option value="wa_delivery">WA / Delivery</option>
                     </select>
-                    <select x-model="filters.payment" @change="applyFilter()" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary font-bold text-sm text-slate-600">
-                        <option value="">Semua Pembayaran</option>
-                        <option value="cash">Cash</option>
-                        <option value="qris">QRIS</option>
-                        <option value="app">Saldo App</option>
-                    </select>
+                    
                     <button @click="applyFilter()" class="bg-primary hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-sm flex items-center justify-center gap-2">
                         <i class="fa-solid fa-filter"></i> Filter
                     </button>
@@ -82,10 +91,10 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                                         </td>
                                         <td class="p-4 font-bold text-slate-600">
                                             <span x-text="sale.customer_name"></span>
-                                            <div x-show="sale.payment_status === 'dp'" class="text-[9px] text-amber-600 uppercase mt-0.5 bg-amber-50 inline-block px-1 rounded">Piutang (DP)</div>
+                                            <div x-show="sale.payment_status === 'dp'" class="text-[9px] text-amber-600 uppercase mt-0.5 bg-amber-50 inline-block px-1 rounded border border-amber-200">Piutang (DP)</div>
                                         </td>
                                         <td class="p-4">
-                                            <span class="px-2 py-1 rounded bg-slate-100 text-slate-600 text-[10px] font-black uppercase" x-text="sale.channel"></span>
+                                            <span class="px-2 py-1 rounded bg-slate-100 text-slate-600 text-[10px] font-black uppercase border border-slate-200" x-text="sale.channel"></span>
                                         </td>
                                         <td class="p-4 text-right font-black text-primary" x-text="'Rp ' + formatRupiah(sale.total_amount)"></td>
                                         <td class="p-4 text-center">
@@ -94,9 +103,15 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                                                   x-text="sale.payment_method"></span>
                                         </td>
                                         <td class="p-4 text-center">
-                                            <button @click="openDetail(sale)" class="bg-slate-100 hover:bg-slate-200 text-slate-600 w-8 h-8 rounded-lg flex items-center justify-center transition-colors" title="Lihat Detail">
-                                                <i class="fa-solid fa-eye text-xs"></i>
-                                            </button>
+                                            <div class="flex items-center justify-center gap-2">
+                                                <button @click="openDetail(sale)" class="bg-slate-100 hover:bg-slate-200 text-slate-600 w-8 h-8 rounded-lg flex items-center justify-center transition-colors" title="Lihat Detail">
+                                                    <i class="fa-solid fa-eye text-xs"></i>
+                                                </button>
+                                                
+                                                <a x-show="sale.payment_status === 'dp'" href="<?= BASE_URL ?>pos/transaksi/piutang/" class="bg-amber-100 hover:bg-amber-500 hover:text-white text-amber-600 border border-amber-200 w-8 h-8 rounded-lg flex items-center justify-center transition-all" title="Lunasi Piutang/DP">
+                                                    <i class="fa-solid fa-money-bill-transfer text-xs"></i>
+                                                </a>
+                                            </div>
                                         </td>
                                     </tr>
                                 </template>
@@ -120,7 +135,7 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
 
         <div x-show="showModal" class="fixed inset-0 z-50 flex items-center justify-center" style="display: none;" x-cloak>
             <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="showModal = false"></div>
-            <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl relative z-10 flex flex-col max-h-[90vh] m-4 transform transition-all overflow-hidden">
+            <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl relative z-10 flex flex-col max-h-[90vh] m-4 transform transition-all overflow-hidden border border-slate-100">
                 <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                     <h3 class="font-black text-lg text-slate-800">Detail Invoice</h3>
                     <button @click="showModal = false" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-200 hover:bg-rose-500 hover:text-white transition-colors"><i class="fa-solid fa-xmark"></i></button>

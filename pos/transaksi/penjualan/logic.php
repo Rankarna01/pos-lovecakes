@@ -10,6 +10,8 @@ if ($action === 'get_sales') {
     $search = $_GET['search'] ?? '';
     $channel = $_GET['channel'] ?? '';
     $payment = $_GET['payment'] ?? '';
+    $time_range = $_GET['time_range'] ?? ''; // FILTER BARU
+    $status = $_GET['status'] ?? '';         // FILTER BARU
 
     try {
         $query = "
@@ -32,6 +34,21 @@ if ($action === 'get_sales') {
         if (!empty($payment)) {
             $query .= " AND s.payment_method = ?";
             $params[] = $payment;
+        }
+        if (!empty($status)) {
+            $query .= " AND s.payment_status = ?";
+            $params[] = $status;
+        }
+
+        // FILTER RENTANG WAKTU
+        if ($time_range === 'today') {
+            $query .= " AND DATE(s.created_at) = CURRENT_DATE()";
+        } elseif ($time_range === 'week') {
+            // Data minggu ini (dimulai dari Senin)
+            $query .= " AND YEARWEEK(s.created_at, 1) = YEARWEEK(CURRENT_DATE(), 1)";
+        } elseif ($time_range === 'month') {
+            // Data bulan dan tahun ini
+            $query .= " AND MONTH(s.created_at) = MONTH(CURRENT_DATE()) AND YEAR(s.created_at) = YEAR(CURRENT_DATE())";
         }
 
         // Hitung total data untuk pagination
