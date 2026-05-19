@@ -1,19 +1,16 @@
 <?php
-$is_localhost = (strpos($_SERVER['HTTP_HOST'], 'localhost') !== false || strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false);
-$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
-$folder = $is_localhost ? '/pos-lovecakes/' : '/';
-if (!defined('BASE_URL')) { define('BASE_URL', $protocol . $_SERVER['HTTP_HOST'] . $folder); }
+require_once '../../config/auth.php';
 $page_title = "Stok Opname - Love Cakes POS";
 ?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <?php include '../../../components/header.php'; ?>
+    <?php include '../../components/header.php'; ?>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 </head>
 <body class="bg-slate-50 flex h-screen overflow-hidden text-slate-800 antialiased font-sans" x-data="opnameApp()" x-cloak>
 
-    <?php include '../../../components/sidebar.php'; ?>
+    <?php include '../../components/sidebar.php'; ?>
 
     <div class="flex-1 flex flex-col h-screen overflow-hidden">
         

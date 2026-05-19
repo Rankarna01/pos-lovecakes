@@ -487,21 +487,32 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                 </div>
                 <div x-show="paymentStatus === 'lunas'" class="space-y-3 mt-4" x-collapse>
                     <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Metode Pembayaran</label>
-                    <div class="flex gap-2 p-1.5 bg-slate-100 rounded-xl">
-                        <button type="button" @click="paymentMethod = 'cash'" :class="paymentMethod === 'cash' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'" class="flex-1 py-2.5 rounded-lg font-black text-sm transition-all"><i class="fa-solid fa-money-bill-wave text-emerald-500 mr-1"></i> Cash</button>
-                        <button type="button" @click="paymentMethod = 'qris'" :class="paymentMethod === 'qris' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'" class="flex-1 py-2.5 rounded-lg font-black text-sm transition-all"><i class="fa-solid fa-qrcode text-blue-500 mr-1"></i> QRIS / TF</button>
+                    <div class="grid grid-cols-3 gap-2 p-1.5 bg-slate-100 rounded-xl max-h-40 overflow-y-auto custom-scrollbar">
+                        <template x-for="item in paymentMethods" :key="item.id">
+                            <button type="button" @click="paymentMethod = item.name" :class="paymentMethod === item.name ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'" class="py-2 px-1 rounded-lg font-black text-xs transition-all flex flex-col items-center justify-center gap-1 border border-transparent" :class="paymentMethod === item.name ? 'border-blue-200' : ''">
+                                <i :class="item.type === 'Cash' ? 'fa-solid fa-money-bill-wave text-emerald-500' : (item.type === 'QRIS' ? 'fa-solid fa-qrcode text-blue-500' : (item.type === 'Debit' ? 'fa-solid fa-credit-card text-indigo-500' : 'fa-solid fa-wallet text-slate-500'))"></i>
+                                <span x-text="item.name" class="text-[10px]"></span>
+                                <span x-show="item.fee_percent > 0" class="text-[9px] text-rose-500 font-bold" x-text="'+' + item.fee_percent + '%'"></span>
+                            </button>
+                        </template>
                     </div>
-                    <div x-show="paymentMethod === 'cash'" x-collapse>
+                    
+                    <div class="flex justify-between items-center mt-3 px-2 text-xs font-bold text-slate-500" x-show="paymentFeeAmount > 0">
+                        <span x-text="paymentFeeName"></span>
+                        <span class="text-rose-500" x-text="'+ Rp ' + formatRupiah(paymentFeeAmount)"></span>
+                    </div>
+                    <div class="flex justify-between items-center mt-1 px-2">
+                        <span class="text-xs font-bold text-slate-500">Total Tagihan Akhir:</span>
+                        <span class="font-black text-lg text-rose-500" x-text="'Rp ' + formatRupiah(totalAmount)"></span>
+                    </div>
+
+                    <div x-show="paymentMethods.find(m => m.name === paymentMethod)?.type === 'Cash'" x-collapse>
                         <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 mt-3">Uang Diterima (Rp)</label>
                         <div class="relative">
                             <span class="absolute left-4 top-1/2 -translate-y-1/2 font-black text-slate-400">Rp</span>
                             <input type="number" x-model.number="inputUang" class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-11 pr-4 py-3 text-left font-black text-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
                         </div>
-                        <div class="flex justify-between items-center mt-3 px-2">
-                            <span class="text-xs font-bold text-slate-500">Total Tagihan:</span>
-                            <span class="font-black text-lg text-rose-500" x-text="'Rp ' + formatRupiah(totalAmount)"></span>
-                        </div>
-                        <div class="flex justify-between items-center px-2 mt-1 pt-2 border-t border-slate-100 border-dashed" x-show="inputUang >= totalAmount">
+                        <div class="flex justify-between items-center px-2 mt-3 pt-2 border-t border-slate-100 border-dashed" x-show="inputUang >= totalAmount">
                             <span class="text-xs font-bold text-slate-500">Kembalian:</span>
                             <span class="font-black text-xl text-emerald-500" x-text="'Rp ' + formatRupiah(inputUang - totalAmount)"></span>
                         </div>
@@ -509,29 +520,31 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                 </div>
                 <div x-show="paymentStatus === 'dp'" class="mt-4" x-collapse>
                     <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Metode Pembayaran</label>
-                    <div class="flex gap-2 p-1.5 bg-slate-100 rounded-xl mb-3">
-                        <button type="button" @click="paymentMethod = 'cash'" :class="paymentMethod === 'cash' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'" class="flex-1 py-2.5 rounded-lg font-black text-sm transition-all"><i class="fa-solid fa-money-bill-wave text-emerald-500 mr-1"></i> Cash</button>
-                        <button type="button" @click="paymentMethod = 'qris'" :class="paymentMethod === 'qris' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'" class="flex-1 py-2.5 rounded-lg font-black text-sm transition-all"><i class="fa-solid fa-qrcode text-blue-500 mr-1"></i> QRIS / TF</button>
+                    <div class="grid grid-cols-3 gap-2 p-1.5 bg-slate-100 rounded-xl mb-3 max-h-40 overflow-y-auto custom-scrollbar">
+                        <template x-for="item in paymentMethods" :key="item.id">
+                            <button type="button" @click="paymentMethod = item.name" :class="paymentMethod === item.name ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'" class="py-2 px-1 rounded-lg font-black text-xs transition-all flex flex-col items-center justify-center gap-1 border border-transparent" :class="paymentMethod === item.name ? 'border-amber-300' : ''">
+                                <i :class="item.type === 'Cash' ? 'fa-solid fa-money-bill-wave text-emerald-500' : (item.type === 'QRIS' ? 'fa-solid fa-qrcode text-blue-500' : (item.type === 'Debit' ? 'fa-solid fa-credit-card text-indigo-500' : 'fa-solid fa-wallet text-slate-500'))"></i>
+                                <span x-text="item.name" class="text-[10px]"></span>
+                                <span x-show="item.fee_percent > 0" class="text-[9px] text-rose-500 font-bold" x-text="'+' + item.fee_percent + '%'"></span>
+                            </button>
+                        </template>
                     </div>
                     
-                    <div x-show="paymentMethod === 'cash'" x-collapse>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 mt-3">Nominal DP (Tunai)</label>
-                        <div class="relative">
-                            <span class="absolute left-4 top-1/2 -translate-y-1/2 font-black text-amber-500">Rp</span>
-                            <input type="number" x-model.number="inputUang" placeholder="Ketik jumlah DP..." class="w-full bg-amber-50/50 border border-amber-300 rounded-xl pl-11 pr-4 py-3 text-left font-black text-xl outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-amber-700">
-                        </div>
+                    <div class="flex justify-between items-center mt-2 px-2 text-xs font-bold text-slate-500" x-show="paymentFeeAmount > 0">
+                        <span x-text="paymentFeeName"></span>
+                        <span class="text-rose-500" x-text="'+ Rp ' + formatRupiah(paymentFeeAmount)"></span>
                     </div>
-                    
-                    <div x-show="paymentMethod === 'qris'" x-collapse>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 mt-3">Nominal DP (QRIS/TF)</label>
-                        <div class="relative">
-                            <span class="absolute left-4 top-1/2 -translate-y-1/2 font-black text-amber-500">Rp</span>
-                            <input type="number" x-model.number="inputUang" placeholder="Ketik jumlah DP..." class="w-full bg-amber-50/50 border border-amber-300 rounded-xl pl-11 pr-4 py-3 text-left font-black text-xl outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-amber-700">
-                        </div>
-                    </div>
-                    <div class="flex justify-between items-center mt-3 px-2">
-                        <span class="text-xs font-bold text-slate-500">Total Tagihan:</span>
+                    <div class="flex justify-between items-center mt-1 mb-3 px-2">
+                        <span class="text-xs font-bold text-slate-500">Total Tagihan Akhir:</span>
                         <span class="font-black text-lg text-rose-500" x-text="'Rp ' + formatRupiah(totalAmount)"></span>
+                    </div>
+
+                    <div x-collapse>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 mt-3">Nominal DP (Rp)</label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-1/2 -translate-y-1/2 font-black text-amber-500">Rp</span>
+                            <input type="number" x-model.number="inputUang" placeholder="Ketik jumlah DP..." class="w-full bg-amber-50/50 border border-amber-300 rounded-xl pl-11 pr-4 py-3 text-left font-black text-xl outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-amber-700">
+                        </div>
                     </div>
                     <div class="flex justify-between items-center px-2 mt-1 pt-2 border-t border-slate-100 border-dashed" x-show="inputUang > 0 && inputUang <= totalAmount">
                         <span class="text-xs font-bold text-rose-500">Sisa Hutang:</span>

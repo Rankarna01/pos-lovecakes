@@ -60,7 +60,7 @@ function isDropdownActive($paths, $current_uri) {
         <div class="px-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mt-6 mb-2">Operasional</div>
 
         <?php 
-            $paths = ['/pos/produk/deposit/', '/pos/produk/', '/pos/produk/inventory/', '/pos/produk/opname/', '/pos/produk/cetak_barcode/']; 
+            $paths = ['/pos/produk/deposit/', '/pos/produk/', '/pos/produk/inventory/', '/pos/produk/cetak_barcode/']; 
             $isActive = isDropdownActive($paths, $current_uri);
         ?>
         <div class="mb-1">
@@ -75,7 +75,6 @@ function isDropdownActive($paths, $current_uri) {
                 <a href="<?= BASE_URL ?>pos/produk/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/produk/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Katalog Produk</a>
                 <a href="<?= BASE_URL ?>pos/produk/cetak_barcode/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/produk/cetak_barcode/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Cetak Barcode SKU</a>
                 <a href="<?= BASE_URL ?>pos/produk/inventory/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/produk/inventory/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Inventory Gudang</a>
-                <a href="<?= BASE_URL ?>pos/produk/opname/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/produk/opname/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Stok Opname</a>
             </div>
         </div>
 
@@ -107,24 +106,11 @@ function isDropdownActive($paths, $current_uri) {
             </div>
         </div>
 
-        <div class="px-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mt-6 mb-2">Sistem</div>
-
-        <?php 
-            $paths = ['/pos/pengaturan/']; 
-            $isActive = isDropdownActive($paths, $current_uri);
-        ?>
         <div class="mb-6">
-            <button onclick="toggleSubmenu('sub-pengaturan', 'icon-pengaturan')" class="w-full flex items-center justify-between px-4 py-2.5 rounded-xl transition-all <?= $isActive ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600 font-medium' ?>">
-                <div class="flex items-center gap-3">
-                    <i class="fa-solid fa-gear w-5 text-center text-lg shrink-0"></i>
-                    <span class="text-sm whitespace-nowrap">Pengaturan Dasar</span>
-                </div>
-                <i id="icon-pengaturan" class="fa-solid fa-chevron-<?= $isActive ? 'down' : 'right' ?> text-[10px] transition-transform duration-200"></i>
-            </button>
-            <div id="sub-pengaturan" class="<?= $isActive ? 'flex' : 'hidden' ?> flex-col gap-1 mt-1 pl-11 pr-2">
-                <a href="<?= BASE_URL ?>pos/pengaturan/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/pengaturan/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Setelan Global</a>
-                <a href="<?= BASE_URL ?>pos/pengaturan/printer/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/pengaturan/printer/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Printer</a>
-            </div>
+            <a href="<?= BASE_URL ?>pos/pengaturan/printer/" title="Pengaturan Printer" class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all <?= getNavClass('/pos/pengaturan/printer/', $current_uri) ?>">
+                <i class="fa-solid fa-print w-5 text-center text-lg shrink-0"></i>
+                <span class="text-sm whitespace-nowrap transition-all duration-300">Printer</span>
+            </a>
         </div>
 
         <!-- ===== TOMBOL LOGOUT KASIR ===== -->

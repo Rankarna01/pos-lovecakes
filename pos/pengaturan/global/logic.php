@@ -1,7 +1,7 @@
 <?php
 session_start();
 // PERHATIKAN: Path naik 3 folder (pos -> pengaturan -> pos)
-require_once '../../config/database.php'; 
+require_once '../../../config/database.php'; 
 
 header('Content-Type: application/json');
 $action = $_REQUEST['action'] ?? '';

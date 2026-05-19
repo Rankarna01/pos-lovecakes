@@ -46,11 +46,12 @@ if ($action === 'get_master_data') {
     $products = $pdo->query("SELECT * FROM products ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
     $customers = $pdo->query("SELECT id, name, points, phone FROM customers_pos ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
     $saved_customs = $pdo->query("SELECT * FROM saved_custom_items_pos ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
+    $payment_methods = $pdo->query("SELECT * FROM payment_methods WHERE is_active = 1 ORDER BY type ASC, name ASC")->fetchAll(PDO::FETCH_ASSOC);
     
     $storeSettings = $pdo->query("SELECT default_start_cash FROM store_settings_pos WHERE id = 1")->fetch(PDO::FETCH_ASSOC);
     $default_start_cash = $storeSettings ? $storeSettings['default_start_cash'] : 0;
 
-    echo json_encode(['status' => 'success', 'products' => $products, 'customers' => $customers, 'saved_customs' => $saved_customs, 'default_start_cash' => $default_start_cash]); exit;
+    echo json_encode(['status' => 'success', 'products' => $products, 'customers' => $customers, 'saved_customs' => $saved_customs, 'payment_methods' => $payment_methods, 'default_start_cash' => $default_start_cash]); exit;
 }
 
 // --- FUNGSI PELANGGAN BARU ---
@@ -152,12 +153,15 @@ if ($action === 'checkout') {
     $pickup_date = !empty($data['pickup_date']) ? $data['pickup_date'] : null;
     $pickup_time = !empty($data['pickup_time']) ? $data['pickup_time'] : null;
     $notes = !empty($data['notes']) ? $data['notes'] : null;
+    
+    $payment_fee_name = !empty($data['payment_fee_name']) ? $data['payment_fee_name'] : null;
+    $payment_fee_amount = !empty($data['payment_fee_amount']) ? $data['payment_fee_amount'] : 0.00;
 
-    $stmt = $pdo->prepare("INSERT INTO sales_pos (invoice_no, customer_id, order_type, subtotal, discount_voucher, voucher_code, discount_points, discount_manual, points_used, points_earned, total_amount, payment_method, payment_status, dp_amount, amount_paid, change_amount, is_po, channel, pickup_date, pickup_time, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt = $pdo->prepare("INSERT INTO sales_pos (invoice_no, customer_id, order_type, subtotal, discount_voucher, voucher_code, discount_points, discount_manual, points_used, points_earned, total_amount, payment_method, payment_fee_name, payment_fee_amount, payment_status, dp_amount, amount_paid, change_amount, is_po, channel, pickup_date, pickup_time, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     $stmt->execute([
         $invoice_no, $customer_id, 'offline', $data['subtotal'], $data['discount_voucher'], $data['voucher_code'], 
         $data['discount_points'], $data['discount_manual'], $data['points_used'], $data['points_earned'], 
-        $data['total_amount'], $data['payment_method'], $data['payment_status'], $data['dp_amount'], $data['amount_paid'], $data['change_amount'], $is_po, $channel, $pickup_date, $pickup_time, $notes
+        $data['total_amount'], $data['payment_method'], $payment_fee_name, $payment_fee_amount, $data['payment_status'], $data['dp_amount'], $data['amount_paid'], $data['change_amount'], $is_po, $channel, $pickup_date, $pickup_time, $notes
     ]);
     $sale_id = $pdo->lastInsertId();
 

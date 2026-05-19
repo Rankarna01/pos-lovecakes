@@ -1,17 +1,15 @@
 <?php
-if (!defined('BASE_URL')) {
-    define('BASE_URL', 'http://localhost/pos-lovecakes/');
-}
+require_once '../../../config/auth.php';
 $page_title = "Pengaturan POS - Love Cakes";
 ?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <?php include '../../components/header.php'; ?>
+    <?php include '../../../components/header.php'; ?>
 </head>
 <body class="bg-slate-50 flex h-screen overflow-hidden text-slate-800 antialiased font-sans" x-data="settingsPosApp()" x-cloak>
 
-    <?php include '../../components/sidebar.php'; ?>
+    <?php include '../../../components/sidebar.php'; ?>
 
     <div class="flex-1 flex flex-col h-screen overflow-hidden">
         

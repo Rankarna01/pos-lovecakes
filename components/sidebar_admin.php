@@ -52,6 +52,11 @@ function isDropdownActive($paths, $current_uri) {
 
         <!-- MENU PRODUK & INVENTORY DI-HIDE SESUAI PERMINTAAN CLIENT -->
 
+        <a href="<?= BASE_URL ?>pos/opname/" title="Stok Opname" class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all mb-1 <?= getNavClass('/pos/opname/', $current_uri) ?>">
+            <i class="fa-solid fa-boxes-stacked w-5 text-center text-lg shrink-0"></i> 
+            <span class="text-sm whitespace-nowrap transition-all duration-300">Stok Opname</span>
+        </a>
+
         <?php 
             $paths = ['/pos/mitra/supplier/', '/pos/mitra/pelanggan/']; 
             $isActive = isDropdownActive($paths, $current_uri);
@@ -144,28 +149,20 @@ function isDropdownActive($paths, $current_uri) {
             <span class="text-sm whitespace-nowrap transition-all duration-300">Kemitraan/Modal</span>
         </a>
 
-        <?php 
-            $paths = ['/pos/pengaturan/']; 
-            $isActive = isDropdownActive($paths, $current_uri);
-        ?>
-        <div class="mb-6">
-            <button onclick="toggleSubmenu('sub-pengaturan', 'icon-pengaturan')" class="w-full flex items-center justify-between px-4 py-2.5 rounded-xl transition-all <?= $isActive ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600 font-medium' ?>">
-                <div class="flex items-center gap-3">
-                    <i class="fa-solid fa-gear w-5 text-center text-lg shrink-0"></i>
-                    <span class="text-sm whitespace-nowrap">Pengaturan Toko</span>
-                </div>
-                <i id="icon-pengaturan" class="fa-solid fa-chevron-<?= $isActive ? 'down' : 'right' ?> text-[10px] transition-transform duration-200"></i>
-            </button>
-            <div id="sub-pengaturan" class="<?= $isActive ? 'flex' : 'hidden' ?> flex-col gap-1 mt-1 pl-11 pr-2">
-                <a href="<?= BASE_URL ?>pos/pengaturan/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/pengaturan/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Setelan Global</a>
-                <a href="<?= BASE_URL ?>pos/pengaturan/toko/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/pengaturan/toko/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Identitas Toko</a>
-                <a href="<?= BASE_URL ?>pos/pengaturan/shift/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/pengaturan/shift/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Master Shift Kerja</a>
-                <a href="<?= BASE_URL ?>pos/pengaturan/pos/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/pengaturan/pos/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Sistem POS</a>
-                <a href="<?= BASE_URL ?>pos/pengaturan/printer/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/pengaturan/printer/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Printer</a>
-                <a href="<?= BASE_URL ?>pos/pengaturan/pajak/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/pengaturan/pajak/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Pajak & Pembulatan</a>
-                <a href="<?= BASE_URL ?>pos/pengaturan/notifikasi/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/pengaturan/notifikasi/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Notifikasi Sistem</a>
-            </div>
-        </div>
+       <a href="<?= BASE_URL ?>pos/pengaturan/global/" title="Setelan Global" class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all mb-1 <?= getNavClass('/pos/setelan/global/', $current_uri) ?>">
+            <i class="fa-solid fa-sliders w-5 text-center text-lg shrink-0"></i> 
+            <span class="text-sm whitespace-nowrap transition-all duration-300">Setelan Global</span>
+        </a>
+
+        <a href="<?= BASE_URL ?>pos/pengaturan/toko/" title="Identitas Toko" class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all mb-1 <?= getNavClass('/pos/pengaturan/toko/', $current_uri) ?>">
+            <i class="fa-solid fa-store w-5 text-center text-lg shrink-0"></i> 
+            <span class="text-sm whitespace-nowrap transition-all duration-300">Identitas Toko</span>
+        </a>
+
+        <a href="<?= BASE_URL ?>pos/pengaturan/pembayaran/" title="Metode Pembayaran" class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all mb-6 <?= getNavClass('/pos/pengaturan/pembayaran/', $current_uri) ?>">
+            <i class="fa-solid fa-credit-card w-5 text-center text-lg shrink-0"></i> 
+            <span class="text-sm whitespace-nowrap transition-all duration-300">Metode Pembayaran</span>
+        </a>
 
         <!-- ===== TOMBOL LOGOUT ADMIN ===== -->
         <div class="mt-4 px-2 pb-4">

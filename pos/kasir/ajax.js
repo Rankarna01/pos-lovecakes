@@ -78,6 +78,7 @@ document.addEventListener('alpine:init', () => {
         isCustomerDropdownOpen: false,
         posSettings: {}, 
         loyaltyRules: { is_active: 0, earn_point_ratio: 0, points_required: 0, discount_amount: 0, discount_type: 'IDR' },
+        paymentMethods: [],
         
         searchQuery: '', barcodeInput: '', isLoading: false,
         
@@ -99,7 +100,7 @@ document.addEventListener('alpine:init', () => {
         
         // --- STATE MODAL CHECKOUT MEWAH ---
         showCheckoutModal: false, inputUang: '',
-        paymentMethod: 'cash', paymentStatus: 'lunas', amountPaid: 0, dpAmount: 0, changeAmount: 0,
+        paymentMethod: 'Cash', paymentFeeName: '', paymentStatus: 'lunas', amountPaid: 0, dpAmount: 0, changeAmount: 0,
 
         // --- STATE MODAL ITEM CUSTOM & CATATAN ---
         showCustomItemModal: false,
@@ -247,6 +248,7 @@ document.addEventListener('alpine:init', () => {
                     this.products = result.products; 
                     this.customers = result.customers;
                     this.savedCustoms = result.saved_customs || []; 
+                    this.paymentMethods = result.payment_methods || [];
                     if(result.default_start_cash && !this.shiftForm.start_cash) {
                         this.shiftForm.start_cash = result.default_start_cash;
                     }
@@ -255,6 +257,7 @@ document.addEventListener('alpine:init', () => {
                     await idbPos.setMasterData('products', this.products);
                     await idbPos.setMasterData('customers', this.customers);
                     await idbPos.setMasterData('saved_customs', this.savedCustoms);
+                    await idbPos.setMasterData('payment_methods', this.paymentMethods);
                     await idbPos.setMasterData('default_start_cash', result.default_start_cash);
                     
                     if(isManualSync) Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `Database Tersinkronisasi!`, showConfirmButton: false, timer: 1500 });
@@ -264,6 +267,7 @@ document.addEventListener('alpine:init', () => {
                 this.products = (await idbPos.getMasterData('products')) || [];
                 this.customers = (await idbPos.getMasterData('customers')) || [];
                 this.savedCustoms = (await idbPos.getMasterData('saved_customs')) || [];
+                this.paymentMethods = (await idbPos.getMasterData('payment_methods')) || [];
                 const defCash = await idbPos.getMasterData('default_start_cash');
                 if (defCash && !this.shiftForm.start_cash) this.shiftForm.start_cash = defCash;
 
@@ -442,10 +446,21 @@ document.addEventListener('alpine:init', () => {
             let d = parseFloat(this.loyaltyRules.discount_amount);
             return this.loyaltyRules.discount_type === 'PERCENT' ? (this.subtotal * d) / 100 : d;
         },
-        get totalAmount() {
+        get totalAmountBase() {
             let ongkir = this.activeTab === 'po' ? parseFloat(this.poForm.ongkir || 0) : 0;
             let total = this.subtotal + ongkir - this.discountVoucher - this.discountPoints - this.discountManual;
             return total > 0 ? total : 0;
+        },
+        get paymentFeeAmount() {
+            if (!this.paymentMethods) return 0;
+            const method = this.paymentMethods.find(m => m.name === this.paymentMethod);
+            if (method && method.fee_percent > 0) {
+                return this.totalAmountBase * (method.fee_percent / 100);
+            }
+            return 0;
+        },
+        get totalAmount() {
+            return this.totalAmountBase + this.paymentFeeAmount;
         },
         get pointsEarned() {
             if (!this.selectedCustomer || !this.loyaltyRules?.is_active || this.loyaltyRules.earn_point_ratio <= 0) return 0;
@@ -457,22 +472,26 @@ document.addEventListener('alpine:init', () => {
             if(this.activeTab === 'po' && (!this.poForm.pickup_date || !this.poForm.pickup_time)) {
                 Swal.fire('Perhatian', 'Tanggal dan Jam Pengambilan Pesanan PO wajib diisi!', 'warning'); return;
             }
-            this.paymentStatus = 'lunas'; this.paymentMethod = 'cash'; this.inputUang = this.totalAmount; 
+            this.paymentStatus = 'lunas'; 
+            this.paymentMethod = this.paymentMethods.length > 0 ? this.paymentMethods[0].name : 'Cash'; 
+            this.inputUang = this.totalAmount; 
             this.showCheckoutModal = true;
         },
 
         submitCheckout() {
+            const selectedMethod = this.paymentMethods.find(m => m.name === this.paymentMethod);
+            this.paymentFeeName = selectedMethod ? selectedMethod.fee_name : '';
+
             if (this.paymentStatus === 'dp') {
                 if(!this.selectedCustomerId) { Swal.fire('Perhatian', 'Transaksi DP/Kasbon wajib memilih nama Pelanggan di sidebar!', 'warning'); return; }
                 if(!this.inputUang || this.inputUang <= 0 || this.inputUang > this.totalAmount) { Swal.fire('Perhatian', 'Nominal DP tidak valid!', 'warning'); return; }
                 this.dpAmount = parseFloat(this.inputUang); this.amountPaid = this.dpAmount; this.changeAmount = 0; 
-                // paymentMethod is already chosen by toggle
             } else {
                 this.dpAmount = 0;
-                if (this.paymentMethod === 'cash') {
+                if (selectedMethod && selectedMethod.type === 'Cash') {
                     if (!this.inputUang || parseFloat(this.inputUang) < this.totalAmount) { Swal.fire('Perhatian', 'Uang diterima kurang dari total tagihan!', 'warning'); return; }
                     this.amountPaid = parseFloat(this.inputUang); this.changeAmount = this.amountPaid - this.totalAmount;
-                } else if (this.paymentMethod === 'qris') {
+                } else {
                     this.amountPaid = this.totalAmount; this.changeAmount = 0;
                 }
             }
@@ -493,7 +512,7 @@ document.addEventListener('alpine:init', () => {
                 order_type: this.orderType, customer_id: this.selectedCustomerId, subtotal: this.subtotal,
                 discount_voucher: this.discountVoucher, voucher_code: this.appliedVoucher ? this.appliedVoucher.voucher_code : null,
                 discount_points: this.discountPoints, discount_manual: this.discountManual, points_used: this.usePoints ? this.loyaltyRules.points_required : 0, points_earned: this.pointsEarned, 
-                total_amount: this.totalAmount, payment_method: this.paymentMethod, payment_status: this.paymentStatus,
+                total_amount: this.totalAmount, payment_method: this.paymentMethod, payment_fee_name: this.paymentFeeName, payment_fee_amount: this.paymentFeeAmount, payment_status: this.paymentStatus,
                 dp_amount: this.dpAmount, amount_paid: this.amountPaid, change_amount: this.changeAmount, items: this.cart
             };
             try {
@@ -557,7 +576,7 @@ document.addEventListener('alpine:init', () => {
 
         resetCart() {
             this.cart = []; this.selectedCustomerId = ''; this.voucherCode = ''; this.appliedVoucher = null;
-            this.usePoints = false; this.discountManual = 0; this.paymentMethod = 'cash'; this.paymentStatus = 'lunas';
+            this.usePoints = false; this.discountManual = 0; this.paymentMethod = 'Cash'; this.paymentFeeName = ''; this.paymentStatus = 'lunas';
             this.amountPaid = 0; this.dpAmount = 0; this.changeAmount = 0; this.inputUang = 0;
             this.orderNotes = '';
             this.poForm = { channel: 'toko', pickup_date: '', pickup_time: '', ongkir: 0, notes: '' };
