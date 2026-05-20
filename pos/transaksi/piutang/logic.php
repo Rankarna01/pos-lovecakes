@@ -5,6 +5,17 @@ require_once '../../../config/database.php';
 header('Content-Type: application/json');
 $action = $_REQUEST['action'] ?? '';
 
+if ($action === 'get_payment_methods') {
+    try {
+        $stmt = $pdo->query("SELECT id, name, type, fee_percent, is_active FROM payment_methods WHERE is_active = 1 ORDER BY id ASC");
+        $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        echo json_encode(['status' => 'success', 'data' => $data]);
+    } catch (Exception $e) {
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    }
+    exit;
+}
+
 // 1. AMBIL DAFTAR TRANSAKSI YANG MASIH DP
 if ($action === 'get_piutang') {
     $search = $_GET['search'] ?? '';
@@ -63,11 +74,14 @@ if ($action === 'settle_payment') {
             SET payment_status = 'lunas', 
                 amount_paid = ?, 
                 change_amount = ?,
-                payment_method = ?,
                 settled_at = NOW() 
             WHERE id = ?
         ");
-        $stmt_update->execute([$total_uang_diterima, $kembalian_baru, $payment_method, $sale_id]);
+        $stmt_update->execute([$total_uang_diterima, $kembalian_baru, $sale_id]);
+
+        // SIMPAN KE SALE_PAYMENTS_POS
+        $stmtPay = $pdo->prepare("INSERT INTO sale_payments_pos (sale_id, amount, payment_method, payment_type) VALUES (?, ?, ?, 'pelunasan')");
+        $stmtPay->execute([$sale_id, $sisa_tagihan, $payment_method]);
 
         $pdo->commit();
         echo json_encode(['status' => 'success', 'message' => 'Pelunasan berhasil!']);

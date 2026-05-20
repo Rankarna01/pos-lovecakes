@@ -35,9 +35,15 @@ if ($action === 'open_shift') {
 
 if ($action === 'close_shift') {
     $end_cash = $_POST['end_cash'] ?? 0;
-    $stmt = $pdo->prepare("UPDATE shifts_history_pos SET status = 'closed', end_time = NOW(), end_cash = ? WHERE user_id = ? AND status = 'open'");
-    $stmt->execute([$end_cash, $user_id]);
-    echo json_encode(['status' => 'success', 'message' => 'Kasir Berhasil Ditutup!']);
+    // Get current open shift id
+    $stmtGet = $pdo->prepare("SELECT id FROM shifts_history_pos WHERE user_id = ? AND status = 'open' LIMIT 1");
+    $stmtGet->execute([$user_id]);
+    $open_shift = $stmtGet->fetch(PDO::FETCH_ASSOC);
+    $shift_id = $open_shift ? $open_shift['id'] : 0;
+
+    $stmt = $pdo->prepare("UPDATE shifts_history_pos SET status = 'closed', end_time = NOW(), end_cash = ? WHERE id = ?");
+    $stmt->execute([$end_cash, $shift_id]);
+    echo json_encode(['status' => 'success', 'message' => 'Kasir Berhasil Ditutup!', 'shift_id' => $shift_id]);
     exit;
 }
 
@@ -164,6 +170,12 @@ if ($action === 'checkout') {
         $data['total_amount'], $data['payment_method'], $payment_fee_name, $payment_fee_amount, $data['payment_status'], $data['dp_amount'], $data['amount_paid'], $data['change_amount'], $is_po, $channel, $pickup_date, $pickup_time, $notes
     ]);
     $sale_id = $pdo->lastInsertId();
+
+    // 1.5 SIMPAN KE SALE_PAYMENTS_POS
+    $payment_type = $data['payment_status'] === 'dp' ? 'dp' : 'full';
+    $amount_to_record = $data['payment_status'] === 'dp' ? $data['dp_amount'] : ($data['amount_paid'] - $data['change_amount']);
+    $stmtPay = $pdo->prepare("INSERT INTO sale_payments_pos (sale_id, amount, payment_method, payment_type) VALUES (?, ?, ?, ?)");
+    $stmtPay->execute([$sale_id, $amount_to_record, $data['payment_method'], $payment_type]);
 
     $stmt_detail = $pdo->prepare("INSERT INTO sale_details_pos (sale_id, product_id, is_custom, custom_name, price, qty, subtotal) VALUES (?, ?, ?, ?, ?, ?, ?)");
     $stmt_potong_stok = $pdo->prepare("UPDATE products SET stock = stock - ? WHERE id = ?");

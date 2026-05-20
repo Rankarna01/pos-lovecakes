@@ -42,7 +42,7 @@ $page_title = "Laporan Penjualan & Shift - Love Cakes POS";
                     <input type="date" x-model="startDate" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20">
                     <span class="py-2 text-slate-400 font-bold text-xs">s/d</span>
                     <input type="date" x-model="endDate" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20">
-                    <button @click="fetchReport()" :disabled="isLoading" class="bg-primary hover:bg-slate-800 text-white px-6 py-2.5 rounded-xl font-black transition-all flex items-center gap-2 shadow-sm disabled:opacity-50">
+                    <button @click="fetchReport()" :disabled="isLoading" class="bg-primary hover:bg-slate-200 text-primary px-6 py-2.5 rounded-xl font-black transition-all flex items-center gap-2 shadow-sm disabled:opacity-50">
                         <i class="fa-solid fa-magnifying-glass"></i> Tampilkan
                     </button>
                     
@@ -93,11 +93,12 @@ $page_title = "Laporan Penjualan & Shift - Love Cakes POS";
                                     <th class="p-3 font-black text-center border-b text-amber-600">- Kas Keluar</th>
                                     <th class="p-3 font-black text-center border-b bg-slate-100">= Sistem Harus</th>
                                     <th class="p-3 font-black text-center border-b bg-blue-50 text-blue-600">Laci Real</th>
-                                    <th class="p-3 font-black text-center border-b rounded-tr-xl">Selisih</th>
+                                    <th class="p-3 font-black text-center border-b">Selisih</th>
+                                    <th class="p-3 font-black text-center border-b rounded-tr-xl">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <template x-for="shift in shiftData" :key="shift.id">
+                                <template x-for="shift in paginatedShifts" :key="shift.id">
                                     <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                                         <td class="p-3">
                                             <div class="font-black text-slate-800 text-xs" x-text="shift.kasir_name"></div>
@@ -120,16 +121,28 @@ $page_title = "Laporan Penjualan & Shift - Love Cakes POS";
                                             </div>
                                             <span x-show="shift.status === 'open'" class="text-slate-300">-</span>
                                         </td>
+                                        <td class="p-3 text-center">
+                                            <button @click="printShift(shift.id)" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-[10px] font-black transition-all mx-auto flex items-center justify-center gap-1.5">
+                                                <i class="fa-solid fa-print"></i> Cetak
+                                            </button>
+                                        </td>
                                     </tr>
                                 </template>
                                 
                                 <tr x-show="shiftData.length === 0">
-                                    <td colspan="7" class="p-8 text-center text-slate-400 font-bold">
+                                    <td colspan="8" class="p-8 text-center text-slate-400 font-bold">
                                         <i class="fa-solid fa-folder-open text-3xl mb-2 opacity-50"></i><br>Belum ada data shift di tanggal ini.
                                     </td>
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+                    <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
+                        <span class="text-xs text-slate-500 font-bold" x-text="'Halaman ' + currentPage + ' dari ' + totalPages"></span>
+                        <div class="flex gap-2">
+                            <button @click="prevPage()" :disabled="currentPage <= 1" class="px-4 py-2 rounded-xl bg-white border text-xs font-bold disabled:opacity-50"><i class="fa-solid fa-chevron-left"></i></button>
+                            <button @click="nextPage()" :disabled="currentPage >= totalPages" class="px-4 py-2 rounded-xl bg-white border text-xs font-bold disabled:opacity-50"><i class="fa-solid fa-chevron-right"></i></button>
+                        </div>
                     </div>
                 </div>
 

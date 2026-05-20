@@ -5,6 +5,30 @@ document.addEventListener('alpine:init', () => {
         isLoading: false,
         paymentData: { cash: 0, qris: 0, total: 0 },
         shiftData: [],
+        currentPage: 1,
+        itemsPerPage: 10,
+
+        get totalPages() {
+            return Math.ceil(this.shiftData.length / this.itemsPerPage) || 1;
+        },
+
+        get paginatedShifts() {
+            const start = (this.currentPage - 1) * this.itemsPerPage;
+            const end = start + this.itemsPerPage;
+            return this.shiftData.slice(start, end);
+        },
+
+        nextPage() {
+            if (this.currentPage < this.totalPages) this.currentPage++;
+        },
+
+        prevPage() {
+            if (this.currentPage > 1) this.currentPage--;
+        },
+
+        printShift(id) {
+            window.open(`../../kasir/print_shift.php?id=${id}`, '_blank', 'width=400,height=600');
+        },
 
         init() {
             // ❌ CEK SESI dbAuth DIHAPUS TOTAL!
@@ -37,6 +61,7 @@ document.addEventListener('alpine:init', () => {
                 if (result.status === 'success') {
                     this.paymentData = result.payments;
                     this.shiftData = result.shifts;
+                    this.currentPage = 1;
                 } else { 
                     if (typeof Swal !== 'undefined') Swal.fire('Error', result.message, 'error'); 
                 }

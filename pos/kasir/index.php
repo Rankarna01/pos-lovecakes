@@ -539,7 +539,7 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                         <span class="font-black text-lg text-rose-500" x-text="'Rp ' + formatRupiah(totalAmount)"></span>
                     </div>
 
-                    <div x-collapse>
+                    <div>
                         <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 mt-3">Nominal DP (Rp)</label>
                         <div class="relative">
                             <span class="absolute left-4 top-1/2 -translate-y-1/2 font-black text-amber-500">Rp</span>

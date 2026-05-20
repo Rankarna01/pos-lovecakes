@@ -9,11 +9,28 @@ document.addEventListener('alpine:init', () => {
         // State Modal
         showModal: false,
         activeTrx: null,
-        payMethod: 'cash',
+        payMethod: 'Cash',
         payAmount: 0,
+        paymentMethods: [],
 
         async init() {
+            await this.fetchPaymentMethods();
             await this.fetchData();
+        },
+
+        async fetchPaymentMethods() {
+            try {
+                const response = await fetch('logic.php?action=get_payment_methods');
+                const result = await response.json();
+                if (result.status === 'success') {
+                    this.paymentMethods = result.data;
+                    if (this.paymentMethods.length > 0) {
+                        this.payMethod = this.paymentMethods[0].name;
+                    }
+                }
+            } catch (error) {
+                console.error("Gagal memuat metode pembayaran:", error);
+            }
         },
 
         async fetchData() {
@@ -59,13 +76,16 @@ document.addEventListener('alpine:init', () => {
         },
 
         get kembalian() {
-            if (this.payMethod === 'qris') return 0;
+            const selectedMethod = this.paymentMethods.find(m => m.name === this.payMethod);
+            if (selectedMethod && selectedMethod.type !== 'Cash') return 0;
             return parseFloat(this.payAmount || 0) - this.sisaTagihan;
         },
 
         openModal(trx) {
             this.activeTrx = trx;
-            this.payMethod = 'cash';
+            if (this.paymentMethods.length > 0) {
+                this.payMethod = this.paymentMethods[0].name;
+            }
             this.payAmount = this.sisaTagihan; // Default input terisi sejumlah sisa tagihan
             this.showModal = true;
         },
@@ -77,7 +97,10 @@ document.addEventListener('alpine:init', () => {
                 return;
             }
 
-            if (this.payMethod === 'cash' && this.payAmount < this.sisaTagihan) {
+            const selectedMethod = this.paymentMethods.find(m => m.name === this.payMethod);
+            const isCash = selectedMethod && selectedMethod.type === 'Cash';
+
+            if (isCash && this.payAmount < this.sisaTagihan) {
                 if (typeof Swal !== 'undefined') Swal.fire('Perhatian', 'Jumlah uang diterima kurang dari sisa tagihan!', 'warning');
                 return;
             }
@@ -88,8 +111,8 @@ document.addEventListener('alpine:init', () => {
                 fd.append('sale_id', this.activeTrx.id);
                 fd.append('payment_method', this.payMethod);
                 
-                // Kalau QRIS, otomatis uang diterima = sisa tagihan
-                const finalPay = this.payMethod === 'qris' ? this.sisaTagihan : this.payAmount;
+                // Kalau bukan Cash, otomatis uang diterima = sisa tagihan
+                const finalPay = isCash ? this.payAmount : this.sisaTagihan;
                 fd.append('pay_amount', finalPay);
 
                 const response = await fetch('logic.php?action=settle_payment', { method: 'POST', body: fd });

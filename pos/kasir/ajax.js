@@ -189,7 +189,12 @@ document.addEventListener('alpine:init', () => {
                 try {
                     const result = JSON.parse(rawText);
                     if (result.status === 'success') {
-                        Swal.fire('Tutup Kasir Sukses', result.message, 'success').then(() => { window.location.reload(); });
+                        Swal.fire('Tutup Kasir Sukses', result.message, 'success').then(() => { 
+                            if (result.shift_id) {
+                                window.open(`print_shift.php?id=${result.shift_id}`, '_blank', 'width=400,height=600');
+                            }
+                            setTimeout(() => { window.location.reload(); }, 500);
+                        });
                     } else { Swal.fire('Gagal', result.message, 'error'); }
                 } catch(err) { 
                     console.error("❌ ERROR PHP (Close Shift):", rawText); 

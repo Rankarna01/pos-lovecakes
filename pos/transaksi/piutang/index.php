@@ -137,22 +137,26 @@ $page_title = "Pelunasan DP (Piutang) - Love Cakes POS";
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-3">
-                        <button @click="payMethod = 'cash'" :class="payMethod === 'cash' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white text-slate-500 border-slate-200'" class="py-3 rounded-xl font-black text-sm border shadow-sm transition-all flex items-center justify-center gap-2"><i class="fa-solid fa-money-bill-wave"></i> Cash</button>
-                        <button @click="payMethod = 'qris'" :class="payMethod === 'qris' ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-slate-500 border-slate-200'" class="py-3 rounded-xl font-black text-sm border shadow-sm transition-all flex items-center justify-center gap-2"><i class="fa-solid fa-qrcode"></i> QRIS</button>
+                    <div class="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto custom-scrollbar">
+                        <template x-for="item in paymentMethods" :key="item.id">
+                            <button type="button" @click="payMethod = item.name" :class="payMethod === item.name ? 'bg-blue-50 border-blue-500 text-blue-700 ring-1 ring-blue-500' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'" class="py-2 px-1 rounded-xl font-black text-xs border shadow-sm transition-all flex flex-col items-center justify-center gap-1">
+                                <i :class="item.type === 'Cash' ? 'fa-solid fa-money-bill-wave text-emerald-500' : (item.type === 'QRIS' ? 'fa-solid fa-qrcode text-blue-500' : (item.type === 'Debit' ? 'fa-solid fa-credit-card text-indigo-500' : 'fa-solid fa-wallet text-slate-500'))"></i>
+                                <span x-text="item.name" class="text-[10px]"></span>
+                            </button>
+                        </template>
                     </div>
 
-                    <div x-show="payMethod === 'cash'">
+                    <div x-show="paymentMethods.find(m => m.name === payMethod)?.type === 'Cash'">
                         <label class="block text-[10px] font-black text-slate-500 mb-1.5 uppercase">Jumlah Uang Diterima (Rp)</label>
                         <input type="number" x-model="payAmount" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-4 text-center font-black text-2xl outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary text-slate-800" autofocus>
                     </div>
 
-                    <div x-show="payMethod === 'cash' && kembalian >= 0" class="flex justify-between items-center p-3 rounded-xl bg-emerald-50 border border-emerald-200">
+                    <div x-show="paymentMethods.find(m => m.name === payMethod)?.type === 'Cash' && kembalian >= 0" class="flex justify-between items-center p-3 rounded-xl bg-emerald-50 border border-emerald-200">
                         <span class="text-xs font-black text-emerald-700 uppercase tracking-widest">Kembalian</span>
                         <span class="text-xl font-black text-emerald-600" x-text="'Rp ' + formatRupiah(kembalian)"></span>
                     </div>
 
-                    <button @click="processSettlement()" :disabled="isSubmitting || (payMethod === 'cash' && payAmount < sisaTagihan)" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-black py-4 rounded-xl shadow-lg shadow-slate-800/30 transition-all flex justify-center items-center gap-2 disabled:opacity-50">
+                    <button @click="processSettlement()" :disabled="isSubmitting || (paymentMethods.find(m => m.name === payMethod)?.type === 'Cash' && payAmount < sisaTagihan)" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-black py-4 rounded-xl shadow-lg shadow-slate-800/30 transition-all flex justify-center items-center gap-2 disabled:opacity-50">
                         <i class="fa-solid fa-check-circle" :class="isSubmitting ? 'fa-spin' : ''"></i> LUNASI SEKARANG
                     </button>
                 </div>

@@ -11,14 +11,23 @@ $end_date = $_GET['end_date'] ?? date('Y-m-d');
 if ($action === 'get_report' || $action === 'export_excel') {
     try {
         // 1. QUERY KOMPOSISI PEMBAYARAN GLOBAL (Untuk Omset Sistem)
-        $stmt_pay = $pdo->prepare("SELECT payment_method, SUM(total_amount) as total FROM sales_pos WHERE DATE(created_at) BETWEEN ? AND ? GROUP BY payment_method");
+        $stmt_pay = $pdo->prepare("
+            SELECT sp.payment_method, pm.type, SUM(sp.amount) as total 
+            FROM sale_payments_pos sp
+            LEFT JOIN payment_methods pm ON sp.payment_method = pm.name
+            WHERE DATE(sp.created_at) BETWEEN ? AND ? 
+            GROUP BY sp.payment_method, pm.type
+        ");
         $stmt_pay->execute([$start_date, $end_date]);
         $pay_results = $stmt_pay->fetchAll(PDO::FETCH_ASSOC);
         
         $paymentData = ['cash' => 0, 'qris' => 0, 'total' => 0];
         foreach ($pay_results as $row) {
-            if ($row['payment_method'] === 'cash') { $paymentData['cash'] += (float)$row['total']; } 
-            else { $paymentData['qris'] += (float)$row['total']; }
+            if ($row['type'] === 'Cash' || strtolower($row['payment_method']) === 'cash') { 
+                $paymentData['cash'] += (float)$row['total']; 
+            } else { 
+                $paymentData['qris'] += (float)$row['total']; 
+            }
             $paymentData['total'] += (float)$row['total'];
         }
 
@@ -28,8 +37,10 @@ if ($action === 'get_report' || $action === 'export_excel') {
                 sh.id, COALESCE(u.name, 'Admin') as kasir_name, ms.shift_name, 
                 sh.start_time, sh.end_time, sh.start_cash, sh.end_cash, sh.status,
                 
-                (SELECT COALESCE(SUM(amount_paid - change_amount), 0) FROM sales_pos 
-                 WHERE payment_method = 'cash' AND created_at >= sh.start_time AND created_at <= COALESCE(sh.end_time, NOW())) as total_cash_in,
+                (SELECT COALESCE(SUM(sp.amount), 0) FROM sale_payments_pos sp
+                 LEFT JOIN payment_methods pm ON sp.payment_method = pm.name
+                 WHERE (pm.type = 'Cash' OR sp.payment_method = 'cash' OR sp.payment_method = 'Cash') 
+                 AND sp.created_at >= sh.start_time AND sp.created_at <= COALESCE(sh.end_time, NOW())) as total_cash_in,
                  
                 (SELECT COALESCE(SUM(nominal), 0) FROM petty_cash_pos 
                  WHERE shift_history_id = sh.id AND jenis = 'keluar') as total_kas_keluar
