@@ -161,7 +161,8 @@ document.addEventListener('alpine:init', () => {
        async openShift() {
             this.isLoadingShift = true;
             try {
-                const fd = new FormData(); fd.append('start_cash', this.shiftForm.start_cash);
+                const fd = new FormData(); 
+
                 // ARAHKAN KE logic_kasir.php
                 const res = await fetch('logic_kasir.php?action=open_shift', { method: 'POST', body: fd });
                 const rawText = await res.text();

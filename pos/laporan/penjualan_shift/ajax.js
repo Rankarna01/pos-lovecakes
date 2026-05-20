@@ -5,6 +5,15 @@ document.addEventListener('alpine:init', () => {
         isLoading: false,
         paymentData: { cash: 0, qris: 0, total: 0 },
         shiftData: [],
+        
+        // Data Tambahan
+        paymentBreakdown: [],
+        salesByCategory: [],
+        salesByItem: [],
+        salesByCustomer: [],
+        dpPelunasan: [],
+        salesDetails: [],
+
         currentPage: 1,
         itemsPerPage: 10,
 
@@ -61,6 +70,14 @@ document.addEventListener('alpine:init', () => {
                 if (result.status === 'success') {
                     this.paymentData = result.payments;
                     this.shiftData = result.shifts;
+                    
+                    this.paymentBreakdown = result.payment_breakdown || [];
+                    this.salesByCategory = result.sales_by_category || [];
+                    this.salesByItem = result.sales_by_item || [];
+                    this.salesByCustomer = result.sales_by_customer || [];
+                    this.dpPelunasan = result.dp_pelunasan || [];
+                    this.salesDetails = result.sales_details || [];
+
                     this.currentPage = 1;
                 } else { 
                     if (typeof Swal !== 'undefined') Swal.fire('Error', result.message, 'error'); 

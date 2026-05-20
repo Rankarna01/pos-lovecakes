@@ -25,7 +25,12 @@ if ($action === 'check_shift') {
 }
 
 if ($action === 'open_shift') {
-    $start_cash = $_POST['start_cash'] ?? 0;
+    // Ambil default_start_cash dari pos_settings
+    $stmt_set = $pdo->prepare("SELECT setting_value FROM pos_settings WHERE setting_key = 'default_start_cash'");
+    $stmt_set->execute();
+    $setting = $stmt_set->fetch(PDO::FETCH_ASSOC);
+    $start_cash = $setting ? (float)$setting['setting_value'] : 0;
+
     // Gunakan shift_id 0 karena sudah tidak relasi ke master shift
     $stmt = $pdo->prepare("INSERT INTO shifts_history_pos (user_id, shift_id, start_time, start_cash, status) VALUES (?, 0, NOW(), ?, 'open')");
     $stmt->execute([$user_id, $start_cash]);
@@ -54,8 +59,10 @@ if ($action === 'get_master_data') {
     $saved_customs = $pdo->query("SELECT * FROM saved_custom_items_pos ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
     $payment_methods = $pdo->query("SELECT * FROM payment_methods WHERE is_active = 1 ORDER BY type ASC, name ASC")->fetchAll(PDO::FETCH_ASSOC);
     
-    $storeSettings = $pdo->query("SELECT default_start_cash FROM store_settings_pos WHERE id = 1")->fetch(PDO::FETCH_ASSOC);
-    $default_start_cash = $storeSettings ? $storeSettings['default_start_cash'] : 0;
+    $stmt_set = $pdo->prepare("SELECT setting_value FROM pos_settings WHERE setting_key = 'default_start_cash'");
+    $stmt_set->execute();
+    $setting = $stmt_set->fetch(PDO::FETCH_ASSOC);
+    $default_start_cash = $setting ? (float)$setting['setting_value'] : 0;
 
     echo json_encode(['status' => 'success', 'products' => $products, 'customers' => $customers, 'saved_customs' => $saved_customs, 'payment_methods' => $payment_methods, 'default_start_cash' => $default_start_cash]); exit;
 }

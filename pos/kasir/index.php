@@ -95,13 +95,8 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                 <p class="text-sm font-bold text-slate-500 mb-6">Masukkan uang modal awal di laci kasir (Cash) untuk mulai transaksi.</p>
                 <form @submit.prevent="openShift()" class="space-y-4 text-left">
 
-                    <div>
-                        <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5">Modal Awal Cash (Di Laci)</label>
-                        <div class="relative">
-                            <span class="absolute left-4 top-1/2 -translate-y-1/2 font-black text-slate-400">Rp</span>
-                            <input type="number" x-model="shiftForm.start_cash" required class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/20 font-black text-slate-800 text-lg">
-                        </div>
-                    </div>
+                    <p class="text-sm font-bold text-slate-500 mb-6 text-center">Klik tombol di bawah untuk membuka laci dan memulai transaksi hari ini.</p>
+
                     <button type="submit" :disabled="isLoadingShift" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-xl shadow-lg transition-colors duration-200 flex items-center justify-center gap-2 mt-4 disabled:opacity-50">
                         <i class="fa-solid fa-lock-open" :class="isLoadingShift ? 'fa-spin' : ''"></i> BUKA KASIR SEKARANG
                     </button>

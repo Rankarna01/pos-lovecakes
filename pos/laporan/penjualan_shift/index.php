@@ -59,7 +59,7 @@ $page_title = "Laporan Penjualan & Shift - Love Cakes POS";
                 <!-- SUMMARY OMSET -->
                 <div class="bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-200 flex flex-col sm:flex-row gap-6 items-center">
                     <div class="flex-1 w-full">
-                        <h3 class="font-black text-slate-400 uppercase text-[10px] tracking-widest mb-2"><i class="fa-solid fa-chart-pie mr-1"></i> Komposisi Omset Sistem</h3>
+                        <h3 class="font-black text-slate-400 uppercase text-[10px] tracking-widest mb-2"><i class="fa-solid fa-chart-pie mr-1"></i> Komposisi Omset Sistem (Sederhana)</h3>
                         <div class="grid grid-cols-2 gap-3">
                             <div class="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
                                 <p class="text-xs font-bold text-emerald-600 mb-1">Cash / Tunai</p>
@@ -76,7 +76,148 @@ $page_title = "Laporan Penjualan & Shift - Love Cakes POS";
                         <span class="font-black text-3xl text-emerald-400" x-text="'Rp ' + formatRupiah(paymentData.total)"></span>
                     </div>
                 </div>
-                
+
+                <!-- METODE PEMBAYARAN & STATUS DP/LUNAS -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-200">
+                        <h3 class="font-black text-slate-700 mb-4 uppercase text-xs tracking-widest border-b border-slate-100 pb-3">
+                            <i class="fa-solid fa-credit-card text-blue-400 mr-2"></i> Rincian Pembayaran (Cash/TF/Qris)
+                        </h3>
+                        <div class="space-y-3">
+                            <template x-for="pay in paymentBreakdown" :key="pay.payment_method">
+                                <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                    <span class="font-bold text-slate-600 text-sm uppercase tracking-wide" x-text="pay.payment_method"></span>
+                                    <span class="font-black text-slate-800" x-text="'Rp ' + formatRupiah(pay.total_amount)"></span>
+                                </div>
+                            </template>
+                            <div x-show="paymentBreakdown.length === 0" class="text-center py-4 text-xs font-bold text-slate-400">Belum ada data</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-200">
+                        <h3 class="font-black text-slate-700 mb-4 uppercase text-xs tracking-widest border-b border-slate-100 pb-3">
+                            <i class="fa-solid fa-file-invoice-dollar text-emerald-400 mr-2"></i> Pembayaran DP vs Pelunasan
+                        </h3>
+                        <div class="space-y-3">
+                            <template x-for="dp in dpPelunasan" :key="dp.payment_type">
+                                <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                    <div>
+                                        <span class="font-bold text-slate-600 text-sm uppercase tracking-wide" x-text="dp.payment_type"></span>
+                                        <span class="text-[10px] bg-slate-200 text-slate-500 px-2 py-0.5 rounded ml-2" x-text="dp.total_transactions + ' trx'"></span>
+                                    </div>
+                                    <span class="font-black text-emerald-600" x-text="'Rp ' + formatRupiah(dp.total_amount)"></span>
+                                </div>
+                            </template>
+                            <div x-show="dpPelunasan.length === 0" class="text-center py-4 text-xs font-bold text-slate-400">Belum ada data DP/Pelunasan</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KATEGORI & ITEM TERLARIS -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-200">
+                        <h3 class="font-black text-slate-700 mb-4 uppercase text-xs tracking-widest border-b border-slate-100 pb-3">
+                            <i class="fa-solid fa-layer-group text-purple-400 mr-2"></i> Penjualan per Kategori
+                        </h3>
+                        <div class="overflow-y-auto max-h-[300px] custom-scrollbar pr-2 space-y-3">
+                            <template x-for="cat in salesByCategory" :key="cat.category_name">
+                                <div class="flex justify-between items-center border-b border-slate-100 pb-2 last:border-0 last:pb-0">
+                                    <div>
+                                        <div class="font-bold text-sm text-slate-700" x-text="cat.category_name"></div>
+                                        <div class="text-[10px] text-slate-500 font-medium" x-text="cat.total_qty + ' items terjual'"></div>
+                                    </div>
+                                    <div class="font-black text-primary text-sm" x-text="'Rp ' + formatRupiah(cat.total_amount)"></div>
+                                </div>
+                            </template>
+                            <div x-show="salesByCategory.length === 0" class="text-center py-4 text-xs font-bold text-slate-400">Belum ada data</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-200">
+                        <h3 class="font-black text-slate-700 mb-4 uppercase text-xs tracking-widest border-b border-slate-100 pb-3">
+                            <i class="fa-solid fa-ranking-star text-amber-400 mr-2"></i> Barang Terlaris
+                        </h3>
+                        <div class="overflow-y-auto max-h-[300px] custom-scrollbar pr-2 space-y-3">
+                            <template x-for="(item, index) in salesByItem" :key="item.item_name">
+                                <div class="flex justify-between items-center border-b border-slate-100 pb-2 last:border-0 last:pb-0">
+                                    <div class="flex items-center gap-3">
+                                        <span class="w-6 h-6 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-xs font-black" x-text="index + 1"></span>
+                                        <div>
+                                            <div class="font-bold text-sm text-slate-700" x-text="item.item_name"></div>
+                                            <div class="text-[10px] text-slate-500 font-medium" x-text="item.total_qty + ' pcs terjual'"></div>
+                                        </div>
+                                    </div>
+                                    <div class="font-black text-primary text-sm" x-text="'Rp ' + formatRupiah(item.total_amount)"></div>
+                                </div>
+                            </template>
+                            <div x-show="salesByItem.length === 0" class="text-center py-4 text-xs font-bold text-slate-400">Belum ada data</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PELANGGAN & DETAIL TRANSAKSI -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    
+                    <div class="lg:col-span-1 bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-200">
+                        <h3 class="font-black text-slate-700 mb-4 uppercase text-xs tracking-widest border-b border-slate-100 pb-3">
+                            <i class="fa-solid fa-users text-rose-400 mr-2"></i> Top Pelanggan
+                        </h3>
+                        <div class="overflow-y-auto max-h-[400px] custom-scrollbar pr-2 space-y-3">
+                            <template x-for="cust in salesByCustomer" :key="cust.customer_name">
+                                <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                    <div>
+                                        <div class="font-bold text-sm text-slate-700" x-text="cust.customer_name"></div>
+                                        <div class="text-[10px] text-slate-500 font-medium" x-text="cust.total_transactions + ' transaksi'"></div>
+                                    </div>
+                                    <div class="font-black text-rose-500 text-sm" x-text="'Rp ' + formatRupiah(cust.total_spent)"></div>
+                                </div>
+                            </template>
+                            <div x-show="salesByCustomer.length === 0" class="text-center py-4 text-xs font-bold text-slate-400">Belum ada data</div>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-2 bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-200">
+                        <h3 class="font-black text-slate-700 mb-4 uppercase text-xs tracking-widest border-b border-slate-100 pb-3">
+                            <i class="fa-solid fa-list-check text-slate-400 mr-2"></i> Rincian Transaksi
+                        </h3>
+                        <div class="overflow-x-auto overflow-y-auto max-h-[400px] custom-scrollbar">
+                            <table class="w-full text-left text-sm whitespace-nowrap">
+                                <thead class="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-widest sticky top-0">
+                                    <tr>
+                                        <th class="p-3 font-black rounded-tl-xl border-b">Invoice</th>
+                                        <th class="p-3 font-black border-b">Pelanggan</th>
+                                        <th class="p-3 font-black text-center border-b">Status</th>
+                                        <th class="p-3 font-black text-center border-b">Metode</th>
+                                        <th class="p-3 font-black text-right border-b rounded-tr-xl">Total Bayar</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="dt in salesDetails" :key="dt.invoice_no">
+                                        <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                                            <td class="p-3">
+                                                <div class="font-black text-slate-800 text-xs" x-text="dt.invoice_no"></div>
+                                                <div class="text-[10px] font-bold text-slate-400" x-text="dt.created_at"></div>
+                                            </td>
+                                            <td class="p-3 font-bold text-slate-600 text-xs" x-text="dt.customer_name"></td>
+                                            <td class="p-3 text-center">
+                                                <span :class="dt.payment_status === 'lunas' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'" class="px-2 py-1 rounded text-[9px] font-black uppercase" x-text="dt.payment_status"></span>
+                                            </td>
+                                            <td class="p-3 text-center">
+                                                <span class="bg-slate-100 text-slate-500 px-2 py-1 rounded text-[9px] font-black uppercase" x-text="dt.payment_method"></span>
+                                            </td>
+                                            <td class="p-3 text-right font-black text-primary text-sm" x-text="'Rp ' + formatRupiah(dt.total_amount)"></td>
+                                        </tr>
+                                    </template>
+                                    <tr x-show="salesDetails.length === 0">
+                                        <td colspan="5" class="p-8 text-center text-slate-400 font-bold">Belum ada rincian penjualan.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+
                 <!-- TABEL EVALUASI KASIR -->
                 <div class="bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-200">
                     <h3 class="font-black text-slate-700 mb-4 uppercase text-xs tracking-widest border-b border-slate-100 pb-3">
