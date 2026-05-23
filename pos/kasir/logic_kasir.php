@@ -104,6 +104,23 @@ if ($action === 'save_custom_item') {
     }
 }
 
+// --- VALIDASI RESEP ITEM CUSTOM ---
+if ($action === 'check_custom_recipe') {
+    $custom_item_id = (int)($_POST['custom_item_id'] ?? 0);
+    if (!$custom_item_id) {
+        echo json_encode(['status' => 'error', 'message' => 'ID item custom tidak valid.']); exit;
+    }
+    $stmt = $pdo->prepare("SELECT COUNT(id) FROM bom_custom WHERE custom_item_id = ?");
+    $stmt->execute([$custom_item_id]);
+    $count = (int)$stmt->fetchColumn();
+    echo json_encode([
+        'status'     => 'success',
+        'has_recipe' => $count > 0,
+        'bahan_count'=> $count
+    ]);
+    exit;
+}
+
 // --- FUNGSI VOUCHER ---
 if ($action === 'check_voucher') {
     $code = trim($_POST['code'] ?? '');
@@ -188,12 +205,47 @@ if ($action === 'checkout') {
     $stmt_potong_stok = $pdo->prepare("UPDATE products SET stock = stock - ? WHERE id = ?");
     
     foreach ($data['items'] as $item) {
-        $prod_id = $item['is_custom'] ? 0 : $item['id'];
+        $prod_id   = $item['is_custom'] ? 0 : $item['id'];
         $is_custom = $item['is_custom'] ? 1 : 0;
         $custom_name = $item['is_custom'] ? $item['name'] : null;
         $stmt_detail->execute([$sale_id, $prod_id, $is_custom, $custom_name, $item['price'], $item['qty'], $item['subtotal']]);
 
+        // Potong stok produk reguler (bukan PO, bukan custom)
         if (!$is_po && !$is_custom) { $stmt_potong_stok->execute([$item['qty'], $prod_id]); }
+
+        // ============================================================
+        // PENGURANGAN BAHAN BAKU OTOMATIS UNTUK ITEM CUSTOM
+        // Menggunakan tabel bom_custom dan materials_stocks
+        // ============================================================
+        if ($is_custom && !empty($item['template_id'])) {
+            $custom_item_id = (int)$item['template_id'];
+
+            // Ambil semua bahan dari resep item custom (bom_custom)
+            $bom_stmt = $pdo->prepare("
+                SELECT material_id, quantity_needed, unit_used 
+                FROM bom_custom 
+                WHERE custom_item_id = ?
+            ");
+            $bom_stmt->execute([$custom_item_id]);
+            $bom_list = $bom_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            if (!empty($bom_list)) {
+                $stmt_potong_bahan = $pdo->prepare("
+                    UPDATE materials_stocks 
+                    SET stock = stock - ? 
+                    WHERE id = ?
+                ");
+                foreach ($bom_list as $bom) {
+                    // Total bahan = kebutuhan per pcs × qty di keranjang
+                    $qty_terjual    = (int)$item['qty'];
+                    $bahan_per_pcs  = floatval($bom['quantity_needed']);
+                    $total_deducted = $bahan_per_pcs * $qty_terjual;
+
+                    $stmt_potong_bahan->execute([$total_deducted, (int)$bom['material_id']]);
+                }
+            }
+            // Jika item custom tidak punya resep, bahan baku tidak dipotong (tidak diblokir)
+        }
     }
     
     // Update Poin & Kuota Voucher

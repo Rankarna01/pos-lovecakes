@@ -400,6 +400,39 @@ document.addEventListener('alpine:init', () => {
                 } catch(e) { console.error("Gagal simpan template item custom:", e); }
             }
 
+            // ============================================================
+            // VALIDASI RESEP: Cek apakah item custom sudah punya BOM/resep
+            // Peringatan ditampilkan jika belum ada resep, tapi tidak diblokir
+            // ============================================================
+            if (template_id) {
+                try {
+                    const fdCek = new FormData();
+                    fdCek.append('custom_item_id', template_id);
+                    const resCek = await fetch('logic_kasir.php?action=check_custom_recipe', { method: 'POST', body: fdCek });
+                    const cekResult = await resCek.json();
+
+                    if (cekResult.status === 'success' && !cekResult.has_recipe) {
+                        // Tampilkan peringatan — bahan baku TIDAK akan terpotong saat checkout
+                        await Swal.fire({
+                            icon: 'warning',
+                            title: '⚠️ Belum Ada Resep!',
+                            html: `Item custom <b>${name}</b> belum memiliki resep bahan baku.<br><br>
+                                   Transaksi tetap bisa dilanjutkan, namun <b>bahan baku tidak akan terpotong otomatis</b>.<br><br>
+                                   Silakan atur resep di <b>Master Resep → Tab Item Custom</b>.`,
+                            confirmButtonText: 'Mengerti, Lanjutkan',
+                            confirmButtonColor: '#f59e0b'
+                        });
+                    } else if (cekResult.status === 'success' && cekResult.has_recipe) {
+                        // Tampilkan konfirmasi singkat bahwa bahan baku akan dipotong
+                        Swal.fire({ 
+                            toast: true, position: 'top-end', icon: 'success', 
+                            title: `✅ Resep valid — ${cekResult.bahan_count} bahan baku akan terpotong otomatis`,
+                            showConfirmButton: false, timer: 2500 
+                        });
+                    }
+                } catch(e) { console.warn('Gagal cek resep item custom:', e); }
+            }
+
             this.cart.push({ 
                 id: template_id ? ('custom_' + template_id + '_' + Date.now()) : ('custom_' + Date.now()), 
                 name: name, 
@@ -407,7 +440,7 @@ document.addEventListener('alpine:init', () => {
                 qty: 1, 
                 subtotal: price, 
                 is_custom: true,
-                template_id: template_id
+                template_id: template_id  // ← dikirim ke backend untuk potong bom_custom
             });
 
             this.showCustomItemModal = false;
