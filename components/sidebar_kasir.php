@@ -26,16 +26,81 @@ function isDropdownActive($paths, $current_uri) {
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    /* Sidebar selalu tersembunyi default, muncul sebagai floating overlay */
+    #main-sidebar {
+        position: fixed;
+        inset-y: 0;
+        left: 0;
+        z-index: 9999;
+        transform: translateX(-100%);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        width: 270px;
+    }
+    #main-sidebar.sidebar-open {
+        transform: translateX(0);
+    }
+
+    /* Overlay gelap di belakang sidebar */
+    #sidebar-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.55);
+        z-index: 9998;
+        backdrop-filter: blur(3px);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    #sidebar-overlay.overlay-visible {
+        display: block;
+        opacity: 1;
+    }
+
+    /* Tombol Toggle Floating */
+    #sidebar-toggle-btn {
+        position: fixed;
+        top: 14px;
+        left: 14px;
+        z-index: 9997;
+        width: 40px;
+        height: 40px;
+        background: #1e293b;
+        color: white;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 4px 14px rgba(30,41,59,0.3);
+        transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
+        font-size: 16px;
+    }
+    #sidebar-toggle-btn:hover {
+        background: #2563eb;
+        transform: scale(1.08);
+        box-shadow: 0 6px 18px rgba(37,99,235,0.4);
+    }
+    #sidebar-toggle-btn:active {
+        transform: scale(0.95);
+    }
 </style>
 
-<aside id="main-sidebar" class="w-[260px] bg-white border-r border-slate-200 flex-col shadow-sm fixed inset-y-0 left-0 z-[70] transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 flex">
+<!-- ===== TOMBOL TOGGLE FLOATING ===== -->
+<button id="sidebar-toggle-btn" onclick="toggleSidebar()" title="Menu Navigasi" aria-label="Toggle Sidebar">
+    <i class="fa-solid fa-ellipsis-vertical"></i>
+</button>
 
-    <div class="h-16 flex items-center justify-between px-6 border-b border-slate-100 shrink-0 bg-white">
-        <h1 class="font-black text-primary text-xl flex items-center gap-2 tracking-tight">
+<!-- ===== SIDEBAR KASIR ===== -->
+<aside id="main-sidebar" class="bg-white border-r border-slate-200 flex-col shadow-xl flex">
+
+    <div class="h-16 flex items-center justify-between px-5 border-b border-slate-100 shrink-0 bg-white">
+        <h1 class="font-black text-primary text-lg flex items-center gap-2 tracking-tight">
             <i class="fa-solid fa-store text-blue-600"></i> Love Cakes
         </h1>
-        <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-rose-500 p-2 rounded-lg hover:bg-rose-50 transition-colors">
-            <i class="fa-solid fa-xmark text-xl"></i>
+        <button onclick="toggleSidebar()" class="text-slate-400 hover:text-rose-500 p-2 rounded-lg hover:bg-rose-50 transition-colors" title="Tutup Menu">
+            <i class="fa-solid fa-xmark text-lg"></i>
         </button>
     </div>
 
@@ -135,23 +200,23 @@ function isDropdownActive($paths, $current_uri) {
     </nav>
 </aside>
 
-<div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-slate-900/50 z-[60] hidden md:hidden backdrop-blur-sm transition-opacity opacity-0 duration-300"></div>
+<!-- Overlay gelap -->
+<div id="sidebar-overlay" onclick="toggleSidebar()"></div>
 
 <script>
     function toggleSidebar() {
         const sidebar = document.getElementById('main-sidebar');
         const overlay = document.getElementById('sidebar-overlay');
-        sidebar.classList.toggle('-translate-x-full');
-        if (sidebar.classList.contains('-translate-x-full')) {
-            overlay.classList.remove('opacity-100');
-            overlay.classList.add('opacity-0');
-            setTimeout(() => { overlay.classList.add('hidden'); }, 300);
+        const isOpen  = sidebar.classList.contains('sidebar-open');
+
+        if (isOpen) {
+            // Tutup
+            sidebar.classList.remove('sidebar-open');
+            overlay.classList.remove('overlay-visible');
         } else {
-            overlay.classList.remove('hidden');
-            setTimeout(() => {
-                overlay.classList.remove('opacity-0');
-                overlay.classList.add('opacity-100');
-            }, 10);
+            // Buka
+            sidebar.classList.add('sidebar-open');
+            overlay.classList.add('overlay-visible');
         }
     }
 
@@ -171,6 +236,14 @@ function isDropdownActive($paths, $current_uri) {
             icon.classList.add('fa-chevron-right');
         }
     }
+
+    // Tutup sidebar jika tekan ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const sidebar = document.getElementById('main-sidebar');
+            if (sidebar.classList.contains('sidebar-open')) toggleSidebar();
+        }
+    });
 
     // ===== FUNGSI LOGOUT KASIR - SELF CONTAINED =====
     function doLogoutKasir() {
