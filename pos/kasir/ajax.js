@@ -97,6 +97,9 @@ document.addEventListener('alpine:init', () => {
         voucherCode: '', appliedVoucher: null, usePoints: false, discountManual: 0, 
         orderNotes: '',
         poForm: { channel: 'toko', pickup_date: '', pickup_time: '', ongkir: 0, notes: '' },
+
+        // --- REGULER FORM (tgl ambil, jam ambil, delivery opsional) ---
+        regulerForm: { pickup_date: '', pickup_time: '', is_delivery: false, ongkir: 0, channel: 'toko' },
         
         // --- STATE MODAL CHECKOUT MEWAH ---
         showCheckoutModal: false, inputUang: '',
@@ -104,9 +107,9 @@ document.addEventListener('alpine:init', () => {
 
         // --- STATE MODAL ITEM CUSTOM & CATATAN ---
         showCustomItemModal: false,
+        showCustomRegulerModal: false,
         customItemForm: { template: '', name: '', price: '' },
         showNotesModal: false,
-        showDapurModal: false,
 
         // --- TAMBAH PELANGGAN ---
         showAddCustomerModal: false, isSavingCustomer: false,
@@ -254,7 +257,9 @@ document.addEventListener('alpine:init', () => {
                     this.products = result.products; 
                     this.customers = result.customers;
                     this.savedCustoms = result.saved_customs || []; 
+                    this.savedCustomsReguler = result.saved_customs_reguler || [];
                     this.paymentMethods = result.payment_methods || [];
+                    this.loyaltyRules = result.loyalty_rules;
                     if(result.default_start_cash && !this.shiftForm.start_cash) {
                         this.shiftForm.start_cash = result.default_start_cash;
                     }
@@ -263,6 +268,7 @@ document.addEventListener('alpine:init', () => {
                     await idbPos.setMasterData('products', this.products);
                     await idbPos.setMasterData('customers', this.customers);
                     await idbPos.setMasterData('saved_customs', this.savedCustoms);
+                    await idbPos.setMasterData('saved_customs_reguler', this.savedCustomsReguler);
                     await idbPos.setMasterData('payment_methods', this.paymentMethods);
                     await idbPos.setMasterData('default_start_cash', result.default_start_cash);
                     
@@ -273,6 +279,7 @@ document.addEventListener('alpine:init', () => {
                 this.products = (await idbPos.getMasterData('products')) || [];
                 this.customers = (await idbPos.getMasterData('customers')) || [];
                 this.savedCustoms = (await idbPos.getMasterData('saved_customs')) || [];
+                this.savedCustomsReguler = (await idbPos.getMasterData('saved_customs_reguler')) || [];
                 this.paymentMethods = (await idbPos.getMasterData('payment_methods')) || [];
                 const defCash = await idbPos.getMasterData('default_start_cash');
                 if (defCash && !this.shiftForm.start_cash) this.shiftForm.start_cash = defCash;
@@ -341,110 +348,96 @@ document.addEventListener('alpine:init', () => {
         // --- FUNGSI KERANJANG ---
         addToCart(product) {
             const price = parseFloat(product.price || product.offline_price || 0);
+            const isCustomPrice = product.is_custom_price == 1;
             const existing = this.cart.find(item => item.id === product.id && !item.is_custom);
             if (existing) { existing.qty++; existing.subtotal = existing.qty * existing.price; } 
-            else { this.cart.push({ id: product.id, name: product.name, price: price, qty: 1, subtotal: price, is_custom: false }); }
+            else { this.cart.push({ id: product.id, name: product.name, price: price, qty: 1, subtotal: price, is_custom: false, is_custom_price: isCustomPrice }); }
         },
         updateQty(index, change) {
             this.cart[index].qty += change;
             if (this.cart[index].qty <= 0) this.removeItem(index);
             else this.cart[index].subtotal = this.cart[index].qty * this.cart[index].price;
         },
+        updatePrice(index) {
+            let p = parseFloat(this.cart[index].price);
+            if (isNaN(p) || p < 0) p = 0;
+            this.cart[index].price = p;
+            this.cart[index].subtotal = this.cart[index].qty * p;
+        },
         removeItem(index) { this.cart.splice(index, 1); },
 
         // --- FUNGSI ITEM CUSTOM BARU ---
         addCustomItem() {
             this.customItemForm = { template: '', name: '', price: '' };
-            this.showCustomItemModal = true;
-        },
-
-        applyCustomTemplate() {
-            if (this.customItemForm.template) {
-                const selected = this.savedCustoms.find(c => c.id == this.customItemForm.template);
-                if (selected) {
-                    this.customItemForm.name = selected.name;
-                    this.customItemForm.price = selected.price;
-                }
+            if (this.activeTab === 'po') {
+                this.showCustomItemModal = true;
             } else {
-                this.customItemForm.name = '';
-                this.customItemForm.price = '';
+                this.showCustomRegulerModal = true;
             }
         },
+        selectCustomTemplate(e, type) {
+            const id = e.target.value;
+            if (!id) { this.customItemForm.name = ''; this.customItemForm.price = ''; return; }
+            const list = type === 'reguler' ? this.savedCustomsReguler : this.savedCustoms;
+            const t = list.find(x => x.id == id);
+            if (t) { this.customItemForm.name = t.name; this.customItemForm.price = t.price; }
+        },
+        async saveCustomItem() {
+            if (!this.customItemForm.name || !this.customItemForm.price) { Swal.fire('Error', 'Nama & Harga wajib diisi!', 'error'); return; }
+            this.isSavingCustomItem = true;
+            const fd = new FormData();
+            fd.append('name', this.customItemForm.name); fd.append('price', this.customItemForm.price);
+            fd.append('template_id', this.customItemForm.template);
 
-        async submitCustomItem() {
-            const name = this.customItemForm.name.trim();
-            const price = parseFloat(this.customItemForm.price);
-
-            if (!name || isNaN(price) || price <= 0) {
-                Swal.fire('Perhatian', 'Nama dan Harga wajib diisi dengan benar!', 'warning');
-                return;
-            }
-
-            let template_id = this.customItemForm.template || null;
-
-            // Jika tidak pilih dari template, simpan ke database sebagai template baru
-            if (!template_id) {
-                try {
-                    const fd = new FormData();
-                    fd.append('name', name);
-                    fd.append('price', price);
-                    const res = await fetch('logic_kasir.php?action=save_custom_item', { method: 'POST', body: fd });
-                    const data = await res.json();
-                    if (data.status === 'success' && data.new_id) {
-                        template_id = data.new_id;
-                        // Reload master data diam-diam untuk meng-update dropdown template
+            try {
+                if (this.activeTab === 'reguler') {
+                    // Logic Reguler
+                    const res = await fetch('logic_kasir.php?action=save_custom_reguler_item', { method: 'POST', body: fd });
+                    const result = await res.json();
+                    if (result.status === 'success') {
+                        this.showCustomRegulerModal = false;
+                        // Hapus logic push ke cart karena klien ingin ini langsung terkirim tanpa lewat checkout kasir
+                        Swal.fire({ icon: 'success', title: 'Terkirim', text: 'Item Custom berhasil disimpan ke laporan!', timer: 1500, showConfirmButton: false });
                         fetch(`logic_kasir.php?action=get_master_data&nocache=${Date.now()}`)
-                            .then(r => r.json())
-                            .then(d => { if(d.status === 'success') this.savedCustoms = d.saved_customs || []; });
+                            .then(r => r.json()).then(resData => { if (resData.status === 'success') this.savedCustomsReguler = resData.saved_customs_reguler; });
+                    } else { Swal.fire('Error', result.message, 'error'); }
+                } else {
+                    // Logic PO (Dapur)
+                    // Pengecekan resep/BOM untuk PO
+                    if (this.customItemForm.template) {
+                        try {
+                            const fdCek = new FormData();
+                            fdCek.append('custom_item_id', this.customItemForm.template);
+                            const resCek = await fetch('logic_kasir.php?action=check_custom_recipe', { method: 'POST', body: fdCek });
+                            const cekResult = await resCek.json();
+
+                            if (cekResult.status === 'success' && !cekResult.has_recipe) {
+                                await Swal.fire({
+                                    icon: 'warning',
+                                    title: '⚠️ Belum Ada Resep!',
+                                    html: `Item custom <b>${this.customItemForm.name}</b> belum memiliki resep bahan baku.<br><br>Transaksi tetap bisa dilanjutkan, namun <b>bahan baku tidak akan terpotong otomatis</b>.`,
+                                    confirmButtonText: 'Mengerti, Lanjutkan',
+                                    confirmButtonColor: '#f59e0b'
+                                });
+                            }
+                        } catch(e) {}
                     }
-                } catch(e) { console.error("Gagal simpan template item custom:", e); }
-            }
 
-            // ============================================================
-            // VALIDASI RESEP: Cek apakah item custom sudah punya BOM/resep
-            // Peringatan ditampilkan jika belum ada resep, tapi tidak diblokir
-            // ============================================================
-            if (template_id) {
-                try {
-                    const fdCek = new FormData();
-                    fdCek.append('custom_item_id', template_id);
-                    const resCek = await fetch('logic_kasir.php?action=check_custom_recipe', { method: 'POST', body: fdCek });
-                    const cekResult = await resCek.json();
-
-                    if (cekResult.status === 'success' && !cekResult.has_recipe) {
-                        // Tampilkan peringatan — bahan baku TIDAK akan terpotong saat checkout
-                        await Swal.fire({
-                            icon: 'warning',
-                            title: '⚠️ Belum Ada Resep!',
-                            html: `Item custom <b>${name}</b> belum memiliki resep bahan baku.<br><br>
-                                   Transaksi tetap bisa dilanjutkan, namun <b>bahan baku tidak akan terpotong otomatis</b>.<br><br>
-                                   Silakan atur resep di <b>Master Resep → Tab Item Custom</b>.`,
-                            confirmButtonText: 'Mengerti, Lanjutkan',
-                            confirmButtonColor: '#f59e0b'
-                        });
-                    } else if (cekResult.status === 'success' && cekResult.has_recipe) {
-                        // Tampilkan konfirmasi singkat bahwa bahan baku akan dipotong
-                        Swal.fire({ 
-                            toast: true, position: 'top-end', icon: 'success', 
-                            title: `✅ Resep valid — ${cekResult.bahan_count} bahan baku akan terpotong otomatis`,
-                            showConfirmButton: false, timer: 2500 
-                        });
-                    }
-                } catch(e) { console.warn('Gagal cek resep item custom:', e); }
-            }
-
-            this.cart.push({ 
-                id: template_id ? ('custom_' + template_id + '_' + Date.now()) : ('custom_' + Date.now()), 
-                name: name, 
-                price: price, 
-                qty: 1, 
-                subtotal: price, 
-                is_custom: true,
-                template_id: template_id  // ← dikirim ke backend untuk potong bom_custom
-            });
-
-            this.showCustomItemModal = false;
+                    const res = await fetch('logic_kasir.php?action=save_custom_item', { method: 'POST', body: fd });
+                    const result = await res.json();
+                    if (result.status === 'success') {
+                        this.showCustomItemModal = false;
+                        this.cart.push({ id: result.custom_id, name: this.customItemForm.name, price: parseFloat(this.customItemForm.price), qty: 1, subtotal: parseFloat(this.customItemForm.price), is_custom: true, is_po: true, template_id: result.custom_id });
+                        Swal.fire({ icon: 'success', title: 'Berhasil', text: 'Item Custom PO masuk ke keranjang!', timer: 1000, showConfirmButton: false });
+                        fetch(`logic_kasir.php?action=get_master_data&nocache=${Date.now()}`)
+                            .then(r => r.json()).then(resData => { if (resData.status === 'success') this.savedCustoms = resData.saved_customs; });
+                    } else { Swal.fire('Error', result.message, 'error'); }
+                }
+            } catch (e) {
+                console.error(e); Swal.fire('Error', 'Gagal menyimpan item custom', 'error');
+            } finally { this.isSavingCustomItem = false; }
         },
+
 
         onCustomerSelect() { this.usePoints = false; },
         togglePoints() { this.usePoints = !this.usePoints; },
@@ -486,7 +479,9 @@ document.addEventListener('alpine:init', () => {
             return this.loyaltyRules.discount_type === 'PERCENT' ? (this.subtotal * d) / 100 : d;
         },
         get totalAmountBase() {
-            let ongkir = this.activeTab === 'po' ? parseFloat(this.poForm.ongkir || 0) : 0;
+            let ongkir = 0;
+            if (this.activeTab === 'po') ongkir = parseFloat(this.poForm.ongkir || 0);
+            else if (this.activeTab === 'reguler' && this.regulerForm.is_delivery) ongkir = parseFloat(this.regulerForm.ongkir || 0);
             let total = this.subtotal + ongkir - this.discountVoucher - this.discountPoints - this.discountManual;
             return total > 0 ? total : 0;
         },
@@ -539,15 +534,24 @@ document.addEventListener('alpine:init', () => {
 
         async executeCheckout() {
             this.isLoading = true;
+            // Gabungkan notes dapur (PO) dan notes umum
             let finalNotes = this.orderNotes;
             if (this.activeTab === 'po' && this.poForm.notes) {
                 finalNotes = finalNotes ? (finalNotes + " | " + this.poForm.notes) : this.poForm.notes;
             }
 
+            // Tentukan channel berdasarkan tab
+            let channel = 'toko';
+            if (this.activeTab === 'po') channel = this.poForm.channel;
+            else if (this.activeTab === 'reguler' && this.regulerForm.is_delivery) channel = 'delivery';
+
             const payload = {
-                is_po: this.activeTab === 'po', channel: this.activeTab === 'po' ? this.poForm.channel : 'toko',
-                pickup_date: this.activeTab === 'po' ? this.poForm.pickup_date : null, pickup_time: this.activeTab === 'po' ? this.poForm.pickup_time : null,
-                ongkir: this.activeTab === 'po' ? this.poForm.ongkir : 0, notes: finalNotes,
+                is_po: this.activeTab === 'po',
+                channel: channel,
+                pickup_date: this.activeTab === 'po' ? this.poForm.pickup_date : (this.regulerForm.pickup_date || null),
+                pickup_time: this.activeTab === 'po' ? this.poForm.pickup_time : (this.regulerForm.pickup_time || null),
+                ongkir: this.activeTab === 'po' ? this.poForm.ongkir : (this.regulerForm.is_delivery ? this.regulerForm.ongkir : 0),
+                notes: finalNotes,
                 order_type: this.orderType, customer_id: this.selectedCustomerId, subtotal: this.subtotal,
                 discount_voucher: this.discountVoucher, voucher_code: this.appliedVoucher ? this.appliedVoucher.voucher_code : null,
                 discount_points: this.discountPoints, discount_manual: this.discountManual, points_used: this.usePoints ? this.loyaltyRules.points_required : 0, points_earned: this.pointsEarned, 
@@ -619,6 +623,7 @@ document.addEventListener('alpine:init', () => {
             this.amountPaid = 0; this.dpAmount = 0; this.changeAmount = 0; this.inputUang = 0;
             this.orderNotes = '';
             this.poForm = { channel: 'toko', pickup_date: '', pickup_time: '', ongkir: 0, notes: '' };
+            this.regulerForm = { pickup_date: '', pickup_time: '', is_delivery: false, ongkir: 0, channel: 'toko' };
             this.showSuccessModal = false;
         },
 

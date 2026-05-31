@@ -148,6 +148,11 @@ function isDropdownActive($paths, $current_uri) {
             <span class="text-sm whitespace-nowrap transition-all duration-300">Laporan Shift</span>
         </a>
 
+        <a href="<?= BASE_URL ?>pos/kasir/laporan_custom/" title="Laporan Item Custom" class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all mb-1 <?= getNavClass('/pos/kasir/laporan_custom/', $current_uri) ?>">
+            <i class="fa-solid fa-pen-to-square w-5 text-center text-lg shrink-0 <?= strpos($current_uri, '/pos/kasir/laporan_custom/') !== false ? 'text-violet-600' : 'text-violet-400' ?>"></i>
+            <span class="text-sm whitespace-nowrap transition-all duration-300">Laporan Item Custom</span>
+        </a>
+
         <div class="px-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mt-6 mb-2">Keuangan & Sales</div>
 
         <?php 

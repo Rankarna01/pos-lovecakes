@@ -57,14 +57,25 @@ if ($action === 'get_master_data') {
     $products = $pdo->query("SELECT * FROM products ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
     $customers = $pdo->query("SELECT id, name, points, phone FROM customers_pos ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
     $saved_customs = $pdo->query("SELECT * FROM saved_custom_items_pos ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
+    $saved_customs_reguler = $pdo->query("SELECT * FROM saved_custom_reguler_pos ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
     $payment_methods = $pdo->query("SELECT * FROM payment_methods WHERE is_active = 1 ORDER BY type ASC, name ASC")->fetchAll(PDO::FETCH_ASSOC);
-    
+    $loyalty = $pdo->query("SELECT * FROM loyalty_rules_pos LIMIT 1")->fetch(PDO::FETCH_ASSOC);
     $stmt_set = $pdo->prepare("SELECT setting_value FROM pos_settings WHERE setting_key = 'default_start_cash'");
     $stmt_set->execute();
     $setting = $stmt_set->fetch(PDO::FETCH_ASSOC);
     $default_start_cash = $setting ? (float)$setting['setting_value'] : 0;
-
-    echo json_encode(['status' => 'success', 'products' => $products, 'customers' => $customers, 'saved_customs' => $saved_customs, 'payment_methods' => $payment_methods, 'default_start_cash' => $default_start_cash]); exit;
+    
+    echo json_encode([
+        'status' => 'success',
+        'products' => $products,
+        'customers' => $customers,
+        'saved_customs' => $saved_customs,
+        'saved_customs_reguler' => $saved_customs_reguler,
+        'payment_methods' => $payment_methods,
+        'loyalty' => $loyalty,
+        'default_start_cash' => $default_start_cash
+    ]);
+    exit;
 }
 
 // --- FUNGSI PELANGGAN BARU ---
@@ -89,15 +100,37 @@ if ($action === 'add_customer') {
     }
 }
 
-// --- FUNGSI SIMPAN CUSTOM ITEM ---
+// --- FUNGSI ITEM CUSTOM REGULER (KHUSUS REGULER) ---
+if ($action === 'save_custom_reguler_item') {
+    $name = trim($_POST['name'] ?? '');
+    $price = str_replace(['Rp', '.', ' '], '', $_POST['price'] ?? 0);
+    $template_id = $_POST['template_id'] ?? '';
+
+    // Hanya validasi nama/harga jika BUKAN dari template (template_id kosong)
+    if (empty($template_id)) {
+        if(empty($name) || empty($price)) { echo json_encode(['status' => 'error', 'message' => 'Nama dan Harga Item Custom Reguler wajib diisi!']); exit; }
+        
+        $stmt = $pdo->prepare("INSERT INTO saved_custom_reguler_pos (name, price, created_by) VALUES (?, ?, ?)");
+        $stmt->execute([$name, $price, $user_id]);
+        $custom_id = $pdo->lastInsertId();
+    } else {
+        $custom_id = $template_id; // Pakai ID template yang dipilih
+    }
+    
+    echo json_encode(['status' => 'success', 'custom_id' => $custom_id]);
+    exit;
+}
+
+// --- FUNGSI ITEM CUSTOM DAPUR (DAPUR SAJA) ---
 if ($action === 'save_custom_item') {
     $name = trim($_POST['name'] ?? '');
     $price = (float)($_POST['price'] ?? 0);
     if (empty($name)) { echo json_encode(['status' => 'error', 'message' => 'Nama wajib diisi']); exit; }
     
     try {
-        $stmt = $pdo->prepare("INSERT INTO saved_custom_items_pos (name, price) VALUES (?, ?)");
-        $stmt->execute([$name, $price]);
+        // Simpan created_by agar bisa dilacak siapa kasir yang membuat item custom ini
+        $stmt = $pdo->prepare("INSERT INTO saved_custom_items_pos (name, price, created_by) VALUES (?, ?, ?)");
+        $stmt->execute([$name, $price, $user_id]);
         echo json_encode(['status' => 'success', 'new_id' => $pdo->lastInsertId()]); exit;
     } catch (Exception $e) {
         echo json_encode(['status' => 'error']); exit;
@@ -201,23 +234,25 @@ if ($action === 'checkout') {
     $stmtPay = $pdo->prepare("INSERT INTO sale_payments_pos (sale_id, amount, payment_method, payment_type) VALUES (?, ?, ?, ?)");
     $stmtPay->execute([$sale_id, $amount_to_record, $data['payment_method'], $payment_type]);
 
-    $stmt_detail = $pdo->prepare("INSERT INTO sale_details_pos (sale_id, product_id, is_custom, custom_name, price, qty, subtotal) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    $stmt_detail = $pdo->prepare("INSERT INTO sale_details_pos (sale_id, product_id, is_custom, custom_name, price, qty, subtotal, created_by_user) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
     $stmt_potong_stok = $pdo->prepare("UPDATE products SET stock = stock - ? WHERE id = ?");
     
     foreach ($data['items'] as $item) {
         $prod_id   = $item['is_custom'] ? 0 : $item['id'];
         $is_custom = $item['is_custom'] ? 1 : 0;
         $custom_name = $item['is_custom'] ? $item['name'] : null;
-        $stmt_detail->execute([$sale_id, $prod_id, $is_custom, $custom_name, $item['price'], $item['qty'], $item['subtotal']]);
+        // Simpan created_by_user hanya untuk item custom (produk reguler NULL)
+        $item_created_by = $is_custom ? $user_id : null;
+        $stmt_detail->execute([$sale_id, $prod_id, $is_custom, $custom_name, $item['price'], $item['qty'], $item['subtotal'], $item_created_by]);
 
         // Potong stok produk reguler (bukan PO, bukan custom)
         if (!$is_po && !$is_custom) { $stmt_potong_stok->execute([$item['qty'], $prod_id]); }
 
         // ============================================================
         // PENGURANGAN BAHAN BAKU OTOMATIS UNTUK ITEM CUSTOM
-        // Menggunakan tabel bom_custom dan materials_stocks
+        // Hanya berlaku jika dipesan via Pesanan Dapur (is_po = 1)
         // ============================================================
-        if ($is_custom && !empty($item['template_id'])) {
+        if ($is_po && $is_custom && !empty($item['template_id'])) {
             $custom_item_id = (int)$item['template_id'];
 
             // Ambil semua bahan dari resep item custom (bom_custom)
@@ -257,16 +292,20 @@ if ($action === 'checkout') {
 
 // --- FUNGSI STATUS PO ---
 if ($action === 'get_active_orders') {
-    $stmt = $pdo->query("SELECT s.id, s.invoice_no, s.created_at, s.production_status, c.name as customer_name FROM sales_pos s LEFT JOIN customers_pos c ON s.customer_id = c.id WHERE s.id IN (SELECT sale_id FROM sale_details_pos WHERE is_custom = 1) AND DATE(s.created_at) = CURDATE() ORDER BY s.created_at DESC");
+    $stmt = $pdo->query("SELECT s.id, s.invoice_no, s.created_at, s.production_status, c.name as customer_name FROM sales_pos s LEFT JOIN customers_pos c ON s.customer_id = c.id WHERE s.is_po = 1 AND DATE(s.created_at) = CURDATE() ORDER BY s.created_at DESC");
     $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $data = [];
     foreach ($orders as $order) {
-        $stmtDetail = $pdo->prepare("SELECT custom_name, qty FROM sale_details_pos WHERE sale_id = ? AND is_custom = 1");
+        $stmtDetail = $pdo->prepare("SELECT p.name as product_name, sd.custom_name, sd.is_custom, sd.qty FROM sale_details_pos sd LEFT JOIN products p ON sd.product_id = p.id WHERE sd.sale_id = ?");
         $stmtDetail->execute([$order['id']]);
         $items = $stmtDetail->fetchAll(PDO::FETCH_ASSOC);
         
-        $itemNames = []; foreach($items as $it) { $itemNames[] = $it['qty'] . 'x ' . $it['custom_name']; }
+        $itemNames = []; 
+        foreach($items as $it) { 
+            $name = $it['is_custom'] ? $it['custom_name'] : $it['product_name'];
+            $itemNames[] = $it['qty'] . 'x ' . $name; 
+        }
         $order['items_list'] = implode(', ', $itemNames); 
         $order['time'] = date('H:i', strtotime($order['created_at']));
         $data[] = $order;
@@ -274,5 +313,65 @@ if ($action === 'get_active_orders') {
     echo json_encode(['status' => 'success', 'data' => $data]); exit;
 }
 
+
+// --- LAPORAN ITEM CUSTOM (RIWAYAT PEMBUATAN / KIRIM LANGSUNG) ---
+if ($action === 'get_custom_report') {
+    $date_from = $_GET['date_from'] ?? date('Y-m-01'); // Default: awal bulan ini
+    $date_to   = $_GET['date_to']   ?? date('Y-m-d');  // Default: hari ini
+
+    $stmt = $pdo->prepare("
+        SELECT 
+            'Dapur (PO)' AS tipe_pesanan,
+            1 AS is_po,
+            c.name AS nama_item,
+            c.price,
+            c.created_at AS waktu_transaksi,
+            u.name AS nama_kasir
+        FROM saved_custom_items_pos c
+        LEFT JOIN users_pos u ON c.created_by = u.id
+        WHERE DATE(c.created_at) BETWEEN ? AND ?
+
+        UNION ALL
+
+        SELECT 
+            'Reguler' AS tipe_pesanan,
+            0 AS is_po,
+            r.name AS nama_item,
+            r.price,
+            r.created_at AS waktu_transaksi,
+            u.name AS nama_kasir
+        FROM saved_custom_reguler_pos r
+        LEFT JOIN users_pos u ON r.created_by = u.id
+        WHERE DATE(r.created_at) BETWEEN ? AND ?
+
+        ORDER BY waktu_transaksi DESC
+    ");
+    $stmt->execute([$date_from, $date_to, $date_from, $date_to]);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Rekap per nama kasir
+    $rekap_kasir = [];
+    foreach ($rows as $row) {
+        $kasir = $row['nama_kasir'] ?? 'Tidak Diketahui';
+        if (!isset($rekap_kasir[$kasir])) {
+            $rekap_kasir[$kasir] = ['nama_kasir' => $kasir, 'total_item' => 0, 'total_nilai' => 0];
+        }
+        $rekap_kasir[$kasir]['total_item'] += 1;
+        $rekap_kasir[$kasir]['total_nilai'] += (float)$row['price'];
+    }
+
+    $total_semua = 0;
+    foreach ($rows as $row) {
+        $total_semua += (float)$row['price'];
+    }
+
+    echo json_encode([
+        'status' => 'success',
+        'data' => $rows,
+        'rekap_kasir' => array_values($rekap_kasir),
+        'total_semua' => $total_semua
+    ]);
+    exit;
+}
 
 ?>

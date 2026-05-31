@@ -144,7 +144,7 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
             <div class="w-full lg:w-[420px] flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden shrink-0">
                 <div class="flex p-2 bg-slate-100 border-b border-slate-200 gap-1">
                     <button @click="activeTab = 'reguler'" :class="activeTab === 'reguler' ? 'bg-white shadow-sm text-primary font-black' : 'text-slate-500 hover:bg-slate-200 font-bold'" class="flex-1 py-2.5 rounded-xl text-xs uppercase tracking-widest transition-all"><i class="fa-solid fa-cash-register mr-1"></i> Reguler</button>
-                    <button @click="showDapurModal = true" class="flex-1 py-2.5 rounded-xl text-xs uppercase tracking-widest transition-all text-slate-500 hover:bg-orange-100 hover:text-orange-600 font-bold"><i class="fa-solid fa-fire-burner mr-1"></i> Pesanan Dapur</button>
+                    <button @click="activeTab = 'po'" :class="activeTab === 'po' ? 'bg-orange-100 shadow-sm text-orange-600 font-black' : 'text-slate-500 hover:bg-slate-200 font-bold'" class="flex-1 py-2.5 rounded-xl text-xs uppercase tracking-widest transition-all"><i class="fa-solid fa-fire-burner mr-1"></i> Pesanan Dapur</button>
                 </div>
 
                 <div class="p-3 border-b border-slate-100 bg-slate-50 space-y-3">
@@ -180,6 +180,111 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
 
                 </div>
 
+                <!-- ============================================================ -->
+                <!-- TOMBOL ITEM CUSTOM (BEDA BENTUK BERDASARKAN TAB)             -->
+                <!-- ============================================================ -->
+                <div class="px-3 pb-2">
+                    <button x-show="activeTab === 'reguler'" @click="addCustomItem()"
+                        class="w-full flex items-center justify-center gap-2 bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-700 px-4 py-3 rounded-xl text-sm font-black transition-all shadow-sm">
+                        <i class="fa-solid fa-pen-to-square"></i> + Item Custom Reguler
+                    </button>
+                    
+                    <button x-show="activeTab === 'po'" @click="addCustomItem()"
+                        class="w-full flex items-center justify-center gap-2 bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-700 px-4 py-3 rounded-xl text-sm font-black transition-all shadow-sm">
+                        <i class="fa-solid fa-cake-candles"></i> + Item Custom Dapur (PO)
+                    </button>
+                </div>
+
+                <!-- ============================================================ -->
+                <!-- FORM INFO PESANAN REGULER: Tgl Ambil, Jam Ambil, Delivery    -->
+                <!-- Semua field opsional — hanya tampil jika diisi / diaktifkan  -->
+                <!-- ============================================================ -->
+                <div x-show="activeTab === 'reguler'" x-transition class="px-3 pb-3">
+                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-3">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Info Pesanan <span class="normal-case font-medium text-slate-300">(Opsional)</span></p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[10px] font-black text-slate-500 mb-1 uppercase">Tgl Ambil</label>
+                                <input type="date" x-model="regulerForm.pickup_date"
+                                    class="w-full bg-white border border-slate-200 rounded-xl px-2 py-2 outline-none text-xs font-bold text-slate-700 focus:border-primary">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-black text-slate-500 mb-1 uppercase">Jam Ambil</label>
+                                <input type="time" x-model="regulerForm.pickup_time"
+                                    class="w-full bg-white border border-slate-200 rounded-xl px-2 py-2 outline-none text-xs font-bold text-slate-700 focus:border-primary">
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between pt-2 border-t border-slate-200 border-dashed">
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-motorcycle text-amber-500 text-sm"></i>
+                                <span class="text-xs font-black text-slate-700">Pesanan Delivery</span>
+                                <span class="text-[10px] text-slate-400 font-medium">(opsional)</span>
+                            </div>
+                            <button type="button"
+                                @click="regulerForm.is_delivery = !regulerForm.is_delivery; if(!regulerForm.is_delivery) regulerForm.ongkir = 0"
+                                class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none"
+                                :class="regulerForm.is_delivery ? 'bg-amber-500' : 'bg-slate-300'">
+                                <span class="inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform duration-200"
+                                    :class="regulerForm.is_delivery ? 'translate-x-4' : 'translate-x-1'"></span>
+                            </button>
+                        </div>
+                        <div x-show="regulerForm.is_delivery" x-transition>
+                            <label class="block text-[10px] font-black text-amber-600 mb-1 uppercase">Biaya Ongkir / Markup (Rp)</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-1/2 -translate-y-1/2 font-black text-amber-500 text-xs">Rp</span>
+                                <input type="number" x-model.number="regulerForm.ongkir" placeholder="0"
+                                    class="w-full pl-9 pr-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl outline-none text-xs font-black text-amber-700 focus:border-amber-400">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================================================ -->
+                <!-- FORM INFO PESANAN DAPUR (PO): WAJIB Tgl & Jam Ambil          -->
+                <!-- ============================================================ -->
+                <div x-show="activeTab === 'po'" x-transition class="px-3 pb-3">
+                    <div class="bg-orange-50 border border-orange-200 rounded-2xl p-3 space-y-3">
+                        <p class="text-[10px] font-black text-orange-400 uppercase tracking-widest">Detail Dapur <span class="normal-case font-medium text-orange-400">(Wajib)</span></p>
+                        
+                        <div>
+                            <label class="block text-[10px] font-black text-orange-600 mb-1 uppercase">Pengiriman via</label>
+                            <select x-model="poForm.channel" class="w-full bg-white border border-orange-200 rounded-xl px-3 py-2 outline-none font-bold text-xs text-slate-700 focus:border-orange-400">
+                                <option value="toko">Ambil di Toko / Takeaway</option>
+                                <option value="delivery">Kurir / Delivery</option>
+                                <option value="grab">GrabExpress</option>
+                                <option value="gojek">GoSend</option>
+                                <option value="online">Platform Online Lainnya</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[10px] font-black text-orange-600 mb-1 uppercase">Tgl Ambil *</label>
+                                <input type="date" x-model="poForm.pickup_date" required
+                                    class="w-full bg-white border border-orange-200 rounded-xl px-2 py-2 outline-none text-xs font-bold text-slate-700 focus:border-orange-400">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-black text-orange-600 mb-1 uppercase">Jam Ambil *</label>
+                                <input type="time" x-model="poForm.pickup_time" required
+                                    class="w-full bg-white border border-orange-200 rounded-xl px-2 py-2 outline-none text-xs font-bold text-slate-700 focus:border-orange-400">
+                            </div>
+                        </div>
+
+                        <div x-show="['delivery', 'grab', 'gojek', 'online'].includes(poForm.channel)" x-transition>
+                            <label class="block text-[10px] font-black text-orange-600 mb-1 uppercase">Biaya Ongkir / Markup (Rp)</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-1/2 -translate-y-1/2 font-black text-orange-500 text-xs">Rp</span>
+                                <input type="number" x-model.number="poForm.ongkir" placeholder="0"
+                                    class="w-full pl-9 pr-3 py-2 bg-white border border-orange-200 rounded-xl outline-none text-xs font-black text-orange-600 focus:border-orange-400">
+                            </div>
+                        </div>
+
+                        <div>
+                            <textarea x-model="poForm.notes" rows="2" class="w-full bg-white border border-orange-200 rounded-xl px-3 py-2 outline-none font-bold text-xs text-slate-700 resize-none focus:border-orange-400" placeholder="Keterangan tambahan untuk dapur..."></textarea>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="flex-1 overflow-y-auto custom-scrollbar p-2">
                     <div x-show="cart.length === 0" class="h-full flex flex-col items-center justify-center text-slate-400 space-y-3">
                         <i class="fa-solid fa-basket-shopping text-5xl opacity-30"></i>
@@ -190,7 +295,16 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                             <div class="flex items-center gap-3 bg-slate-50 border border-slate-100 p-2 rounded-xl" :class="item.is_custom ? 'border-orange-200 bg-orange-50/30' : ''">
                                 <div class="flex-1 min-w-0">
                                     <h4 class="font-bold text-sm text-slate-800 truncate" x-text="(item.is_custom ? '🛠️ ' : '') + item.name"></h4>
-                                    <div class="text-xs font-black text-primary" x-text="'Rp ' + formatRupiah(item.price)"></div>
+                                    
+                                    <template x-if="item.is_custom_price == 1">
+                                        <div class="flex items-center gap-1 mt-1">
+                                            <span class="text-xs font-black text-slate-400">Rp</span>
+                                            <input type="number" x-model.number="item.price" @input="updatePrice(index)" class="w-24 bg-white border border-slate-200 rounded px-2 py-1 text-xs font-black text-primary outline-none focus:border-primary">
+                                        </div>
+                                    </template>
+                                    <template x-if="item.is_custom_price != 1">
+                                        <div class="text-xs font-black text-primary" x-text="'Rp ' + formatRupiah(item.price)"></div>
+                                    </template>
                                 </div>
                                 <div class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg p-1">
                                     <button @click="updateQty(index, -1)" class="w-6 h-6 flex items-center justify-center rounded bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold"><i class="fa-solid fa-minus text-[10px]"></i></button>
@@ -224,7 +338,8 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
 
                         <div class="space-y-1.5 mb-3 border-t border-slate-200 border-dashed pt-2">
                             <div class="flex justify-between text-xs font-bold text-slate-500"><span>Subtotal Barang</span> <span x-text="'Rp ' + formatRupiah(subtotal)"></span></div>
-                            <div x-show="activeTab === 'po' && poForm.ongkir > 0" class="flex justify-between text-xs font-bold text-orange-500"><span>Ongkir / Markup</span> <span x-text="'+ Rp ' + formatRupiah(poForm.ongkir)"></span></div>
+                            <div x-show="activeTab === 'po' && poForm.ongkir > 0" class="flex justify-between text-xs font-bold text-orange-500"><span>Ongkir / Markup (PO)</span> <span x-text="'+ Rp ' + formatRupiah(poForm.ongkir)"></span></div>
+                        <div x-show="activeTab === 'reguler' && regulerForm.is_delivery && regulerForm.ongkir > 0" class="flex justify-between text-xs font-bold text-amber-500"><span>Ongkir Delivery</span> <span x-text="'+ Rp ' + formatRupiah(regulerForm.ongkir)"></span></div>
                             <div x-show="discountVoucher > 0" class="flex justify-between text-xs font-bold text-emerald-500"><span>Diskon Voucher</span> <span x-text="'- Rp ' + formatRupiah(discountVoucher)"></span></div>
                             <div x-show="discountPoints > 0" class="flex justify-between text-xs font-bold text-amber-500"><span>Diskon Poin</span> <span x-text="'- Rp ' + formatRupiah(discountPoints)"></span></div>
                             <div x-show="discountManual > 0" class="flex justify-between text-xs font-bold text-rose-500"><span>Diskon Manual <i @click="discountManual = 0" class="fa-solid fa-xmark cursor-pointer ml-1"></i></span> <span x-text="'- Rp ' + formatRupiah(discountManual)"></span></div>
@@ -262,204 +377,7 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
         </main>
     </div>
 
-    <!-- ===== MODAL PESANAN DAPUR ===== -->
-    <div x-show="showDapurModal" class="fixed inset-0 z-[200] flex items-center justify-center p-4" style="display:none;" x-cloak>
-        <div class="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" @click="showDapurModal = false"></div>
-        <div class="relative z-10 bg-white w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden flex flex-col" style="max-height:90vh;" @click.stop>
-
-            <!-- Modal Header -->
-            <div class="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-orange-500 to-amber-500 shrink-0">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
-                        <i class="fa-solid fa-fire-burner text-white text-lg"></i>
-                    </div>
-                    <div>
-                        <h2 class="text-white font-black text-lg">Pesanan Dapur</h2>
-                        <p class="text-orange-100 text-xs font-semibold">Isi detail PO lalu kirim ke dapur</p>
-                    </div>
-                </div>
-                <button @click="showDapurModal = false" class="w-9 h-9 bg-white/20 hover:bg-white/30 rounded-xl flex items-center justify-center text-white transition-all">
-                    <i class="fa-solid fa-xmark text-lg"></i>
-                </button>
-            </div>
-
-            <!-- Modal Body: 2 kolom -->
-            <div class="flex flex-col md:flex-row flex-1 overflow-hidden">
-
-                <!-- KIRI: Form PO -->
-                <div class="flex-1 overflow-y-auto p-6 space-y-4 border-r border-slate-100">
-
-                    <!-- Pelanggan -->
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-500 mb-1.5 uppercase tracking-widest">Pelanggan</label>
-                        <div class="relative flex gap-2">
-                            <div class="relative flex-1" @click.away="isCustomerDropdownOpen = false">
-                                <button @click="isCustomerDropdownOpen = !isCustomerDropdownOpen" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 flex justify-between items-center outline-none focus:border-orange-400 font-bold text-sm text-left">
-                                    <span x-text="selectedCustomer ? selectedCustomer.name : '-- Pelanggan Umum --'" class="truncate"></span>
-                                    <i class="fa-solid fa-chevron-down text-slate-400 text-xs"></i>
-                                </button>
-                                <div x-show="isCustomerDropdownOpen" class="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden" x-cloak>
-                                    <div class="p-2 border-b border-slate-100">
-                                        <input type="text" x-model="searchCustomer" placeholder="Cari pelanggan..." class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none text-xs font-bold">
-                                    </div>
-                                    <div class="max-h-40 overflow-y-auto">
-                                        <button @click="selectCustomer('')" class="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 border-b border-slate-50">-- Pelanggan Umum --</button>
-                                        <template x-for="cust in filteredCustomers" :key="cust.id">
-                                            <button @click="selectCustomer(cust.id)" class="w-full text-left px-3 py-2 text-xs font-bold text-slate-800 hover:bg-slate-50 border-b border-slate-50">
-                                                <span x-text="cust.name"></span>
-                                                <span class="block text-[10px] text-slate-400" x-text="cust.phone || '-'"></span>
-                                            </button>
-                                        </template>
-                                        <div x-show="filteredCustomers.length === 0" class="p-3 text-center text-xs text-slate-400 font-bold">Tidak ditemukan</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <button @click="showAddCustomerModal = true" class="bg-slate-800 hover:bg-slate-900 text-white px-3.5 py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center shrink-0">
-                                <i class="fa-solid fa-plus"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Item Custom: Inline Dropdown -->
-                    <div x-data="{ showCustomInline: false, customSearch: '' }">
-                        <button @click="showCustomInline = !showCustomInline"
-                            class="w-full flex items-center justify-between bg-slate-800 hover:bg-slate-900 text-white px-4 py-2.5 rounded-xl text-xs font-black transition-all shadow-sm">
-                            <span class="flex items-center gap-2"><i class="fa-solid fa-pen-to-square"></i> Item Custom</span>
-                            <i class="fa-solid fa-chevron-down transition-transform" :class="showCustomInline ? 'rotate-180' : ''"></i>
-                        </button>
-
-                        <div x-show="showCustomInline" x-transition class="mt-2 bg-white border border-slate-200 rounded-2xl shadow-lg overflow-hidden">
-
-                            <!-- Search / Suggest dari savedCustoms -->
-                            <div class="p-3 border-b border-slate-100">
-                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Cari atau Pilih Template</p>
-                                <div class="relative">
-                                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                                    <input type="text" x-model="customSearch" placeholder="Cari nama item custom..."
-                                        class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:border-orange-400">
-                                </div>
-                                <!-- Suggest list -->
-                                <div class="mt-2 max-h-28 overflow-y-auto space-y-1" x-show="savedCustoms.length > 0">
-                                    <template x-for="c in savedCustoms.filter(s => !customSearch || s.name.toLowerCase().includes(customSearch.toLowerCase()))" :key="c.id">
-                                        <button type="button"
-                                            @click="customItemForm.template = c.id; customItemForm.name = c.name; customItemForm.price = c.price; customSearch = c.name"
-                                            class="w-full text-left flex justify-between items-center px-3 py-1.5 rounded-lg hover:bg-orange-50 hover:text-orange-700 text-xs font-bold text-slate-700 transition-colors">
-                                            <span x-text="c.name"></span>
-                                            <span class="text-orange-500 font-black" x-text="'Rp ' + formatRupiah(c.price)"></span>
-                                        </button>
-                                    </template>
-                                    <div x-show="savedCustoms.filter(s => !customSearch || s.name.toLowerCase().includes(customSearch.toLowerCase())).length === 0"
-                                        class="text-center text-xs text-slate-400 py-2">Tidak ada template</div>
-                                </div>
-                            </div>
-
-                            <!-- Form manual -->
-                            <form @submit.prevent="submitCustomItem(); showCustomInline = false; customSearch = ''" class="p-3 space-y-3">
-                                <div class="relative">
-                                    <i class="fa-solid fa-cake-candles absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                                    <input type="text" x-model="customItemForm.name" placeholder="Nama pesanan khusus..." required
-                                        class="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:border-orange-400">
-                                </div>
-                                <div class="relative">
-                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 font-black text-orange-500 text-xs">Rp</span>
-                                    <input type="number" x-model="customItemForm.price" placeholder="0" required
-                                        class="w-full pl-9 pr-3 py-2.5 bg-orange-50 border border-orange-200 rounded-xl outline-none text-xs font-black text-orange-700 focus:border-orange-400">
-                                </div>
-                                <div class="flex gap-2">
-                                    <button type="button" @click="showCustomInline = false; customItemForm = {template:'', name:'', price:''}; customSearch = ''"
-                                        class="py-2 px-4 rounded-xl font-black text-xs text-slate-500 bg-slate-100 hover:bg-slate-200">Batal</button>
-                                    <button type="submit"
-                                        class="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-black py-2 rounded-xl text-xs flex items-center justify-center gap-1 shadow-md shadow-orange-500/20">
-                                        <i class="fa-solid fa-plus"></i> Tambahkan ke Keranjang
-                                    </button>
-                                </div>
-                            </form>
-
-                        </div>
-                    </div>
-
-                    <!-- Form PO -->
-                    <div class="bg-orange-50 border border-orange-200 p-4 rounded-2xl space-y-4">
-                        <div>
-                            <label class="block text-[10px] font-black text-orange-700 mb-1.5 uppercase tracking-widest">Channel Penjualan</label>
-                            <select x-model="poForm.channel" class="w-full bg-white border border-orange-200 rounded-xl px-3 py-2.5 outline-none font-bold text-sm text-slate-700">
-                                <option value="toko">Toko / Takeaway</option>
-                                <option value="delivery">Pesanan Delivery</option>
-                            </select>
-                        </div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="block text-[10px] font-black text-orange-700 mb-1.5 uppercase tracking-widest">Tgl Diambil</label>
-                                <input type="date" x-model="poForm.pickup_date" class="w-full bg-white border border-orange-200 rounded-xl px-3 py-2.5 outline-none font-bold text-sm text-slate-700">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-black text-orange-700 mb-1.5 uppercase tracking-widest">Jam Diambil</label>
-                                <input type="time" x-model="poForm.pickup_time" class="w-full bg-white border border-orange-200 rounded-xl px-3 py-2.5 outline-none font-bold text-sm text-slate-700">
-                            </div>
-                        </div>
-                        <div x-show="['delivery', 'grab', 'gojek', 'online'].includes(poForm.channel)">
-                            <label class="block text-[10px] font-black text-orange-700 mb-1.5 uppercase tracking-widest">Biaya Ongkir / Markup (Rp)</label>
-                            <input type="number" x-model.number="poForm.ongkir" class="w-full bg-white border border-orange-200 rounded-xl px-3 py-2.5 outline-none font-bold text-sm text-slate-700">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-black text-orange-700 mb-1.5 uppercase tracking-widest">Catatan Dapur</label>
-                            <textarea x-model="poForm.notes" rows="3" class="w-full bg-white border border-orange-200 rounded-xl px-3 py-2.5 outline-none font-bold text-sm text-slate-700 resize-none" placeholder="Keterangan tambahan untuk dapur..."></textarea>
-                        </div>
-                    </div>
-
-                </div>
-
-                <!-- KANAN: Ringkasan Cart + Kirim Dapur -->
-                <div class="w-full md:w-[320px] flex flex-col bg-slate-50 shrink-0">
-
-                    <!-- Daftar item cart -->
-                    <div class="flex-1 overflow-y-auto p-4 space-y-2">
-                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Item Pesanan</p>
-                        <div x-show="cart.length === 0" class="py-10 flex flex-col items-center justify-center text-slate-300 space-y-2">
-                            <i class="fa-solid fa-basket-shopping text-4xl"></i>
-                            <p class="text-xs font-bold">Keranjang kosong</p>
-                        </div>
-                        <template x-for="(item, index) in cart" :key="index">
-                            <div class="flex items-center gap-2 bg-white border border-slate-100 p-2.5 rounded-xl" :class="item.is_custom ? 'border-orange-200 bg-orange-50/40' : ''">
-                                <div class="flex-1 min-w-0">
-                                    <p class="font-bold text-xs text-slate-800 truncate" x-text="(item.is_custom ? '🛠️ ' : '') + item.name"></p>
-                                    <p class="text-xs font-black text-primary" x-text="'Rp ' + formatRupiah(item.price)"></p>
-                                </div>
-                                <div class="flex items-center gap-1.5 bg-slate-100 rounded-lg p-1">
-                                    <button @click="updateQty(index, -1)" class="w-5 h-5 flex items-center justify-center rounded bg-white shadow-sm text-slate-600"><i class="fa-solid fa-minus text-[9px]"></i></button>
-                                    <span class="w-5 text-center font-black text-xs" x-text="item.qty"></span>
-                                    <button @click="updateQty(index, 1)" class="w-5 h-5 flex items-center justify-center rounded bg-primary text-white shadow-sm"><i class="fa-solid fa-plus text-[9px]"></i></button>
-                                </div>
-                                <button @click="removeItem(index)" class="w-7 h-7 flex items-center justify-center text-rose-400 hover:text-rose-600 bg-rose-50 rounded-lg">
-                                    <i class="fa-solid fa-trash-can text-xs"></i>
-                                </button>
-                            </div>
-                        </template>
-                    </div>
-
-                    <!-- Subtotal & Tombol Kirim -->
-                    <div class="p-4 border-t border-slate-200 bg-white space-y-3 shrink-0">
-                        <div class="space-y-1.5">
-                            <div class="flex justify-between text-xs font-bold text-slate-500"><span>Subtotal Barang</span><span x-text="'Rp ' + formatRupiah(subtotal)"></span></div>
-                            <div x-show="poForm.ongkir > 0" class="flex justify-between text-xs font-bold text-orange-500"><span>Ongkir / Markup</span><span x-text="'+ Rp ' + formatRupiah(poForm.ongkir)"></span></div>
-                            <div x-show="discountVoucher > 0" class="flex justify-between text-xs font-bold text-emerald-500"><span>Diskon Voucher</span><span x-text="'- Rp ' + formatRupiah(discountVoucher)"></span></div>
-                            <div x-show="discountManual > 0" class="flex justify-between text-xs font-bold text-rose-500"><span>Diskon Manual</span><span x-text="'- Rp ' + formatRupiah(discountManual)"></span></div>
-                        </div>
-                        <div class="flex justify-between items-center pt-2 border-t border-slate-100">
-                            <p class="text-[10px] font-black text-slate-400 uppercase">Total Tagihan</p>
-                            <div class="text-2xl font-black text-primary" x-text="'Rp ' + formatRupiah(totalAmount)"></div>
-                        </div>
-                        <button @click="activeTab = 'po'; processCheckout(); showDapurModal = false" :disabled="cart.length === 0" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-2xl shadow-lg shadow-emerald-500/30 transition-all flex justify-center items-center gap-2 text-base disabled:opacity-50 disabled:cursor-not-allowed">
-                            <i class="fa-solid fa-fire-burner"></i>
-                            KIRIM KE DAPUR
-                            <i class="fa-solid fa-arrow-right"></i>
-                        </button>
-                    </div>
-
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- ===== MODAL STATUS PO ===== --></div>
 
 
     <div x-show="showCheckoutModal" class="fixed inset-0 z-[110] flex items-center justify-center" style="display: none;" x-cloak>
@@ -612,17 +530,17 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
         <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl relative z-10 p-6 m-4 flex flex-col overflow-hidden">
             
             <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-3">
-                <h3 class="font-black text-xl text-slate-800"><i class="fa-solid fa-pen-to-square text-orange-500 mr-2"></i> Item Custom</h3>
+                <h3 class="font-black text-xl text-slate-800"><i class="fa-solid fa-pen-to-square text-orange-500 mr-2"></i> Item Custom PO</h3>
                 <button @click="showCustomItemModal = false" class="text-slate-400 hover:text-rose-500 transition-colors"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
 
             <p class="text-xs font-bold text-slate-500 mb-4">Tambahkan pesanan khusus yang tidak ada di katalog untuk diteruskan ke dapur.</p>
 
-            <form @submit.prevent="submitCustomItem()" class="space-y-4">
+            <form @submit.prevent="saveCustomItem()" class="space-y-4">
                 
                 <div>
-                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Pilih Dari Template (Opsional)</label>
-                    <select x-model="customItemForm.template" @change="applyCustomTemplate()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 font-bold text-sm text-slate-700 cursor-pointer">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Pilih Dari Template Dapur (Opsional)</label>
+                    <select x-model="customItemForm.template" @change="selectCustomTemplate($event, 'po')" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 font-bold text-sm text-slate-700 cursor-pointer">
                         <option value="">-- Ketik Manual Baru --</option>
                         <template x-for="c in savedCustoms" :key="c.id">
                             <option :value="c.id" x-text="c.name + ' - Rp ' + formatRupiah(c.price)"></option>
@@ -648,8 +566,58 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
 
                 <div class="pt-2 mt-4 flex gap-3">
                     <button type="button" @click="showCustomItemModal = false" class="py-3 px-5 rounded-xl font-black text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors">Batal</button>
-                    <button type="submit" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-black py-3 rounded-xl shadow-md shadow-orange-500/30 transition-all flex justify-center items-center gap-2">
+                    <button type="submit" :disabled="isSavingCustomItem" class="flex-1 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-black py-3 rounded-xl shadow-md shadow-orange-500/30 transition-all flex justify-center items-center gap-2">
                         <i class="fa-solid fa-plus"></i> Tambahkan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL CUSTOM ITEM REGULER -->
+    <div x-show="showCustomRegulerModal" class="fixed inset-0 z-[120] flex items-center justify-center" style="display: none;" x-cloak>
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showCustomRegulerModal = false"></div>
+        <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl relative z-10 p-6 m-4 flex flex-col overflow-hidden">
+            
+            <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-3">
+                <h3 class="font-black text-xl text-slate-800"><i class="fa-solid fa-pen-to-square text-sky-500 mr-2"></i> Item Custom Reguler</h3>
+                <button @click="showCustomRegulerModal = false" class="text-slate-400 hover:text-rose-500 transition-colors"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+
+            <p class="text-xs font-bold text-slate-500 mb-4">Tambahkan item pesanan yang langsung dibawa tanpa ke dapur.</p>
+
+            <form @submit.prevent="saveCustomItem()" class="space-y-4">
+                
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Pilih Dari Template Reguler (Opsional)</label>
+                    <select x-model="customItemForm.template" @change="selectCustomTemplate($event, 'reguler')" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 font-bold text-sm text-slate-700 cursor-pointer">
+                        <option value="">-- Ketik Manual Baru --</option>
+                        <template x-for="c in savedCustomsReguler" :key="c.id">
+                            <option :value="c.id" x-text="c.name + ' - Rp ' + formatRupiah(c.price)"></option>
+                        </template>
+                    </select>
+                </div>
+
+                <div class="border-t border-slate-100 pt-3">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Nama Item Reguler</label>
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><i class="fa-solid fa-shopping-bag"></i></span>
+                        <input type="text" x-model="customItemForm.name" placeholder="Misal: Kue Reguler Extra" required class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 font-bold text-sm text-slate-800 placeholder:text-slate-400">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Harga Satuan (Rp)</label>
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 font-black text-sky-500">Rp</span>
+                        <input type="number" x-model="customItemForm.price" required placeholder="0" class="w-full bg-sky-50/50 border border-sky-200 rounded-xl pl-11 pr-4 py-3 outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 font-black text-sky-700 text-lg placeholder:text-sky-300">
+                    </div>
+                </div>
+
+                <div class="pt-2 mt-4 flex gap-3">
+                    <button type="button" @click="showCustomRegulerModal = false" class="py-3 px-5 rounded-xl font-black text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors">Batal</button>
+                    <button type="submit" :disabled="isSavingCustomItem" class="flex-1 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white font-black py-3 rounded-xl shadow-md shadow-sky-500/30 transition-all flex justify-center items-center gap-2">
+                        <i class="fa-solid fa-paper-plane"></i> Kirim
                     </button>
                 </div>
             </form>
