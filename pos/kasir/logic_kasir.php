@@ -319,58 +319,70 @@ if ($action === 'get_custom_report') {
     $date_from = $_GET['date_from'] ?? date('Y-m-01'); // Default: awal bulan ini
     $date_to   = $_GET['date_to']   ?? date('Y-m-d');  // Default: hari ini
 
-    $stmt = $pdo->prepare("
-        SELECT 
-            'Dapur (PO)' AS tipe_pesanan,
-            1 AS is_po,
-            c.name AS nama_item,
-            c.price,
-            c.created_at AS waktu_transaksi,
-            u.name AS nama_kasir
-        FROM saved_custom_items_pos c
-        LEFT JOIN users_pos u ON c.created_by = u.id
-        WHERE DATE(c.created_at) BETWEEN ? AND ?
+    try {
+        $stmt = $pdo->prepare("
+            SELECT 
+                'Dapur (PO)' AS tipe_pesanan,
+                1 AS is_po,
+                c.name AS nama_item,
+                c.price,
+                c.created_at AS waktu_transaksi,
+                u.name AS nama_kasir
+            FROM saved_custom_items_pos c
+            LEFT JOIN users_pos u ON c.created_by = u.id
+            WHERE DATE(c.created_at) BETWEEN ? AND ?
 
-        UNION ALL
+            UNION ALL
 
-        SELECT 
-            'Reguler' AS tipe_pesanan,
-            0 AS is_po,
-            r.name AS nama_item,
-            r.price,
-            r.created_at AS waktu_transaksi,
-            u.name AS nama_kasir
-        FROM saved_custom_reguler_pos r
-        LEFT JOIN users_pos u ON r.created_by = u.id
-        WHERE DATE(r.created_at) BETWEEN ? AND ?
+            SELECT 
+                'Reguler' AS tipe_pesanan,
+                0 AS is_po,
+                r.name AS nama_item,
+                r.price,
+                r.created_at AS waktu_transaksi,
+                u.name AS nama_kasir
+            FROM saved_custom_reguler_pos r
+            LEFT JOIN users_pos u ON r.created_by = u.id
+            WHERE DATE(r.created_at) BETWEEN ? AND ?
 
-        ORDER BY waktu_transaksi DESC
-    ");
-    $stmt->execute([$date_from, $date_to, $date_from, $date_to]);
-    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    // Rekap per nama kasir
-    $rekap_kasir = [];
-    foreach ($rows as $row) {
-        $kasir = $row['nama_kasir'] ?? 'Tidak Diketahui';
-        if (!isset($rekap_kasir[$kasir])) {
-            $rekap_kasir[$kasir] = ['nama_kasir' => $kasir, 'total_item' => 0, 'total_nilai' => 0];
+            ORDER BY waktu_transaksi DESC
+        ");
+        
+        if (!$stmt) {
+            throw new Exception("Gagal menyiapkan query SQL. Cek struktur tabel.");
         }
-        $rekap_kasir[$kasir]['total_item'] += 1;
-        $rekap_kasir[$kasir]['total_nilai'] += (float)$row['price'];
-    }
 
-    $total_semua = 0;
-    foreach ($rows as $row) {
-        $total_semua += (float)$row['price'];
-    }
+        $stmt->execute([$date_from, $date_to, $date_from, $date_to]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    echo json_encode([
-        'status' => 'success',
-        'data' => $rows,
-        'rekap_kasir' => array_values($rekap_kasir),
-        'total_semua' => $total_semua
-    ]);
+        // Rekap per nama kasir
+        $rekap_kasir = [];
+        foreach ($rows as $row) {
+            $kasir = $row['nama_kasir'] ?? 'Tidak Diketahui';
+            if (!isset($rekap_kasir[$kasir])) {
+                $rekap_kasir[$kasir] = ['nama_kasir' => $kasir, 'total_item' => 0, 'total_nilai' => 0];
+            }
+            $rekap_kasir[$kasir]['total_item'] += 1;
+            $rekap_kasir[$kasir]['total_nilai'] += (float)$row['price'];
+        }
+
+        $total_semua = 0;
+        foreach ($rows as $row) {
+            $total_semua += (float)$row['price'];
+        }
+
+        echo json_encode([
+            'status' => 'success',
+            'data' => $rows,
+            'rekap_kasir' => array_values($rekap_kasir),
+            'total_semua' => $total_semua
+        ]);
+    } catch (Exception $e) {
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'DB Error: ' . $e->getMessage()
+        ]);
+    }
     exit;
 }
 
