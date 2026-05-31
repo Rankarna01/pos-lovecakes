@@ -81,7 +81,7 @@ function isDropdownActive($paths, $current_uri) {
         <!-- MENU TRANSAKSI & EWALLET DI-HIDE SESUAI PERMINTAAN CLIENT -->
 
         <?php 
-            $paths = ['/pos/laporan/ringkasan/', '/pos/laporan/penjualan_shift/', '/pos/laporan/produk_kategori/', '/pos/laporan/pelanggan/', '/pos/laporan/pencairan/', '/pos/laporan/akuntansi/', '/pos/laporan/pihak_ketiga/', '/pos/laporan/penjualan/']; 
+            $paths = ['/pos/laporan/ringkasan/', '/pos/laporan/penjualan_shift/', '/pos/laporan/produk_kategori/', '/pos/laporan/pelanggan/', '/pos/laporan/pencairan/', '/pos/laporan/akuntansi/', '/pos/laporan/pihak_ketiga/', '/pos/laporan/penjualan/', '/pos/laporan/opname/']; 
             $isActive = isDropdownActive($paths, $current_uri);
         ?>
         <div class="mb-1">
@@ -98,6 +98,7 @@ function isDropdownActive($paths, $current_uri) {
                 <a href="<?= BASE_URL ?>pos/laporan/produk_kategori/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/laporan/produk_kategori/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Analisa Produk Laku</a>
                 <a href="<?= BASE_URL ?>pos/laporan/pelanggan/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/laporan/pelanggan/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Riwayat Pelanggan</a>
                 <a href="<?= BASE_URL ?>pos/laporan/penjualan/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/laporan/penjualan/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Penjualan</a>
+                <a href="<?= BASE_URL ?>pos/laporan/opname/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/laporan/opname/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Riwayat Stok Opname</a>
                 <div class="my-1 border-t border-slate-100"></div> <a href="<?= BASE_URL ?>pos/laporan/pencairan/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/laporan/pencairan/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Pencairan Dana</a>
                 <a href="<?= BASE_URL ?>pos/laporan/akuntansi/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/laporan/akuntansi/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Akuntansi Internal</a>
                 <a href="<?= BASE_URL ?>pos/laporan/pihak_ketiga/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/laporan/pihak_ketiga/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Laporan Pihak Ketiga</a>

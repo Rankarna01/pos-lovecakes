@@ -44,13 +44,31 @@ if ($action === 'save_opname') {
         $stmt_update = $pdo->prepare("UPDATE products SET stock = ? WHERE id = ?");
         $stmt_update->execute([$actual_stock, $product_id]);
 
-        // 2. Catat Log Mutasi
+        // 2. Catat Log Mutasi Inventory Umum
         $type = $difference > 0 ? 'Masuk' : 'Keluar';
         $qty_mutasi = abs($difference);
         $ref_no = 'OPN-' . date('YmdHis');
 
         $stmt_history = $pdo->prepare("INSERT INTO inventory_history_pos (product_id, type, qty, reference_no, source) VALUES (?, ?, ?, ?, ?)");
         $stmt_history->execute([$product_id, $type, $qty_mutasi, $ref_no, 'Opname: ' . $notes]);
+
+        // 3. Catat ke Laporan Khusus Opname
+        $stmt_opname = $pdo->prepare("
+            INSERT INTO opname_history_pos 
+            (product_id, system_stock, actual_stock, difference, notes, created_by) 
+            VALUES (?, ?, ?, ?, ?, ?)
+        ");
+        
+        // Gunakan session pos_user_id dari login kasir/admin, fallback ke 1 jika kosong
+        $admin_id = $_SESSION['pos_user_id'] ?? 1; 
+        $stmt_opname->execute([
+            $product_id, 
+            $system_stock, 
+            $actual_stock, 
+            $difference, 
+            $notes, 
+            $admin_id
+        ]);
 
         $pdo->commit();
         echo json_encode(['status' => 'success', 'message' => 'Penyesuaian stok berhasil disimpan!']);
