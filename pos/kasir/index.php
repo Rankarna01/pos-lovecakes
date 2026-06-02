@@ -10,7 +10,7 @@ $folder_pos = $is_localhost ? '/pos-lovecakes/' : '/';
 if (!defined('BASE_URL')) { define('BASE_URL', $protocol . $_SERVER['HTTP_HOST'] . $folder_pos); }
 $IMG_BASE_URL = $is_localhost 
     ? "http://localhost/sim-produksi-kue/assets/img/" 
-    : "https://kokowms.my.id/sim-produksi-kue/assets/img/";
+    : "https://kokowms.my.id/assets/img/";
 
 require_once '../../config/database.php';
 try {

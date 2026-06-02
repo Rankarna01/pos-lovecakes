@@ -3,6 +3,9 @@ $is_localhost = (strpos($_SERVER['HTTP_HOST'], 'localhost') !== false || strpos(
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
 $folder = $is_localhost ? '/pos-lovecakes/' : '/';
 if (!defined('BASE_URL')) { define('BASE_URL', $protocol . $_SERVER['HTTP_HOST'] . $folder); }
+$IMG_BASE_URL = $is_localhost 
+    ? "http://localhost/sim-produksi-kue/assets/img/" 
+    : "https://kokowms.my.id/assets/img/";
 $page_title = "Katalog Produk - Love Cakes POS";
 ?>
 <!DOCTYPE html>
@@ -66,7 +69,7 @@ $page_title = "Katalog Produk - Love Cakes POS";
                         <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg hover:shadow-primary/5 hover:border-primary/30 transition-all duration-300 group flex flex-col h-full hover:-translate-y-0.5">
                             
                             <div class="relative pt-[75%] bg-slate-100 overflow-hidden border-b border-slate-100">
-                                <img :src="item.image && item.image !== 'no-image.png' ? 'http://localhost/sim-produksi-kue/assets/img/' + item.image : '<?= BASE_URL ?>assets/img/no-image.png'" 
+                                <img :src="item.image && item.image !== 'no-image.png' ? '<?= $IMG_BASE_URL ?>' + item.image : '<?= BASE_URL ?>assets/img/no-image.png'" 
                                      class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                      onerror="this.onerror=null; this.src='<?= BASE_URL ?>assets/img/no-image.png';">
                                 
