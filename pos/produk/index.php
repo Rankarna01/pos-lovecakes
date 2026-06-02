@@ -61,43 +61,38 @@ $page_title = "Katalog Produk - Love Cakes POS";
                     <p class="text-slate-500 font-bold tracking-widest uppercase text-sm">Menyiapkan Etalase...</p>
                 </div>
 
-                <div x-show="!isLoading" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5">
+                <div x-show="!isLoading" class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2 sm:gap-3">
                     <template x-for="item in filteredProducts" :key="item.id">
-                        <div class="bg-white rounded-[1.5rem] border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl hover:shadow-primary/5 hover:border-primary/30 transition-all duration-300 group flex flex-col h-full hover:-translate-y-1">
+                        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg hover:shadow-primary/5 hover:border-primary/30 transition-all duration-300 group flex flex-col h-full hover:-translate-y-0.5">
                             
-                            <div class="relative pt-[100%] bg-slate-100 overflow-hidden border-b border-slate-100">
+                            <div class="relative pt-[75%] bg-slate-100 overflow-hidden border-b border-slate-100">
                                 <img :src="item.image && item.image !== 'no-image.png' ? 'http://localhost/sim-produksi-kue/assets/img/' + item.image : '<?= BASE_URL ?>assets/img/no-image.png'" 
                                      class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                      onerror="this.onerror=null; this.src='<?= BASE_URL ?>assets/img/no-image.png';">
                                 
-                                <div class="absolute top-3 left-3 bg-white/95 backdrop-blur-md px-2.5 py-1 rounded-lg text-[9px] font-black text-slate-700 shadow-sm uppercase tracking-widest border border-slate-200/50" x-text="item.category || 'PRODUK'"></div>
+                                <div class="absolute top-1.5 left-1.5 bg-white/95 backdrop-blur-md px-1.5 py-0.5 rounded text-[8px] font-black text-slate-700 shadow-sm uppercase tracking-widest border border-slate-200/50" x-text="item.category || 'PRODUK'"></div>
                             </div>
                             
-                            <div class="p-4 sm:p-5 flex flex-col flex-1 bg-white">
-                                <div class="mb-3 flex justify-between items-start">
-                                    <div>
-                                        <p class="text-[10px] font-black text-slate-400 mb-1 tracking-widest uppercase" x-text="item.code"></p>
-                                        <h3 class="font-bold text-sm sm:text-base text-slate-800 leading-snug line-clamp-2 min-h-[2.5rem]" x-text="item.name"></h3>
-                                    </div>
+                            <div class="p-2 flex flex-col flex-1 bg-white">
+                                <div class="mb-1.5">
+                                    <p class="text-[8px] font-black text-slate-400 mb-0.5 tracking-widest uppercase" x-text="item.code"></p>
+                                    <h3 class="font-bold text-[11px] text-slate-800 leading-snug line-clamp-2" x-text="item.name"></h3>
                                 </div>
                                 
-                                <div class="mt-auto flex flex-col gap-2.5">
-                                    <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100 group-hover:bg-emerald-50/50 transition-colors">
-                                        <div class="flex items-center gap-1.5 text-slate-500">
-                                            <i class="fa-solid fa-store text-[11px]"></i>
-                                            <span class="text-[10px] font-black uppercase tracking-wider">Toko</span>
-                                        </div>
-                                        <div class="font-black text-emerald-600 text-sm sm:text-base" x-text="'Rp ' + formatRupiah(item.offline_price || item.price)"></div>
+                                <div class="mt-auto flex flex-col gap-1.5">
+                                    <div class="flex justify-between items-center bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-100">
+                                        <span class="text-[9px] font-black text-slate-400 uppercase">Harga</span>
+                                        <div class="font-black text-emerald-600 text-xs" x-text="'Rp ' + formatRupiah(item.offline_price || item.price)"></div>
                                     </div>
                                     
-                                    <div class="flex justify-between items-center gap-2">
-                                        <div class="px-2.5 py-1.5 rounded-xl border flex-1 flex items-center justify-center text-[10px] font-black tracking-wide" 
+                                    <div class="flex justify-between items-center gap-1.5">
+                                        <div class="px-2 py-1 rounded-lg border flex-1 flex items-center justify-center text-[9px] font-black tracking-wide" 
                                              :class="item.stock > 0 ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-rose-50 border-rose-100 text-rose-500'">
                                              <span x-text="item.stock > 0 ? 'STOK: ' + item.stock : 'HABIS'"></span>
                                         </div>
                                         
-                                        <button @click="printBarcode(item)" class="bg-slate-100 hover:bg-slate-800 hover:text-white text-slate-600 w-8 h-8 rounded-xl flex items-center justify-center transition-colors border border-slate-200 hover:border-slate-800 shadow-sm" title="Cetak Stiker Barcode">
-                                            <i class="fa-solid fa-barcode"></i>
+                                        <button @click="printBarcode(item)" class="bg-slate-100 hover:bg-slate-800 hover:text-white text-slate-600 w-6 h-6 rounded-lg flex items-center justify-center transition-colors border border-slate-200 hover:border-slate-800 shadow-sm" title="Cetak Stiker Barcode">
+                                            <i class="fa-solid fa-barcode text-[10px]"></i>
                                         </button>
                                     </div>
                                 </div>

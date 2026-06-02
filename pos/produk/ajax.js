@@ -27,33 +27,27 @@ document.addEventListener('alpine:init', () => {
         },
 
         async loadLocalData() {
-            this.isLoading = true; // Pastikan spinner nyala
+            this.isLoading = true;
             
             try {
-                if (window.dbAuth) {
-                    const localCatalog = await window.dbAuth.getItem('katalog_produk');
-                    
-                    if (localCatalog && localCatalog.length > 0) {
-                        // Data lokal ketemu! Langsung tampilkan
-                        this.products = localCatalog;
-                        this.filteredProducts = localCatalog;
-                    } else {
-                        // Data lokal kosong
-                        if (!navigator.onLine) {
-                            // Kalau offline, kasih tau user
-                            if (typeof Swal !== 'undefined') Swal.fire('Offline Mode', 'Belum ada data produk tersimpan di perangkat ini. Harap online untuk sinkronisasi.', 'info');
+                if (navigator.onLine) {
+                    // 🔥 ONLINE: Selalu ambil data TERBARU dari MySQL (tanpa perlu klik Sync)
+                    await this.syncDataFromPusat(false);
+                } else {
+                    // 📦 OFFLINE: Pakai cache lokal sebagai fallback
+                    if (window.dbAuth) {
+                        const localCatalog = await window.dbAuth.getItem('katalog_produk');
+                        if (localCatalog && localCatalog.length > 0) {
+                            this.products = localCatalog;
+                            this.filteredProducts = localCatalog;
                         } else {
-                            // Kalau online, tarik dari MySQL diam-diam
-                            await this.syncDataFromPusat(false); 
+                            if (typeof Swal !== 'undefined') Swal.fire('Offline Mode', 'Belum ada data produk tersimpan di perangkat ini.', 'info');
                         }
                     }
                 }
             } catch (error) {
                 console.error('Error load local:', error);
             } finally {
-                // ==========================================
-                // KUNCI ANTI MUTER TERUS: Wajib diset false!
-                // ==========================================
                 this.isLoading = false; 
             }
         },

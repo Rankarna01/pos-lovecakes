@@ -139,6 +139,26 @@ document.addEventListener('alpine:init', () => {
                 await this.loadLocalData(false);
                 setTimeout(() => { if(this.$refs.barcodeScanner) this.$refs.barcodeScanner.focus() }, 500);
             }
+
+            // 🔄 AUTO-REFRESH: Sinkronisasi produk baru setiap 60 detik secara silent (tanpa loading spinner)
+            this._autoRefreshInterval = setInterval(async () => {
+                if (!navigator.onLine || this.needsShiftOpen) return;
+                try {
+                    const res = await fetch(`logic_kasir.php?action=get_master_data&nocache=${Date.now()}`);
+                    if (!res.ok) return;
+                    const result = await res.json();
+                    if (result.status === 'success') {
+                        this.products = result.products;
+                        this.customers = result.customers;
+                        this.savedCustoms = result.saved_customs || [];
+                        this.savedCustomsReguler = result.saved_customs_reguler || [];
+                        this.paymentMethods = result.payment_methods || [];
+                        // Update IndexedDB cache juga
+                        await idbPos.setMasterData('products', this.products);
+                        await idbPos.setMasterData('customers', this.customers);
+                    }
+                } catch(e) { /* Silent fail - jangan ganggu kasir */ }
+            }, 60000); // 60 detik
         },
 
         async updatePendingCount() {
@@ -275,6 +295,7 @@ document.addEventListener('alpine:init', () => {
                     if(isManualSync) Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `Database Tersinkronisasi!`, showConfirmButton: false, timer: 1500 });
                 }
             } catch (error) {
+                console.error("❌ ERROR SINKRONISASI KASIR:", error);
                 // Tarik dari IndexedDB jika offline atau error
                 this.products = (await idbPos.getMasterData('products')) || [];
                 this.customers = (await idbPos.getMasterData('customers')) || [];
@@ -284,7 +305,7 @@ document.addEventListener('alpine:init', () => {
                 const defCash = await idbPos.getMasterData('default_start_cash');
                 if (defCash && !this.shiftForm.start_cash) this.shiftForm.start_cash = defCash;
 
-                if (isManualSync) Swal.fire('Mode Offline', 'Memakai data lokal memori.', 'warning');
+                if (isManualSync) Swal.fire('Mode Offline', 'Sinkronisasi gagal. Menggunakan data lokal (Cek Console untuk detail error).', 'warning');
             } finally { this.isLoading = false; }
         },
 

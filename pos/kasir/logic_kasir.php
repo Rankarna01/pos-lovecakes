@@ -59,7 +59,12 @@ if ($action === 'get_master_data') {
     $saved_customs = $pdo->query("SELECT * FROM saved_custom_items_pos ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
     $saved_customs_reguler = $pdo->query("SELECT * FROM saved_custom_reguler_pos ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
     $payment_methods = $pdo->query("SELECT * FROM payment_methods WHERE is_active = 1 ORDER BY type ASC, name ASC")->fetchAll(PDO::FETCH_ASSOC);
-    $loyalty = $pdo->query("SELECT * FROM loyalty_rules_pos LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+    // Gunakan try-catch untuk mencegah JSON rusak jika tabel tidak ada
+    try {
+        $loyalty = $pdo->query("SELECT * FROM loyalty_settings_pos LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        $loyalty = ['is_active' => 0, 'earn_point_ratio' => 0, 'points_required' => 0, 'discount_amount' => 0, 'discount_type' => 'IDR'];
+    }
     $stmt_set = $pdo->prepare("SELECT setting_value FROM pos_settings WHERE setting_key = 'default_start_cash'");
     $stmt_set->execute();
     $setting = $stmt_set->fetch(PDO::FETCH_ASSOC);
