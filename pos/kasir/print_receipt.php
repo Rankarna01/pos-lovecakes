@@ -56,7 +56,7 @@ try {
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <style>
         @page { margin: 0; }
-        body { font-family: 'Courier New', Courier, monospace; width: 58mm; max-width: 58mm; margin: 0 auto; padding: 3mm 4mm; color: #000; background: #fff; font-size: 11px; line-height: 1.4; }
+        body { font-family: 'Courier New', Courier, monospace; width: 58mm; max-width: 58mm; margin: 0 auto; padding: 3mm 4mm; color: #000; background: #fff; font-size: 11px; line-height: 1.4; font-weight: bold; }
         .text-center { text-align: center; }
         .text-right { text-align: right; }
         .text-bold { font-weight: bold; }
@@ -102,7 +102,7 @@ try {
         <?php endif; ?>
         <?php endif; ?>
         <?php if(strtolower($channel) == 'delivery'): ?>
-        <tr><td colspan="2" class="text-bold text-center" style="padding-top: 5px;">[ DELIVERY ]</td></tr>
+        <tr><td colspan="2" class="text-bold text-center" style="padding-top: 5px;">[ DELIVERY - <?= $pickup_date ?> <?= $pickup_time ?> ]</td></tr>
         <?php endif; ?>
         <?php if(!empty($sale['notes'])): ?>
         <tr><td colspan="2" style="padding-top: 5px; font-style: italic;">Catatan: <br><?= nl2br(htmlspecialchars($sale['notes'])) ?></td></tr>
