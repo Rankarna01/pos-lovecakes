@@ -250,8 +250,8 @@ if ($action === 'checkout') {
         $item_created_by = $is_custom ? $user_id : null;
         $stmt_detail->execute([$sale_id, $prod_id, $is_custom, $custom_name, $item['price'], $item['qty'], $item['subtotal'], $item_created_by]);
 
-        // Potong stok produk reguler (bukan PO, bukan custom)
-        if (!$is_po && !$is_custom) { $stmt_potong_stok->execute([$item['qty'], $prod_id]); }
+        // Potong stok produk katalog (baik Reguler maupun PO)
+        if (!$is_custom) { $stmt_potong_stok->execute([$item['qty'], $prod_id]); }
 
         // ============================================================
         // PENGURANGAN BAHAN BAKU OTOMATIS UNTUK ITEM CUSTOM
@@ -327,29 +327,17 @@ if ($action === 'get_custom_report') {
     try {
         $stmt = $pdo->prepare("
             SELECT 
-                'Dapur (PO)' AS tipe_pesanan,
-                1 AS is_po,
-                c.name AS nama_item,
-                c.price,
-                c.created_at AS waktu_transaksi,
+                IF(s.is_po = 1, 'Dapur (PO)', 'Reguler') AS tipe_pesanan,
+                s.is_po,
+                REPLACE(sd.custom_name, ' (c)', '') AS nama_item,
+                sd.price,
+                s.created_at AS waktu_transaksi,
                 u.name AS nama_kasir
-            FROM saved_custom_items_pos c
-            LEFT JOIN users_pos u ON c.created_by = u.id
-            WHERE DATE(c.created_at) BETWEEN ? AND ?
-
-            UNION ALL
-
-            SELECT 
-                'Reguler' AS tipe_pesanan,
-                0 AS is_po,
-                r.name AS nama_item,
-                r.price,
-                r.created_at AS waktu_transaksi,
-                u.name AS nama_kasir
-            FROM saved_custom_reguler_pos r
-            LEFT JOIN users_pos u ON r.created_by = u.id
-            WHERE DATE(r.created_at) BETWEEN ? AND ?
-
+            FROM sale_details_pos sd
+            JOIN sales_pos s ON sd.sale_id = s.id
+            LEFT JOIN users_pos u ON sd.created_by_user = u.id
+            WHERE sd.is_custom = 1 
+              AND DATE(s.created_at) BETWEEN ? AND ?
             ORDER BY waktu_transaksi DESC
         ");
         
@@ -357,7 +345,8 @@ if ($action === 'get_custom_report') {
             throw new Exception("Gagal menyiapkan query SQL. Cek struktur tabel.");
         }
 
-        $stmt->execute([$date_from, $date_to, $date_from, $date_to]);
+        $stmt->execute([$date_from, $date_to]);
+
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         // Rekap per nama kasir

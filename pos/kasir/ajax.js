@@ -417,8 +417,20 @@ document.addEventListener('alpine:init', () => {
                     const result = await res.json();
                     if (result.status === 'success') {
                         this.showCustomRegulerModal = false;
-                        // Hapus logic push ke cart karena klien ingin ini langsung terkirim tanpa lewat checkout kasir
-                        Swal.fire({ icon: 'success', title: 'Terkirim', text: 'Item Custom berhasil disimpan ke laporan!', timer: 1500, showConfirmButton: false });
+                        
+                        // Kembalikan logic masuk ke transaksi (cart) dengan tambahan (c)
+                        const customPrice = parseFloat(this.customItemForm.price);
+                        this.cart.push({
+                            id: 'custom_reg_' + Date.now(),
+                            name: this.customItemForm.name + ' (c)',
+                            price: customPrice,
+                            qty: 1,
+                            subtotal: customPrice,
+                            is_custom: true,
+                            is_custom_price: false
+                        });
+
+                        Swal.fire({ icon: 'success', title: 'Ditambahkan!', text: 'Item Custom masuk ke keranjang & tersimpan ke laporan!', timer: 1500, showConfirmButton: false });
                         fetch(`logic_kasir.php?action=get_master_data&nocache=${Date.now()}`)
                             .then(r => r.json()).then(resData => { if (resData.status === 'success') this.savedCustomsReguler = resData.saved_customs_reguler; });
                     } else { Swal.fire('Error', result.message, 'error'); }
@@ -521,6 +533,24 @@ document.addEventListener('alpine:init', () => {
             if (!this.selectedCustomer || !this.loyaltyRules?.is_active || this.loyaltyRules.earn_point_ratio <= 0) return 0;
             return Math.floor(this.totalAmount / this.loyaltyRules.earn_point_ratio);
         },
+        get cashSuggestions() {
+            if (!this.totalAmount) return [];
+            const amount = this.totalAmount;
+            let suggestions = [amount]; // Uang Pas
+            
+            const roundUpTo = (amt, multiple) => Math.ceil(amt / multiple) * multiple;
+            
+            const s1 = roundUpTo(amount, 10000);
+            if (s1 > amount && !suggestions.includes(s1)) suggestions.push(s1);
+            
+            const s2 = roundUpTo(amount, 50000);
+            if (s2 > amount && !suggestions.includes(s2)) suggestions.push(s2);
+            
+            const s3 = roundUpTo(amount, 100000);
+            if (s3 > amount && !suggestions.includes(s3)) suggestions.push(s3);
+            
+            return suggestions.slice(0, 4);
+        },
 
         // --- FUNGSI CHECKOUT ---
         processCheckout() {
@@ -531,6 +561,27 @@ document.addEventListener('alpine:init', () => {
             this.paymentMethod = this.paymentMethods.length > 0 ? this.paymentMethods[0].name : 'Cash'; 
             this.inputUang = this.totalAmount; 
             this.showCheckoutModal = true;
+            this.focusNominal();
+        },
+        setPaymentStatus(status) {
+            this.paymentStatus = status;
+            if(status === 'lunas') {
+                this.inputUang = this.totalAmount;
+            } else {
+                this.inputUang = '';
+            }
+            this.focusNominal();
+        },
+        focusNominal() {
+            setTimeout(() => {
+                const el1 = document.getElementById('inputNominalLunas');
+                const el2 = document.getElementById('inputNominalDp');
+                const el = this.paymentStatus === 'lunas' ? el1 : el2;
+                if(el) {
+                    el.focus();
+                    el.select();
+                }
+            }, 100);
         },
 
         submitCheckout() {

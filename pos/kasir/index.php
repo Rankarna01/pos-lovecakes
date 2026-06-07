@@ -376,11 +376,11 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
             </div>
             <div class="space-y-4">
                 <div class="grid grid-cols-2 gap-3">
-                    <button type="button" @click="paymentStatus = 'lunas'; paymentMethod = 'cash'; inputUang = totalAmount" :class="paymentStatus === 'lunas' ? 'border-blue-500 bg-blue-50 text-blue-700 ring-4 ring-blue-500/10' : 'border-slate-200 hover:bg-slate-50 text-slate-500'" class="p-4 rounded-2xl border-2 transition-all text-center">
+                    <button type="button" @click="setPaymentStatus('lunas')" :class="paymentStatus === 'lunas' ? 'border-blue-500 bg-blue-50 text-blue-700 ring-4 ring-blue-500/10' : 'border-slate-200 hover:bg-slate-50 text-slate-500'" class="p-4 rounded-2xl border-2 transition-all text-center">
                         <i class="fa-solid fa-check-circle text-3xl mb-2" :class="paymentStatus === 'lunas' ? 'text-blue-500' : 'text-slate-300'"></i>
                         <div class="font-black text-sm">Bayar Lunas</div>
                     </button>
-                    <button type="button" @click="paymentStatus = 'dp'; paymentMethod = 'cash'; inputUang = ''" :class="paymentStatus === 'dp' ? 'border-amber-500 bg-amber-50 text-amber-700 ring-4 ring-amber-500/10' : 'border-slate-200 hover:bg-slate-50 text-slate-500'" class="p-4 rounded-2xl border-2 transition-all text-center">
+                    <button type="button" @click="setPaymentStatus('dp')" :class="paymentStatus === 'dp' ? 'border-amber-500 bg-amber-50 text-amber-700 ring-4 ring-amber-500/10' : 'border-slate-200 hover:bg-slate-50 text-slate-500'" class="p-4 rounded-2xl border-2 transition-all text-center">
                         <i class="fa-solid fa-hand-holding-dollar text-3xl mb-2" :class="paymentStatus === 'dp' ? 'text-amber-500' : 'text-slate-300'"></i>
                         <div class="font-black text-sm">DP / Kasbon</div>
                     </button>
@@ -410,7 +410,12 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                         <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 mt-3">Uang Diterima (Rp)</label>
                         <div class="relative">
                             <span class="absolute left-4 top-1/2 -translate-y-1/2 font-black text-slate-400">Rp</span>
-                            <input type="number" x-model.number="inputUang" class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-11 pr-4 py-3 text-left font-black text-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
+                            <input type="number" id="inputNominalLunas" x-model.number="inputUang" class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-11 pr-4 py-3 text-left font-black text-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
+                        </div>
+                        <div class="flex gap-2 mt-2 overflow-x-auto custom-scrollbar pb-1">
+                            <template x-for="sug in cashSuggestions" :key="sug">
+                                <button type="button" @click="inputUang = sug; focusNominal()" class="flex-shrink-0 px-3 py-1.5 bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-600 border border-slate-200 hover:border-blue-300 rounded-lg text-xs font-bold transition-colors" x-text="sug === totalAmount ? 'Uang Pas' : formatRupiah(sug)"></button>
+                            </template>
                         </div>
                         <div class="flex justify-between items-center px-2 mt-3 pt-2 border-t border-slate-100 border-dashed" x-show="inputUang >= totalAmount">
                             <span class="text-xs font-bold text-slate-500">Kembalian:</span>
@@ -443,7 +448,12 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                         <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 mt-3">Nominal DP (Rp)</label>
                         <div class="relative">
                             <span class="absolute left-4 top-1/2 -translate-y-1/2 font-black text-amber-500">Rp</span>
-                            <input type="number" x-model.number="inputUang" placeholder="Ketik jumlah DP..." class="w-full bg-amber-50/50 border border-amber-300 rounded-xl pl-11 pr-4 py-3 text-left font-black text-xl outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-amber-700">
+                            <input type="number" id="inputNominalDp" x-model.number="inputUang" placeholder="Ketik jumlah DP..." class="w-full bg-amber-50/50 border border-amber-300 rounded-xl pl-11 pr-4 py-3 text-left font-black text-xl outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-amber-700">
+                        </div>
+                        <div class="flex gap-2 mt-2 overflow-x-auto custom-scrollbar pb-1">
+                            <template x-for="sug in cashSuggestions" :key="sug">
+                                <button type="button" @click="inputUang = sug; focusNominal()" class="flex-shrink-0 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 hover:border-amber-400 rounded-lg text-xs font-bold transition-colors" x-text="sug === totalAmount ? 'Lunas' : formatRupiah(sug)"></button>
+                            </template>
                         </div>
                     </div>
                     <div class="flex justify-between items-center px-2 mt-1 pt-2 border-t border-slate-100 border-dashed" x-show="inputUang > 0 && inputUang <= totalAmount">
