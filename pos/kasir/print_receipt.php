@@ -113,7 +113,7 @@ try {
     
     <table class="item-table">
         <?php foreach($items as $i): ?>
-        <tr><td colspan="2" class="item-name"><?= ($i['is_custom'] ? '🛠️ ' : '') . htmlspecialchars($i['product_name']) ?></td></tr>
+        <tr><td colspan="2" class="item-name"><?= ($i['is_custom'] && $is_po ? '🛠️ ' : '') . htmlspecialchars($i['product_name']) ?></td></tr>
         <tr class="item-row">
             <td style="width: 60%;"><?= $i['qty'] ?> x <?= number_format($i['price'], 0, ',', '.') ?></td>
             <td class="text-right"><?= number_format($i['subtotal'], 0, ',', '.') ?></td>
@@ -133,9 +133,8 @@ try {
         <tr><td style="padding-top: 5px;">Dibayar (<?= strtoupper($sale['payment_method']) ?>)</td><td class="text-right" style="padding-top: 5px;"><?= number_format($sale['amount_paid'], 0, ',', '.') ?></td></tr>
         <?php if($sale['payment_status'] === 'dp'): ?>
         <tr><td class="text-bold">SISA HUTANG</td><td class="text-bold text-right"><?= number_format($sale['total_amount'] - $sale['dp_amount'], 0, ',', '.') ?></td></tr>
-        <?php elseif($sale['payment_method'] === 'cash'): ?>
-        <tr><td>Kembali</td><td class="text-right"><?= number_format($sale['change_amount'], 0, ',', '.') ?></td></tr>
         <?php endif; ?>
+        <tr><td>Kembali</td><td class="text-right"><?= number_format($sale['change_amount'], 0, ',', '.') ?></td></tr>
     </table>
     
     <div class="divider" style="margin-top: 10px;"></div>
@@ -228,6 +227,7 @@ try {
                 printText += "--------------------------------\n";
                 printText += " ".repeat(Math.max(0, 32 - ("TOTAL: Rp "+receiptData.total).length)) + "TOTAL: Rp " + receiptData.total + "\n";
                 printText += " ".repeat(Math.max(0, 32 - ("BAYAR: Rp "+receiptData.paid).length)) + "BAYAR: Rp " + receiptData.paid + "\n";
+                printText += " ".repeat(Math.max(0, 32 - ("KEMBALI: Rp "+receiptData.change).length)) + "KEMBALI: Rp " + receiptData.change + "\n";
                 printText += "--------------------------------\n";
                 printText += "\x1B\x61\x01" + receiptData.footer + "\n\n\n\n"; 
 

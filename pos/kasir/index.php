@@ -680,12 +680,12 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
 
             <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-3 text-sm text-left">
                 <div class="flex justify-between font-bold text-slate-600"><span>Status</span> <span class="uppercase text-emerald-600" x-text="paymentStatusSaved"></span></div>
-                <div class="flex justify-between font-bold text-slate-600"><span>Total Tagihan</span> <span x-text="'Rp ' + formatRupiah(totalAmountSaved)"></span></div>
-                <div class="flex justify-between font-bold text-slate-600" x-show="paymentStatusSaved === 'dp'"><span>Telah Dibayar (DP)</span> <span class="text-amber-600" x-text="'Rp ' + formatRupiah(dpAmountSaved)"></span></div>
+                <div class="flex justify-between font-black text-slate-800 text-lg"><span>Total Tagihan</span> <span x-text="'Rp ' + formatRupiah(totalAmountSaved)"></span></div>
+                <div class="flex justify-between font-bold text-slate-600" x-show="paymentStatusSaved === 'dp'"><span>Telah Dibayar (DP)</span> <span class="text-amber-600 font-black text-lg" x-text="'Rp ' + formatRupiah(dpAmountSaved)"></span></div>
                 <div class="flex justify-between font-bold text-rose-600 border-t border-slate-200 border-dashed pt-3" x-show="paymentStatusSaved === 'dp'"><span>Sisa Tagihan (Utang)</span> <span x-text="'Rp ' + formatRupiah(totalAmountSaved - dpAmountSaved)"></span></div>
                 
-                <div class="flex justify-between font-bold text-slate-600" x-show="paymentStatusSaved === 'lunas' && paymentMethodSaved === 'cash'"><span>Uang Diterima</span> <span x-text="'Rp ' + formatRupiah(amountPaidSaved)"></span></div>
-                <div class="flex justify-between font-black text-emerald-600 text-base border-t border-slate-200 border-dashed pt-3" x-show="paymentStatusSaved === 'lunas' && paymentMethodSaved === 'cash'"><span>Kembalian</span> <span x-text="'Rp ' + formatRupiah(changeAmountSaved)"></span></div>
+                <div class="flex justify-between font-bold text-slate-600 text-base border-t border-slate-200 border-dashed pt-3"><span>Uang Diterima</span> <span class="text-blue-600 font-black" x-text="'Rp ' + formatRupiah(amountPaidSaved)"></span></div>
+                <div class="flex justify-between font-black text-emerald-600 text-xl pt-2"><span>Kembalian</span> <span x-text="'Rp ' + formatRupiah(changeAmountSaved)"></span></div>
             </div>
 
             <div class="grid grid-cols-2 gap-3 mt-6">

@@ -422,7 +422,7 @@ document.addEventListener('alpine:init', () => {
                         const customPrice = parseFloat(this.customItemForm.price);
                         this.cart.push({
                             id: 'custom_reg_' + Date.now(),
-                            name: this.customItemForm.name + ' (c)',
+                            name: this.customItemForm.name,
                             price: customPrice,
                             qty: 1,
                             subtotal: customPrice,
@@ -460,7 +460,7 @@ document.addEventListener('alpine:init', () => {
                     const result = await res.json();
                     if (result.status === 'success') {
                         this.showCustomItemModal = false;
-                        this.cart.push({ id: result.custom_id, name: this.customItemForm.name, price: parseFloat(this.customItemForm.price), qty: 1, subtotal: parseFloat(this.customItemForm.price), is_custom: true, is_po: true, template_id: result.custom_id });
+                        this.cart.push({ id: result.custom_id, name: this.customItemForm.name + ' (c)', price: parseFloat(this.customItemForm.price), qty: 1, subtotal: parseFloat(this.customItemForm.price), is_custom: true, is_po: true, template_id: result.custom_id });
                         Swal.fire({ icon: 'success', title: 'Berhasil', text: 'Item Custom PO masuk ke keranjang!', timer: 1000, showConfirmButton: false });
                         fetch(`logic_kasir.php?action=get_master_data&nocache=${Date.now()}`)
                             .then(r => r.json()).then(resData => { if (resData.status === 'success') this.savedCustoms = resData.saved_customs; });
