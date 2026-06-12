@@ -12,6 +12,14 @@ document.addEventListener('alpine:init', () => {
         showModal: false,
         activeSale: null,
         activeDetails: [],
+        
+        // Detailed Stats
+        paymentData: { cash: 0, qris: 0, total: 0 },
+        paymentBreakdown: [],
+        dpPelunasan: [],
+        salesByCategory: [],
+        salesByItem: [],
+        salesByCustomer: [],
 
         async init() {
             // 🛡️ 1. SMART GUARD ANTI-MEMBAL
@@ -54,6 +62,14 @@ document.addEventListener('alpine:init', () => {
                 if (result.status === 'success') {
                     this.sales = result.data || [];
                     this.isRestricted = result.restricted || false;
+                    
+                    this.paymentData = result.payments || { cash: 0, qris: 0, total: 0 };
+                    this.paymentBreakdown = result.payment_breakdown || [];
+                    this.dpPelunasan = result.dp_pelunasan || [];
+                    this.salesByCategory = result.sales_by_category || [];
+                    this.salesByItem = result.sales_by_item || [];
+                    this.salesByCustomer = result.sales_by_customer || [];
+
                     if (isManual) {
                         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Data riwayat sinkron!', showConfirmButton: false, timer: 1500 });
                     }
@@ -103,6 +119,100 @@ document.addEventListener('alpine:init', () => {
 
         formatRupiah(angka) {
             return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(parseFloat(angka) || 0);
+        },
+
+        exportCSV(type) {
+            let data = [];
+            let filename = '';
+            
+            switch(type) {
+                case 'metode_pembayaran':
+                    data = this.paymentBreakdown.map(p => ({
+                        'Metode Pembayaran': p.payment_method,
+                        'Total (Rp)': p.total_amount
+                    }));
+                    filename = 'laporan_pembayaran';
+                    break;
+                case 'dp_pelunasan':
+                    data = this.dpPelunasan.map(p => ({
+                        'Jenis Pembayaran': p.payment_type,
+                        'Jumlah Transaksi': p.total_transactions,
+                        'Total (Rp)': p.total_amount
+                    }));
+                    filename = 'laporan_dp_pelunasan';
+                    break;
+                case 'kategori':
+                    data = this.salesByCategory.map(c => ({
+                        'Kategori': c.category_name,
+                        'Total Terjual (Item)': c.total_qty,
+                        'Total Pendapatan (Rp)': c.total_amount
+                    }));
+                    filename = 'laporan_kategori';
+                    break;
+                case 'barang':
+                    data = this.salesByItem.map(i => ({
+                        'Nama Barang': i.item_name,
+                        'Total Terjual (Pcs)': i.total_qty,
+                        'Total Pendapatan (Rp)': i.total_amount
+                    }));
+                    filename = 'laporan_barang_terlaris';
+                    break;
+                case 'pelanggan':
+                    data = this.salesByCustomer.map(c => ({
+                        'Nama Pelanggan': c.customer_name,
+                        'Total Transaksi': c.total_transactions,
+                        'Total Belanja (Rp)': c.total_spent
+                    }));
+                    filename = 'laporan_pelanggan';
+                    break;
+                case 'rincian':
+                    data = this.filteredSales.map(s => ({
+                        'No Invoice': s.invoice_no,
+                        'Waktu': this.formatDate(s.created_at),
+                        'Pelanggan': s.customer_name || 'Pelanggan Umum',
+                        'Channel': s.channel || 'toko',
+                        'Status': s.payment_status,
+                        'Metode': s.payment_method,
+                        'Total Bayar (Rp)': s.total_amount
+                    }));
+                    filename = 'rincian_penjualan';
+                    break;
+            }
+
+            if (data.length === 0) {
+                Swal.fire('Info', 'Tidak ada data untuk diunduh', 'info');
+                return;
+            }
+
+            // Convert array of objects to CSV
+            const headers = Object.keys(data[0]);
+            const csvRows = [];
+            
+            // Header row
+            csvRows.push(headers.join(','));
+            
+            // Data rows
+            for (const row of data) {
+                const values = headers.map(header => {
+                    const val = row[header];
+                    // Escape quotes and wrap in quotes if there's a comma
+                    const escaped = ('' + val).replace(/"/g, '""');
+                    return `"${escaped}"`;
+                });
+                csvRows.push(values.join(','));
+            }
+            
+            const csvData = csvRows.join('\n');
+            const blob = new Blob([csvData], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            
+            a.download = `${filename}_${this.filters.start_date}_sd_${this.filters.end_date}.csv`;
+            a.href = url;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
         }
     }));
 });

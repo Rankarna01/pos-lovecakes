@@ -36,6 +36,7 @@ $payments = $stmt_payments->fetchAll(PDO::FETCH_ASSOC);
 // Kelompokkan berdasar metode pembayaran
 $grouped_payments = [];
 $total_penjualan_tunai = 0;
+$total_pembayaran_kredit_tunai = 0;
 
 foreach ($payments as $p) {
     $method = strtoupper($p['payment_method']);
@@ -53,15 +54,15 @@ foreach ($payments as $p) {
         if ($method === 'CASH') $total_penjualan_tunai += $p['total_amount'];
     } else if (in_array($p['payment_type'], ['dp', 'pelunasan'])) {
         $grouped_payments[$method]['pembayaran_kredit'] += $p['total_amount'];
-        if ($method === 'CASH') $total_penjualan_tunai += $p['total_amount'];
+        if ($method === 'CASH') $total_pembayaran_kredit_tunai += $p['total_amount'];
     }
 }
 
 // Hitung Kas Aktual / Expected
 $awal_laci = $shift['start_cash'];
 $kas_keluar = $shift['total_kas_keluar'];
-$kas_masuk = $shift['total_cash_in']; // dari laci tambahan?
-$expected_cash = $awal_laci + $total_penjualan_tunai + $kas_masuk - $kas_keluar;
+$kas_masuk = $shift['total_cash_in'] ?? 0; 
+$expected_cash = $awal_laci + $total_penjualan_tunai + $total_pembayaran_kredit_tunai + $kas_masuk - $kas_keluar;
 
 // Hitung Grand Total (Tunai + Non-Tunai)
 $total_diharapkan = 0;
@@ -152,6 +153,9 @@ function fRp($val) {
     <div class="dashed-line"></div>
     <div class="flex"><span>Awal di Laci</span><span><?= fRp($awal_laci) ?></span></div>
     <div class="flex"><span>Penjualan Tunai</span><span><?= fRp($total_penjualan_tunai) ?></span></div>
+    <?php if ($total_pembayaran_kredit_tunai > 0): ?>
+    <div class="flex"><span>Pembayaran Kredit</span><span><?= fRp($total_pembayaran_kredit_tunai) ?></span></div>
+    <?php endif; ?>
     <div class="flex"><span>Pengembalian Tunai</span><span>0</span></div>
     <div class="flex"><span>Pembatalan Tunai</span><span>0</span></div>
     <div class="flex"><span>Kas Masuk-Keluar</span><span><?= fRp($kas_masuk - $kas_keluar) ?></span></div>

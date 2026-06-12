@@ -26,6 +26,11 @@ $page_title = "Laporan Shift - Love Cakes POS";
         <main class="flex-1 overflow-x-hidden overflow-y-auto custom-scrollbar p-4 md:p-6 bg-slate-100/50">
             <div class="max-w-7xl mx-auto space-y-4">
                 <div class="bg-white p-4 rounded-[1.5rem] shadow-sm border border-slate-200 flex flex-col md:flex-row gap-3">
+                    <div class="flex items-center gap-2">
+                        <input type="date" x-model="filters.startDate" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20">
+                        <span class="text-slate-400 font-bold text-xs">s/d</span>
+                        <input type="date" x-model="filters.endDate" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20">
+                    </div>
                     <div class="relative flex-1">
                         <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
                         <input type="text" x-model="filters.search" @input.debounce.500ms="applyFilter()" placeholder="Cari Nama Kasir..." class="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-primary font-bold text-sm">
@@ -91,7 +96,7 @@ $page_title = "Laporan Shift - Love Cakes POS";
                             <div class="space-y-2 text-sm font-bold text-slate-600">
                                 <div class="flex justify-between"><span>Modal Awal</span><span x-text="'Rp ' + formatRupiah(activeShift?.start_cash)"></span></div>
                                 <div class="flex justify-between text-emerald-600"><span>Pendapatan Penjualan</span><span x-text="'+ Rp ' + formatRupiah(activeShift?.total_cash_sales)"></span></div>
-                                <div class="flex justify-between text-teal-600"><span>Pelunasan Piutang</span><span x-text="'+ Rp ' + formatRupiah(activeShift?.total_cash_pelunasan)"></span></div>
+                                <div class="flex justify-between text-teal-600"><span>Pembayaran Kredit</span><span x-text="'+ Rp ' + formatRupiah(activeShift?.total_cash_pelunasan)"></span></div>
                                 <div class="flex justify-between text-rose-600"><span>Kas Keluar</span><span x-text="'- Rp ' + formatRupiah(activeShift?.total_kas_keluar)"></span></div>
                                 <div class="flex justify-between font-black text-blue-700 border-t border-blue-200 pt-2 mt-2"><span>Saldo Sistem</span> <span x-text="'Rp ' + formatRupiah(activeShift?.system_balance)"></span></div>
                             </div>

@@ -57,12 +57,21 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
         <header class="bg-primary text-white shadow-md px-4 sm:px-6 py-2.5 flex justify-between items-center z-20 shrink-0">
             <div class="flex items-center gap-4">
                 <button onclick="toggleSidebar()" class="md:hidden text-white hover:bg-blue-600 p-2 rounded-lg transition-colors"><i class="fa-solid fa-bars text-xl"></i></button>
-                <h2 class="text-xl font-black tracking-wide"><i class="fa-solid fa-cash-register mr-2"></i>Mesin Kasir</h2>
-            </div>
-            <div class="flex items-center gap-3">
+                <h2 class="text-xl font-black tracking-wide mr-4"><i class="fa-solid fa-cash-register mr-2"></i>Mesin Kasir</h2>
+
                 <div x-show="!needsShiftOpen" class="hidden sm:flex bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-xs font-black items-center gap-2">
                     <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div> Kasir Aktif
                 </div>
+                
+                <button @click="openKasKeluarModal()" x-show="!needsShiftOpen" class="hidden md:flex bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-xs font-black transition-all shadow-sm items-center gap-2">
+                    <i class="fa-solid fa-money-bill-transfer"></i> Kas Keluar
+                </button>
+                
+                <button @click="openCloseShiftModal()" x-show="!needsShiftOpen" class="hidden md:flex bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-xl text-xs font-black transition-all shadow-sm items-center gap-2">
+                    <i class="fa-solid fa-lock"></i> Tutup Kasir
+                </button>
+            </div>
+            <div class="flex items-center gap-3">
 
                 <!-- INDIKATOR OFFLINE -->
                 <div x-show="!isOnline" class="bg-rose-500/20 text-rose-100 border border-rose-500/30 px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-2" x-cloak>
@@ -78,12 +87,12 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                     </span>
                 </button>
                 
-                <button @click="openKasKeluarModal()" x-show="!needsShiftOpen" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-2">
-                    <i class="fa-solid fa-money-bill-transfer"></i> Kas Keluar
+                <button @click="openKasKeluarModal()" x-show="!needsShiftOpen" class="md:hidden bg-amber-500 hover:bg-amber-600 text-white px-3 py-2 rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-2">
+                    <i class="fa-solid fa-money-bill-transfer"></i>
                 </button>
                 
-                <button @click="openCloseShiftModal()" x-show="!needsShiftOpen" class="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-2">
-                    <i class="fa-solid fa-lock"></i> Tutup Kasir
+                <button @click="openCloseShiftModal()" x-show="!needsShiftOpen" class="md:hidden bg-rose-500 hover:bg-rose-600 text-white px-3 py-2 rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-2">
+                    <i class="fa-solid fa-lock"></i>
                 </button>
             </div>
         </header>
@@ -123,7 +132,7 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                 </div>
 
                 <div class="flex-1 overflow-y-auto custom-scrollbar p-2.5">
-                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2 sm:gap-3">
                         <template x-for="item in filteredProducts" :key="item.id">
                             <div @click="addToCart(item)" class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:border-primary/50 hover:shadow-md transition-all cursor-pointer group flex flex-col h-full active:scale-95">
                                 <div class="relative pt-[75%] bg-slate-100 overflow-hidden border-b border-slate-100">
@@ -141,7 +150,7 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
             </div>
 
             <!-- KERANJANG DI KANAN -->
-            <div class="w-full lg:w-[400px] flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden shrink-0">
+            <div class="w-full lg:w-[30%] flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden shrink-0">
                 <div class="flex p-1 bg-slate-100 border-b border-slate-200 gap-1">
                     <button @click="activeTab = 'reguler'" :class="activeTab === 'reguler' ? 'bg-white shadow-sm text-primary font-black' : 'text-slate-500 hover:bg-slate-200 font-bold'" class="flex-1 py-1.5 rounded-lg text-[10px] uppercase tracking-widest transition-all"><i class="fa-solid fa-cash-register mr-1"></i> Reguler</button>
                     <button @click="activeTab = 'po'" :class="activeTab === 'po' ? 'bg-orange-100 shadow-sm text-orange-600 font-black' : 'text-slate-500 hover:bg-slate-200 font-bold'" class="flex-1 py-1.5 rounded-lg text-[10px] uppercase tracking-widest transition-all"><i class="fa-solid fa-fire-burner mr-1"></i> Pesanan Dapur</button>
@@ -308,22 +317,22 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                 <!-- <div class="bg-slate-50 border-t border-slate-200 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] flex flex-col" style="max-height: 320px;"> -->
 
                     <!-- AREA SCROLLABLE: Promo, Poin, Subtotal, 4 Tombol -->
-                    <div class="overflow-y-auto custom-scrollbar px-2.5 pt-2 flex-1">
+                    <div class="px-2.5 pt-1 shrink-0">
 
-                        <div class="flex gap-1.5 mb-2">
+                        <div class="flex gap-1.5 mb-1.5">
                             <input type="text" x-model="voucherCode" placeholder="Kode Promo..." class="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-primary font-bold text-xs uppercase">
                             <button @click="applyVoucher()" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-lg text-[10px] font-black transition-all">Promo</button>
                             <button @click="applyManualDiscount()" class="bg-rose-500 hover:bg-rose-600 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-black transition-all shadow-sm" title="Diskon SPV"><i class="fa-solid fa-percent"></i></button>
                         </div>
 
-                        <div x-show="selectedCustomer && loyaltyRules.is_active" class="flex items-center justify-between bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg mb-2">
+                        <div x-show="selectedCustomer && loyaltyRules.is_active" class="flex items-center justify-between bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg mb-1.5">
                             <div><p class="text-[9px] font-black text-amber-600 uppercase tracking-tight">Poin: <span x-text="selectedCustomer?.points || 0"></span></p></div>
                             <button @click="togglePoints()" :disabled="(selectedCustomer?.points < loyaltyRules.points_required) && !usePoints" class="px-2 py-0.5 rounded text-[9px] font-black transition-all" :class="usePoints ? 'bg-amber-500 text-white' : 'bg-white text-amber-500 border border-amber-200 disabled:opacity-50'">
                                 <span x-text="usePoints ? 'POIN DIPAKAI' : 'PAKAI POIN'"></span>
                             </button>
                         </div>
 
-                        <div class="space-y-0.5 mb-1.5 border-t border-slate-200 border-dashed pt-1.5">
+                        <div class="space-y-0.5 mb-1 border-t border-slate-200 border-dashed pt-1">
                             <div class="flex justify-between text-[11px] font-bold text-slate-500"><span>Subtotal</span> <span x-text="'Rp ' + formatRupiah(subtotal)"></span></div>
                             <div x-show="activeTab === 'po' && poForm.ongkir > 0" class="flex justify-between text-[11px] font-bold text-orange-500"><span>Ongkir (PO)</span> <span x-text="'+ Rp ' + formatRupiah(poForm.ongkir)"></span></div>
                         <div x-show="activeTab === 'reguler' && regulerForm.is_delivery && regulerForm.ongkir > 0" class="flex justify-between text-[11px] font-bold text-amber-500"><span>Ongkir</span> <span x-text="'+ Rp ' + formatRupiah(regulerForm.ongkir)"></span></div>
@@ -332,15 +341,15 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                             <div x-show="discountManual > 0" class="flex justify-between text-[11px] font-bold text-rose-500"><span>Diskon Manual <i @click="discountManual = 0" class="fa-solid fa-xmark cursor-pointer ml-1"></i></span> <span x-text="'- Rp ' + formatRupiah(discountManual)"></span></div>
                         </div>
 
-                        <div class="flex justify-between items-end mb-2 border-t border-slate-200 pt-2">
+                        <div class="flex justify-between items-end mb-1 border-t border-slate-200 pt-1">
                             <div>
                                 <p class="text-[9px] font-black text-slate-400 uppercase">Total</p>
-                                <div class="text-2xl font-black text-primary leading-none" x-text="'Rp ' + formatRupiah(totalAmount)"></div>
+                                <div class="text-xl font-black text-primary leading-none" x-text="'Rp ' + formatRupiah(totalAmount)"></div>
                             </div>
                             <div x-show="pointsEarned > 0" class="text-[9px] font-bold text-amber-500 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">+<span x-text="pointsEarned"></span> Poin</div>
                         </div>
 
-                        <div class="grid grid-cols-5 gap-1 mb-2">
+                        <div class="grid grid-cols-5 gap-1 mb-1">
                             <button @click="showNotesModal = true" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-[9px] font-bold"><i class="fa-solid fa-note-sticky text-sm mb-0.5"></i> Catatan</button>
                             <button @click="applyManualDiscount()" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-[9px] font-bold"><i class="fa-solid fa-percent text-sm mb-0.5"></i> Diskon</button>
                             <button onclick="window.open('print_receipt.php?invoice=' + (posApp().lastInvoice || ''), '_blank', 'width=400,height=600')" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-[9px] font-bold"><i class="fa-solid fa-print text-sm mb-0.5"></i> Cetak</button>

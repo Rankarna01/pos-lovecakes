@@ -21,6 +21,14 @@ if ($action === 'get_shifts') {
 
         if (!empty($search)) { $query .= " AND u.name LIKE ?"; $params[] = "%$search%"; }
 
+        $start_date = $_GET['start_date'] ?? '';
+        $end_date = $_GET['end_date'] ?? '';
+        if(!empty($start_date) && !empty($end_date)) {
+            $query .= " AND DATE(sh.start_time) BETWEEN ? AND ?";
+            $params[] = $start_date;
+            $params[] = $end_date;
+        }
+
         $countQuery = str_replace("sh.*, COALESCE(u.name, 'Kasir') as cashier_name", "COUNT(*) as total", $query);
         $stmtCount = $pdo->prepare($countQuery);
         $stmtCount->execute($params);
@@ -55,8 +63,8 @@ if ($action === 'get_shifts') {
             $stmtKas->execute([$shift['id']]);
             $kasKeluar = $stmtKas->fetch(PDO::FETCH_ASSOC)['kas_keluar'] ?? 0;
 
-            $cashBaru = ($sales['cash_baru'] ?? 0) + ($sales['dp_baru'] ?? 0);
-            $cashPelunasan = $settled['cash_pelunasan'] ?? 0;
+            $cashBaru = $sales['cash_baru'] ?? 0;
+            $cashPelunasan = ($settled['cash_pelunasan'] ?? 0) + ($sales['dp_baru'] ?? 0);
             
             $shift['total_cash_sales'] = $cashBaru;
             $shift['total_cash_pelunasan'] = $cashPelunasan;
@@ -95,8 +103,8 @@ if ($action === 'get_detail') {
         $stmtKasSum->execute([$id]);
         $kasKeluarSum = $stmtKasSum->fetch(PDO::FETCH_ASSOC)['kas_keluar'] ?? 0;
 
-        $shift['total_cash_sales'] = ($salesSum['cash_baru'] ?? 0) + ($salesSum['dp_baru'] ?? 0);
-        $shift['total_cash_pelunasan'] = $settledSum['cash_pelunasan'] ?? 0;
+        $shift['total_cash_sales'] = $salesSum['cash_baru'] ?? 0;
+        $shift['total_cash_pelunasan'] = ($settledSum['cash_pelunasan'] ?? 0) + ($salesSum['dp_baru'] ?? 0);
         $shift['total_kas_keluar'] = $kasKeluarSum;
         $shift['system_balance'] = $shift['start_cash'] + $shift['total_cash_sales'] + $shift['total_cash_pelunasan'] - $shift['total_kas_keluar'];
         $shift['difference'] = ($shift['status'] === 'closed') ? ($shift['end_cash'] - $shift['system_balance']) : 0;

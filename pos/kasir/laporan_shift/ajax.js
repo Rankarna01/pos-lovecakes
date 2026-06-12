@@ -4,7 +4,11 @@ document.addEventListener('alpine:init', () => {
         isLoading: false,
         currentPage: 1,
         totalPages: 1,
-        filters: { search: '' },
+        filters: { 
+            search: '',
+            startDate: new Date().toISOString().split('T')[0],
+            endDate: new Date().toISOString().split('T')[0]
+        },
 
         showModal: false,
         isDetailLoading: false,
@@ -29,7 +33,13 @@ document.addEventListener('alpine:init', () => {
         async fetchShifts() {
             this.isLoading = true;
             try {
-                const params = new URLSearchParams({ action: 'get_shifts', page: this.currentPage, search: this.filters.search });
+                const params = new URLSearchParams({ 
+                    action: 'get_shifts', 
+                    page: this.currentPage, 
+                    search: this.filters.search,
+                    start_date: this.filters.startDate,
+                    end_date: this.filters.endDate
+                });
                 const response = await fetch(`logic.php?${params.toString()}`);
                 const result = await response.json();
                 
