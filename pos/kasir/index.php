@@ -275,9 +275,6 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                                     class="w-full pl-8 pr-2 py-1 bg-white border border-orange-200 rounded-lg outline-none text-[11px] font-black text-orange-600 focus:border-orange-400">
                             </div>
                         </div>
-                        <div>
-                            <textarea x-model="poForm.notes" rows="1" class="w-full bg-white border border-orange-200 rounded-lg px-2 py-1 outline-none font-bold text-[11px] text-slate-700 resize-none focus:border-orange-400" placeholder="Catatan dapur..."></textarea>
-                        </div>
                     </div>
                 </div>
 
@@ -319,11 +316,6 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                     <!-- AREA SCROLLABLE: Promo, Poin, Subtotal, 4 Tombol -->
                     <div class="px-2.5 pt-1 shrink-0">
 
-                        <div class="flex gap-1.5 mb-1.5">
-                            <input type="text" x-model="voucherCode" placeholder="Kode Promo..." class="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-primary font-bold text-xs uppercase">
-                            <button @click="applyVoucher()" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-lg text-[10px] font-black transition-all">Promo</button>
-                            <button @click="applyManualDiscount()" class="bg-rose-500 hover:bg-rose-600 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-black transition-all shadow-sm" title="Diskon SPV"><i class="fa-solid fa-percent"></i></button>
-                        </div>
 
                         <div x-show="selectedCustomer && loyaltyRules.is_active" class="flex items-center justify-between bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg mb-1.5">
                             <div><p class="text-[9px] font-black text-amber-600 uppercase tracking-tight">Poin: <span x-text="selectedCustomer?.points || 0"></span></p></div>
@@ -351,7 +343,7 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
 
                         <div class="grid grid-cols-5 gap-1 mb-1">
                             <button @click="showNotesModal = true" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-[9px] font-bold"><i class="fa-solid fa-note-sticky text-sm mb-0.5"></i> Catatan</button>
-                            <button @click="applyManualDiscount()" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-[9px] font-bold"><i class="fa-solid fa-percent text-sm mb-0.5"></i> Diskon</button>
+                            <button @click="openDiscountMenu()" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-[9px] font-bold"><i class="fa-solid fa-percent text-sm mb-0.5"></i> Diskon</button>
                             <button onclick="window.open('print_receipt.php?invoice=' + (posApp().lastInvoice || ''), '_blank', 'width=400,height=600')" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-[9px] font-bold"><i class="fa-solid fa-print text-sm mb-0.5"></i> Cetak</button>
                             <button @click="openStatusModal()" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg bg-orange-100 hover:bg-orange-200 text-orange-600 text-[9px] font-bold"><i class="fa-solid fa-list-check text-sm mb-0.5"></i> Status</button>
                             <button @click="showDapurModal = true" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg bg-orange-100 hover:bg-orange-200 text-orange-600 text-[9px] font-bold"><i class="fa-solid fa-fire-burner text-sm mb-0.5"></i> Dapur</button>

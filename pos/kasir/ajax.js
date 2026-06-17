@@ -476,14 +476,59 @@ document.addEventListener('alpine:init', () => {
         togglePoints() { this.usePoints = !this.usePoints; },
 
         // --- FUNGSI DISKON & VOUCHER ---
-        async applyManualDiscount() {
+        async openDiscountMenu() {
             if (this.subtotal <= 0) { window.alert('Keranjang masih kosong!'); return; }
-            const realPin = this.posSettings.pin_supervisor || '123456';
-            const { value: inputPin } = await Swal.fire({ title: 'Otorisasi Supervisor', input: 'password', inputPlaceholder: 'Masukkan PIN', showCancelButton: true, confirmButtonText: 'Validasi' });
-            if (inputPin === realPin) {
-                const { value: discVal } = await Swal.fire({ title: 'Diskon Manual', input: 'number', inputPlaceholder: 'Masukkan Nominal (Rp)', showCancelButton: true });
-                if (discVal && parseFloat(discVal) > 0) { this.discountManual = parseFloat(discVal); }
-            } else if (inputPin) { Swal.fire('Akses Ditolak', 'PIN Supervisor Salah!', 'error'); }
+            
+            const result = await Swal.fire({
+                title: 'Opsi Diskon',
+                text: 'Pilih jenis diskon yang ingin digunakan',
+                icon: 'question',
+                showCancelButton: true,
+                showDenyButton: true,
+                confirmButtonText: '<i class="fa-solid fa-ticket mr-1"></i> Promo Dinamis',
+                confirmButtonColor: '#1e293b', 
+                denyButtonText: '<i class="fa-solid fa-user-shield mr-1"></i> Diskon Manual SPV',
+                denyButtonColor: '#f43f5e', 
+                cancelButtonText: 'Batal'
+            });
+
+            if (result.isConfirmed) {
+                // Promo Dinamis
+                const { value: code } = await Swal.fire({
+                    title: 'Voucher Promo',
+                    input: 'text',
+                    inputPlaceholder: 'Masukkan Kode Promo',
+                    showCancelButton: true,
+                    confirmButtonText: 'Terapkan'
+                });
+                
+                if (code) {
+                    this.voucherCode = code.toUpperCase();
+                    this.applyVoucher();
+                }
+            } else if (result.isDenied) {
+                // Diskon Manual SPV
+                const realPin = this.posSettings.pin_supervisor || '123456';
+                const { value: inputPin } = await Swal.fire({ 
+                    title: 'Otorisasi Supervisor', 
+                    input: 'password', 
+                    inputPlaceholder: 'Masukkan PIN', 
+                    showCancelButton: true, 
+                    confirmButtonText: 'Validasi' 
+                });
+                
+                if (inputPin === realPin) {
+                    const { value: discVal } = await Swal.fire({ 
+                        title: 'Diskon Manual', 
+                        input: 'number', 
+                        inputPlaceholder: 'Masukkan Nominal (Rp)', 
+                        showCancelButton: true 
+                    });
+                    if (discVal && parseFloat(discVal) > 0) { this.discountManual = parseFloat(discVal); }
+                } else if (inputPin) { 
+                    Swal.fire('Akses Ditolak', 'PIN Supervisor Salah!', 'error'); 
+                }
+            }
         },
 
         async applyVoucher() {
@@ -608,9 +653,6 @@ document.addEventListener('alpine:init', () => {
             this.isLoading = true;
             // Gabungkan notes dapur (PO) dan notes umum
             let finalNotes = this.orderNotes;
-            if (this.activeTab === 'po' && this.poForm.notes) {
-                finalNotes = finalNotes ? (finalNotes + " | " + this.poForm.notes) : this.poForm.notes;
-            }
 
             // Tentukan channel berdasarkan tab
             let channel = 'toko';
