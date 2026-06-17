@@ -66,7 +66,12 @@ $page_title = "Laporan Shift - Love Cakes POS";
                                             </div>
                                         </td>
                                         <td class="p-4 text-center"><span class="px-2 py-1 rounded-lg text-[10px] font-black uppercase border" :class="shift.status === 'closed' ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-emerald-50 text-emerald-600 border-emerald-200'"><span x-text="shift.status === 'open' ? 'SEDANG JALAN' : 'DITUTUP'"></span></span></td>
-                                        <td class="p-4 text-center"><button @click="openDetail(shift)" class="bg-slate-100 hover:bg-slate-200 text-slate-600 w-8 h-8 rounded-lg flex items-center justify-center transition-colors" title="Lihat Detail"><i class="fa-solid fa-eye text-xs"></i></button></td>
+                                        <td class="p-4 text-center">
+                                            <div class="flex items-center justify-center gap-2">
+                                                <button @click="openDetail(shift)" class="bg-slate-100 hover:bg-slate-200 text-slate-600 w-8 h-8 rounded-lg flex items-center justify-center transition-colors" title="Lihat Detail"><i class="fa-solid fa-eye text-xs"></i></button>
+                                                <button x-show="shift.status === 'closed'" @click="printShift(shift.id)" class="bg-blue-50 hover:bg-blue-600 text-blue-600 hover:text-white w-8 h-8 rounded-lg flex items-center justify-center transition-colors" title="Cetak Struk Ulang"><i class="fa-solid fa-print text-xs"></i></button>
+                                            </div>
+                                        </td>
                                     </tr>
                                 </template>
                             </tbody>

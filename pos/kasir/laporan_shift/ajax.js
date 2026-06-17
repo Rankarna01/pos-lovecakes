@@ -84,6 +84,10 @@ document.addEventListener('alpine:init', () => {
             } finally {
                 this.isDetailLoading = false;
             }
+        },
+
+        printShift(shiftId) {
+            window.open(`../print_shift.php?id=${shiftId}`, '_blank', 'width=400,height=600');
         }
     }));
 });
