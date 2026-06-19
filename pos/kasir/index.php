@@ -78,6 +78,12 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                     <i class="fa-solid fa-wifi text-rose-400"></i> Mode Offline
                 </div>
 
+                <!-- TOMBOL DRAFT / HOLD BILL -->
+                <button @click="showDraftModal = true" x-show="!needsShiftOpen" class="hidden md:flex bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1.5 rounded-xl text-xs font-black transition-all shadow-sm items-center gap-2 relative" x-cloak>
+                    <i class="fa-solid fa-box-archive"></i> Draft
+                    <span x-show="drafts.length > 0" x-text="drafts.length" class="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] ring-2 ring-indigo-500 font-black shadow-sm"></span>
+                </button>
+
                 <!-- TOMBOL SYNC PENDING -->
                 <button @click="syncOfflineTransactions()" x-show="isOnline && pendingSyncCount > 0" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-2 relative" x-cloak>
                     <i class="fa-solid fa-rotate" :class="isSyncing ? 'fa-spin' : ''"></i> Sync (<span x-text="pendingSyncCount"></span>)
@@ -91,6 +97,11 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                     <i class="fa-solid fa-money-bill-transfer"></i>
                 </button>
                 
+                <button @click="showDraftModal = true" x-show="!needsShiftOpen" class="md:hidden bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-2 rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-2 relative">
+                    <i class="fa-solid fa-box-archive"></i>
+                    <span x-show="drafts.length > 0" x-text="drafts.length" class="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] ring-2 ring-indigo-500 font-black shadow-sm"></span>
+                </button>
+
                 <button @click="openCloseShiftModal()" x-show="!needsShiftOpen" class="md:hidden bg-rose-500 hover:bg-rose-600 text-white px-3 py-2 rounded-xl text-xs font-black transition-all shadow-sm flex items-center gap-2">
                     <i class="fa-solid fa-lock"></i>
                 </button>
@@ -351,9 +362,15 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
 
                     </div>
 
-                    <!-- TOMBOL CHECKOUT: SELALU TERLIHAT DI PALING BAWAH -->
-                    <div class="px-2.5 pb-2.5 pt-1.5 shrink-0">
-                        <button @click="processCheckout()" :disabled="cart.length === 0" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-black py-3 rounded-xl shadow-lg transition-all flex justify-center items-center gap-2 text-base disabled:opacity-50" :class="activeTab === 'po' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/30' : ''">
+                    <!-- TOMBOL CHECKOUT & DRAFT: SELALU TERLIHAT DI PALING BAWAH -->
+                    <div class="px-2.5 pb-2.5 pt-1.5 shrink-0 flex gap-2">
+                        <button @click="openSaveDraftModal()" :disabled="cart.length === 0" class="bg-amber-100 hover:bg-amber-200 text-amber-600 px-3.5 rounded-xl font-black transition-all flex items-center justify-center shadow-sm disabled:opacity-50" title="Simpan Antrean (Hold Bill)">
+                            <i class="fa-solid fa-box-archive text-lg"></i>
+                        </button>
+                        <button @click="resetCart()" :disabled="cart.length === 0" class="bg-rose-100 hover:bg-rose-200 text-rose-600 px-3.5 rounded-xl font-black transition-all flex items-center justify-center shadow-sm disabled:opacity-50" title="Kosongkan Keranjang">
+                            <i class="fa-solid fa-trash-can text-lg"></i>
+                        </button>
+                        <button @click="processCheckout()" :disabled="cart.length === 0" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-black py-3 rounded-xl shadow-lg transition-all flex justify-center items-center gap-2 text-base disabled:opacity-50" :class="activeTab === 'po' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/30' : ''">
                             <span x-text="activeTab === 'po' ? 'KIRIM KE DAPUR' : 'BAYAR SEKARANG'"></span> <i class="fa-solid fa-arrow-right"></i>
                         </button>
                     </div>
@@ -704,7 +721,65 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
         </div>
     </div>
 
+    <!-- ===== MODAL SIMPAN DRAFT ===== -->
+    <div x-show="showSaveDraftModal" class="fixed inset-0 z-[110] flex items-center justify-center" style="display: none;" x-cloak>
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showSaveDraftModal = false"></div>
+        <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl relative z-10 p-6 m-4 flex flex-col">
+            <h3 class="font-black text-xl text-slate-800 mb-2"><i class="fa-solid fa-box-archive text-amber-500 mr-2"></i>Simpan Draft</h3>
+            <p class="text-xs font-bold text-slate-500 mb-4">Simpan keranjang sementara untuk melayani antrean lain.</p>
+            <div class="mb-4">
+                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Nama Referensi</label>
+                <input type="text" id="draftRefInput" x-model="draftReferenceName" @keyup.enter="saveDraft()" placeholder="Misal: Ibu Baju Merah..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 font-bold text-slate-700 text-sm">
+            </div>
+            <div class="flex gap-2">
+                <button @click="showSaveDraftModal = false" class="py-3 px-6 rounded-xl font-black text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors">Batal</button>
+                <button @click="saveDraft()" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-black py-3 rounded-xl shadow-md transition-colors flex items-center justify-center gap-2"><i class="fa-solid fa-save"></i> Simpan Draft</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== MODAL DAFTAR DRAFT ===== -->
+    <div x-show="showDraftModal" class="fixed inset-0 z-[110] flex items-center justify-center" style="display: none;" x-cloak>
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showDraftModal = false"></div>
+        <div class="bg-slate-100 w-full max-w-2xl rounded-3xl shadow-2xl relative z-10 flex flex-col h-[75vh] m-4 overflow-hidden">
+            <div class="p-5 border-b border-slate-200 flex justify-between items-center bg-white shrink-0">
+                <div>
+                    <h3 class="font-black text-lg text-slate-800 flex items-center gap-2"><i class="fa-solid fa-list-check text-indigo-500"></i> Daftar Draft Tersimpan</h3>
+                    <p class="text-xs font-bold text-slate-500 mt-1">Lanjutkan transaksi pelanggan yang ditunda.</p>
+                </div>
+                <button @click="showDraftModal = false" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-rose-500 hover:text-white transition-colors shrink-0"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="p-4 overflow-y-auto custom-scrollbar flex-1">
+                <div x-show="drafts.length === 0" class="flex flex-col items-center justify-center h-full text-center">
+                    <i class="fa-solid fa-box-open text-6xl text-slate-300 mb-4"></i>
+                    <p class="font-black text-lg text-slate-600">Belum Ada Draft</p>
+                </div>
+                
+                <div x-show="drafts.length > 0" class="space-y-3">
+                    <template x-for="draft in drafts" :key="draft.id">
+                        <div class="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex flex-col sm:flex-row justify-between items-start gap-4">
+                            <div>
+                                <h4 class="font-black text-slate-800 text-base mb-1" x-text="draft.reference_name"></h4>
+                                <p class="text-xs font-bold text-slate-500 mb-2"><i class="fa-regular fa-clock mr-1"></i> <span x-text="formatDraftTime(draft.timestamp)"></span></p>
+                                <div class="flex items-center gap-3">
+                                    <span class="bg-indigo-50 text-indigo-600 px-2 py-1 rounded text-[10px] font-black" x-text="draft.cart.length + ' Item'"></span>
+                                    <span class="text-sm font-black text-emerald-600" x-text="'Rp ' + formatRupiah(draft.totalAmount)"></span>
+                                </div>
+                            </div>
+                            <div class="flex gap-2 sm:self-center shrink-0 w-full sm:w-auto">
+                                <button @click="deleteDraft(draft.id)" class="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-black transition-colors border border-rose-100"><i class="fa-solid fa-trash-can"></i></button>
+                                <button @click="restoreDraft(draft.id)" class="flex-1 sm:flex-none px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-md transition-colors"><i class="fa-solid fa-rotate-left mr-1"></i> Lanjutkan</button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <?php include 'modal_status.php'; ?>
+    <script src="offline_db.js"></script>
     <script src="ajax.js?v=<?= time() ?>"></script>
 </body>
 </html>

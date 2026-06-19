@@ -120,6 +120,9 @@ document.addEventListener('alpine:init', () => {
         showStatusModal: false, isFetchingStatus: false, activeOrders: [],
         showSuccessModal: false, lastInvoice: '', totalAmountSaved: 0, paymentStatusSaved: '', dpAmountSaved: 0, amountPaidSaved: 0, changeAmountSaved: 0, paymentMethodSaved: '',
 
+        // --- DRAFT / HOLD BILL ---
+        drafts: [], showDraftModal: false, showSaveDraftModal: false, draftReferenceName: '',
+
         // --- OFFLINE STATE ---
         isOnline: navigator.onLine,
         pendingSyncCount: 0,
@@ -138,6 +141,7 @@ document.addEventListener('alpine:init', () => {
             await this.checkShiftStatus();
             if(!this.needsShiftOpen) {
                 await this.loadLocalData(false);
+                this.loadDrafts();
                 setTimeout(() => { if(this.$refs.barcodeScanner) this.$refs.barcodeScanner.focus() }, 500);
             }
 
@@ -734,6 +738,97 @@ document.addEventListener('alpine:init', () => {
         printReceipt() {
             if(this.lastInvoice) window.open(`print_receipt.php?invoice=${this.lastInvoice}`, '_blank', 'width=400,height=600');
             this.resetCart();
+        },
+
+        // --- DRAFT / HOLD BILL ---
+        loadDrafts() {
+            const saved = localStorage.getItem('pos_drafts');
+            if (saved) {
+                try { this.drafts = JSON.parse(saved); } catch(e) { this.drafts = []; }
+            }
+        },
+        openSaveDraftModal() {
+            if (this.cart.length === 0) return;
+            this.draftReferenceName = this.selectedCustomer?.name || '';
+            this.showSaveDraftModal = true;
+            setTimeout(() => document.getElementById('draftRefInput')?.focus(), 100);
+        },
+        saveDraft() {
+            if (!this.draftReferenceName.trim()) {
+                Swal.fire('Perhatian', 'Nama referensi wajib diisi!', 'warning');
+                return;
+            }
+            const draft = {
+                id: 'draft_' + Date.now(),
+                timestamp: new Date().toISOString(),
+                reference_name: this.draftReferenceName,
+                cart: JSON.parse(JSON.stringify(this.cart)),
+                selectedCustomerId: this.selectedCustomerId,
+                activeTab: this.activeTab,
+                poForm: JSON.parse(JSON.stringify(this.poForm)),
+                regulerForm: JSON.parse(JSON.stringify(this.regulerForm)),
+                orderNotes: this.orderNotes,
+                totalAmount: this.totalAmount
+            };
+            this.drafts.push(draft);
+            localStorage.setItem('pos_drafts', JSON.stringify(this.drafts));
+            this.showSaveDraftModal = false;
+            this.resetCart();
+            Swal.fire({ icon: 'success', title: 'Tersimpan', text: 'Keranjang berhasil disimpan ke antrean draft!', timer: 1500, showConfirmButton: false });
+        },
+        restoreDraft(draftId) {
+            const draftIndex = this.drafts.findIndex(d => d.id === draftId);
+            if (draftIndex === -1) return;
+            const draft = this.drafts[draftIndex];
+            
+            if (this.cart.length > 0) {
+                Swal.fire({
+                    title: 'Keranjang Tidak Kosong',
+                    text: "Memuat draft akan menimpa keranjang saat ini. Lanjutkan?",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Ya, Lanjutkan',
+                    cancelButtonText: 'Batal'
+                }).then((result) => {
+                    if (result.isConfirmed) this.applyDraft(draft, draftIndex);
+                });
+            } else {
+                this.applyDraft(draft, draftIndex);
+            }
+        },
+        applyDraft(draft, index) {
+            this.cart = draft.cart;
+            this.selectedCustomerId = draft.selectedCustomerId;
+            this.activeTab = draft.activeTab;
+            this.poForm = draft.poForm;
+            this.regulerForm = draft.regulerForm;
+            this.orderNotes = draft.orderNotes;
+            
+            this.drafts.splice(index, 1);
+            localStorage.setItem('pos_drafts', JSON.stringify(this.drafts));
+            this.showDraftModal = false;
+            this.calculateTotal();
+            Swal.fire({ icon: 'success', title: 'Berhasil Dimuat', text: 'Draft keranjang berhasil dikembalikan.', timer: 1000, showConfirmButton: false });
+        },
+        deleteDraft(draftId) {
+            Swal.fire({
+                title: 'Hapus Draft?',
+                text: "Draft ini akan dihapus permanen.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                confirmButtonText: 'Ya, Hapus',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    this.drafts = this.drafts.filter(d => d.id !== draftId);
+                    localStorage.setItem('pos_drafts', JSON.stringify(this.drafts));
+                }
+            });
+        },
+        formatDraftTime(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' - ' + date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
         },
 
         resetCart() {
