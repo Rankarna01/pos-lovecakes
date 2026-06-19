@@ -211,6 +211,14 @@ if ($action === 'save_kas_keluar') {
 
 // --- FUNGSI CHECKOUT ---
 if ($action === 'checkout') {
+    // AUTO-MIGRATE KOLOM PAYMENT_REFERENCE
+    try {
+        $checkCol = $pdo->query("SHOW COLUMNS FROM sales_pos LIKE 'payment_reference'");
+        if ($checkCol->rowCount() === 0) {
+            $pdo->exec("ALTER TABLE sales_pos ADD COLUMN payment_reference VARCHAR(100) NULL DEFAULT NULL AFTER payment_fee_amount");
+        }
+    } catch (Exception $e) {}
+
     $data = json_decode(file_get_contents('php://input'), true);
     $pdo->beginTransaction();
     $invoice_no = 'INV-' . date('YmdHis') . '-' . rand(100,999);
@@ -224,12 +232,13 @@ if ($action === 'checkout') {
     
     $payment_fee_name = !empty($data['payment_fee_name']) ? $data['payment_fee_name'] : null;
     $payment_fee_amount = !empty($data['payment_fee_amount']) ? $data['payment_fee_amount'] : 0.00;
+    $payment_reference = !empty($data['payment_reference']) ? $data['payment_reference'] : null;
 
-    $stmt = $pdo->prepare("INSERT INTO sales_pos (invoice_no, customer_id, order_type, subtotal, discount_voucher, voucher_code, discount_points, discount_manual, points_used, points_earned, total_amount, payment_method, payment_fee_name, payment_fee_amount, payment_status, dp_amount, amount_paid, change_amount, is_po, channel, pickup_date, pickup_time, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt = $pdo->prepare("INSERT INTO sales_pos (invoice_no, customer_id, order_type, subtotal, discount_voucher, voucher_code, discount_points, discount_manual, points_used, points_earned, total_amount, payment_method, payment_fee_name, payment_fee_amount, payment_reference, payment_status, dp_amount, amount_paid, change_amount, is_po, channel, pickup_date, pickup_time, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     $stmt->execute([
         $invoice_no, $customer_id, 'offline', $data['subtotal'], $data['discount_voucher'], $data['voucher_code'], 
         $data['discount_points'], $data['discount_manual'], $data['points_used'], $data['points_earned'], 
-        $data['total_amount'], $data['payment_method'], $payment_fee_name, $payment_fee_amount, $data['payment_status'], $data['dp_amount'], $data['amount_paid'], $data['change_amount'], $is_po, $channel, $pickup_date, $pickup_time, $notes
+        $data['total_amount'], $data['payment_method'], $payment_fee_name, $payment_fee_amount, $payment_reference, $data['payment_status'], $data['dp_amount'], $data['amount_paid'], $data['change_amount'], $is_po, $channel, $pickup_date, $pickup_time, $notes
     ]);
     $sale_id = $pdo->lastInsertId();
 

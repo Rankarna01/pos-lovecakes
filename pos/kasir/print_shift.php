@@ -99,13 +99,14 @@ function fRp($val) {
     <style>
         @page { margin: 0; }
         body {
-            font-family: 'Courier New', Courier, monospace;
+            font-family: 'Arial', 'Helvetica', sans-serif;
             font-size: 12px;
             margin: 0;
             padding: 10px;
             width: 80mm;
             color: #000;
-            line-height: 1.2;
+            line-height: 1.4;
+            font-weight: bold;
         }
         .text-center { text-align: center; }
         .text-right { text-align: right; }

@@ -56,7 +56,7 @@ try {
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <style>
         @page { margin: 0; }
-        body { font-family: 'Courier New', Courier, monospace; width: 58mm; max-width: 58mm; margin: 0 auto; padding: 3mm 4mm; color: #000; background: #fff; font-size: 11px; line-height: 1.4; font-weight: bold; }
+        body { font-family: 'Arial', 'Helvetica', sans-serif; width: 58mm; max-width: 58mm; margin: 0 auto; padding: 3mm 4mm; color: #000; background: #fff; font-size: 11px; line-height: 1.4; font-weight: bold; }
         .text-center { text-align: center; }
         .text-right { text-align: right; }
         .text-bold { font-weight: bold; }
@@ -131,6 +131,9 @@ try {
         <?php if($sale['discount_manual'] > 0): ?><tr><td>Disc. Manual</td><td class="text-right">-<?= number_format($sale['discount_manual'], 0, ',', '.') ?></td></tr><?php endif; ?>
         <tr><td class="text-bold" style="font-size: 13px; padding-top: 5px;">TOTAL</td><td class="text-bold text-right" style="font-size: 13px; padding-top: 5px;"><?= number_format($sale['total_amount'], 0, ',', '.') ?></td></tr>
         <tr><td style="padding-top: 5px;">Dibayar (<?= strtoupper($sale['payment_method']) ?>)</td><td class="text-right" style="padding-top: 5px;"><?= number_format($sale['amount_paid'], 0, ',', '.') ?></td></tr>
+        <?php if(!empty($sale['payment_reference'])): ?>
+        <tr><td colspan="2" style="font-size: 9px;">Ref: <?= htmlspecialchars($sale['payment_reference']) ?></td></tr>
+        <?php endif; ?>
         <?php if($sale['payment_status'] === 'dp'): ?>
         <tr><td class="text-bold">SISA HUTANG</td><td class="text-bold text-right"><?= number_format($sale['total_amount'] - $sale['dp_amount'], 0, ',', '.') ?></td></tr>
         <?php endif; ?>

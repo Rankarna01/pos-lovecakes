@@ -407,7 +407,7 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                         <span class="font-black text-lg text-rose-500" x-text="'Rp ' + formatRupiah(totalAmount)"></span>
                     </div>
 
-                    <div x-show="paymentMethods.find(m => m.name === paymentMethod)?.type === 'Cash'" x-collapse>
+                    <div x-show="paymentMethod === 'Cash' && paymentStatus === 'lunas'" x-collapse>
                         <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 mt-3">Uang Diterima (Rp)</label>
                         <div class="relative">
                             <span class="absolute left-4 top-1/2 -translate-y-1/2 font-black text-slate-400">Rp</span>
@@ -421,6 +421,14 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                         <div class="flex justify-between items-center px-2 mt-3 pt-2 border-t border-slate-100 border-dashed" x-show="inputUang >= totalAmount">
                             <span class="text-xs font-bold text-slate-500">Kembalian:</span>
                             <span class="font-black text-xl text-emerald-500" x-text="'Rp ' + formatRupiah(inputUang - totalAmount)"></span>
+                        </div>
+                    </div>
+
+                    <div x-show="paymentMethod !== 'Cash' && paymentStatus === 'lunas'" x-collapse>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 mt-3">Ref. Pembayaran</label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-1/2 -translate-y-1/2 font-black text-slate-400"><i class="fa-solid fa-receipt"></i></span>
+                            <input type="text" x-model="paymentReference" placeholder="Masukkan nomor referensi..." class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-11 pr-4 py-3 text-left font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
                         </div>
                     </div>
                 </div>

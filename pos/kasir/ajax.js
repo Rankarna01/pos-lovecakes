@@ -102,7 +102,7 @@ document.addEventListener('alpine:init', () => {
         regulerForm: { pickup_date: '', pickup_time: '', is_delivery: false, ongkir: 0, channel: 'toko' },
         
         // --- STATE MODAL CHECKOUT MEWAH ---
-        showCheckoutModal: false, inputUang: '',
+        showCheckoutModal: false, inputUang: '', paymentReference: '',
         paymentMethod: 'Cash', paymentFeeName: '', paymentStatus: 'lunas', amountPaid: 0, dpAmount: 0, changeAmount: 0,
 
         // --- STATE MODAL ITEM CUSTOM & CATATAN ---
@@ -639,10 +639,14 @@ document.addEventListener('alpine:init', () => {
                 this.dpAmount = parseFloat(this.inputUang); this.amountPaid = this.dpAmount; this.changeAmount = 0; 
             } else {
                 this.dpAmount = 0;
-                if (selectedMethod && selectedMethod.type === 'Cash') {
+                if (this.paymentMethod === 'Cash') {
                     if (!this.inputUang || parseFloat(this.inputUang) < this.totalAmount) { Swal.fire('Perhatian', 'Uang diterima kurang dari total tagihan!', 'warning'); return; }
                     this.amountPaid = parseFloat(this.inputUang); this.changeAmount = this.amountPaid - this.totalAmount;
                 } else {
+                    if (!this.paymentReference || this.paymentReference.trim() === '') {
+                        Swal.fire('Perhatian', 'Ref. Pembayaran wajib diisi untuk metode non-tunai!', 'warning');
+                        return;
+                    }
                     this.amountPaid = this.totalAmount; this.changeAmount = 0;
                 }
             }
@@ -669,7 +673,7 @@ document.addEventListener('alpine:init', () => {
                 order_type: this.orderType, customer_id: this.selectedCustomerId, subtotal: this.subtotal,
                 discount_voucher: this.discountVoucher, voucher_code: this.appliedVoucher ? this.appliedVoucher.voucher_code : null,
                 discount_points: this.discountPoints, discount_manual: this.discountManual, points_used: this.usePoints ? this.loyaltyRules.points_required : 0, points_earned: this.pointsEarned, 
-                total_amount: this.totalAmount, payment_method: this.paymentMethod, payment_fee_name: this.paymentFeeName, payment_fee_amount: this.paymentFeeAmount, payment_status: this.paymentStatus,
+                total_amount: this.totalAmount, payment_method: this.paymentMethod, payment_fee_name: this.paymentFeeName, payment_fee_amount: this.paymentFeeAmount, payment_reference: this.paymentReference, payment_status: this.paymentStatus,
                 dp_amount: this.dpAmount, amount_paid: this.amountPaid, change_amount: this.changeAmount, items: this.cart
             };
             try {
