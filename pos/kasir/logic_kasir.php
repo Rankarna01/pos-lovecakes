@@ -306,10 +306,17 @@ if ($action === 'checkout') {
 
 // --- FUNGSI STATUS PO ---
 if ($action === 'get_active_orders') {
-    $stmt = $pdo->query("SELECT s.id, s.invoice_no, s.created_at, s.production_status, c.name as customer_name FROM sales_pos s LEFT JOIN customers_pos c ON s.customer_id = c.id WHERE s.is_po = 1 AND DATE(s.created_at) = CURDATE() ORDER BY s.created_at DESC");
+    $date_filter = $_GET['date'] ?? date('Y-m-d');
+    
+    // Filter by pickup_date, and only pending/diproses/selesai (as long as it's not taken)
+    $stmt = $pdo->prepare("SELECT s.id, s.invoice_no, s.created_at, s.production_status, s.channel, s.pickup_date, s.pickup_time, c.name as customer_name FROM sales_pos s LEFT JOIN customers_pos c ON s.customer_id = c.id WHERE s.is_po = 1 AND s.pickup_date = ? ORDER BY s.pickup_date ASC, s.pickup_time ASC");
+    $stmt->execute([$date_filter]);
     $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $data = [];
+    $today = date('Y-m-d');
+    $tomorrow = date('Y-m-d', strtotime('+1 day'));
+
     foreach ($orders as $order) {
         $stmtDetail = $pdo->prepare("SELECT p.name as product_name, sd.custom_name, sd.is_custom, sd.qty FROM sale_details_pos sd LEFT JOIN products p ON sd.product_id = p.id WHERE sd.sale_id = ?");
         $stmtDetail->execute([$order['id']]);
@@ -322,6 +329,16 @@ if ($action === 'get_active_orders') {
         }
         $order['items_list'] = implode(', ', $itemNames); 
         $order['time'] = date('H:i', strtotime($order['created_at']));
+        
+        // Tentukan alert_type
+        if ($order['pickup_date'] === $today) {
+            $order['alert_type'] = 'today';
+        } elseif ($order['pickup_date'] === $tomorrow) {
+            $order['alert_type'] = 'tomorrow';
+        } else {
+            $order['alert_type'] = '';
+        }
+        
         $data[] = $order;
     }
     echo json_encode(['status' => 'success', 'data' => $data]); exit;

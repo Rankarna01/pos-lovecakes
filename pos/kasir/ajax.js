@@ -71,6 +71,7 @@ const idbPos = {
 document.addEventListener('alpine:init', () => {
     Alpine.data('posApp', () => ({
         // --- DATA MASTER ---
+        statusFilterDate: new Date().toISOString().split('T')[0],
         products: [], 
         savedCustoms: [], // Menyimpan data template menu custom (tabel saved_custom_items_pos)
         customers: [], 
@@ -749,7 +750,7 @@ document.addEventListener('alpine:init', () => {
         async openStatusModal() {
             this.showStatusModal = true; this.isFetchingStatus = true;
             try {
-                const response = await fetch(`logic_kasir.php?action=get_active_orders&nocache=${Date.now()}`);
+                const response = await fetch(`logic_kasir.php?action=get_active_orders&date=${this.statusFilterDate}&nocache=${Date.now()}`);
                 const result = await response.json();
                 if(result.status === 'success') { this.activeOrders = result.data; }
             } catch(e) { console.error(e); } finally { this.isFetchingStatus = false; }

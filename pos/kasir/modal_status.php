@@ -7,7 +7,10 @@
                 <h3 class="font-black text-lg text-slate-800 flex items-center gap-2"><i class="fa-solid fa-fire-burner text-orange-500"></i> Pantau Pesanan Dapur & PO</h3>
                 <p class="text-xs font-bold text-slate-500 mt-1">Daftar pesanan dengan notifikasi otomatis untuk pengambilan terdekat.</p>
             </div>
-            <button @click="showStatusModal = false" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-200 hover:bg-rose-500 hover:text-white transition-colors shrink-0"><i class="fa-solid fa-xmark"></i></button>
+            <div class="flex items-center gap-3">
+                <input type="date" x-model="statusFilterDate" @change="openStatusModal()" class="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm">
+                <button @click="showStatusModal = false" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-200 hover:bg-rose-500 hover:text-white transition-colors shrink-0"><i class="fa-solid fa-xmark"></i></button>
+            </div>
         </div>
         
         <div class="p-4 overflow-y-auto custom-scrollbar flex-1 bg-slate-100/50">
