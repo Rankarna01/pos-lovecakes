@@ -169,11 +169,24 @@ try {
         document.addEventListener("DOMContentLoaded", function() {
             JsBarcode("#barcode", "<?= htmlspecialchars($invoice) ?>", { format: "CODE128", displayValue: true, fontSize: 12, height: 40, width: 1.2 });
             
-            // Cek apakah ada printer default yang tersimpan. Jika ada, otomatis jalankan Bluetooth Print!
-            const savedPrinter = localStorage.getItem('pos_printer_name');
-            if(savedPrinter && navigator.bluetooth) {
-                // Beri jeda sedikit agar DOM selesai load
-                setTimeout(() => { printBluetooth(true); }, 500);
+            const params = new URLSearchParams(window.location.search);
+            const isAutoBt = params.get('auto_print_bt');
+            const isAutoUsb = params.get('auto_print_usb');
+
+            // Cek Bluetooth Auto Print
+            if (isAutoBt) {
+                const savedPrinter = localStorage.getItem('pos_printer_name');
+                if(savedPrinter && navigator.bluetooth) {
+                    setTimeout(() => { printBluetooth(true); }, 500);
+                }
+            } 
+            // Cek USB Auto Print
+            else if (isAutoUsb) {
+                setTimeout(() => { 
+                    window.print(); 
+                    // Tutup window setelah dialog print OS selesai/ditutup
+                    window.onafterprint = function() { window.close(); };
+                }, 500);
             }
         });
 
@@ -238,13 +251,18 @@ try {
                 await characteristic.writeValue(encoder.encode(printText));
                 
                 btn.innerHTML = 'Berhasil Dicetak! ✅';
-                setTimeout(() => { btn.innerHTML = '📶 Print Bluetooth'; btn.disabled = false; }, 2000);
+                setTimeout(() => { 
+                    btn.innerHTML = '📶 Print Bluetooth'; 
+                    btn.disabled = false; 
+                    if (isAutoPrint) window.close();
+                }, 2000);
 
             } catch (error) {
                 console.error("Gagal Print:", error);
                 if (!isAutoPrint) alert('Gagal menghubungkan ke Printer Bluetooth. Pastikan printer menyala.');
                 btn.innerHTML = '📶 Print Bluetooth';
                 btn.disabled = false;
+                if (isAutoPrint) { setTimeout(() => window.close(), 1500); }
             }
         }
     </script>

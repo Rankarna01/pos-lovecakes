@@ -63,6 +63,18 @@ $page_title = "Pengaturan Printer - Love Cakes POS";
                             </template>
                         </div>
                         <p class="text-[10px] text-slate-400 mt-4 italic font-medium"><i class="fa-solid fa-circle-info text-blue-400 mr-1"></i> Gunakan Google Chrome versi terbaru agar fitur Bluetooth berfungsi maksimal.</p>
+                        
+                        <div class="mt-6 pt-5 border-t border-slate-100">
+                            <p class="text-[10px] font-black text-slate-400 mb-3 uppercase tracking-widest">Mode Cetak Otomatis (Saat Kasir Selesai):</p>
+                            <div class="flex items-center gap-3">
+                                <select x-model="autoPrintMode" @change="saveAutoPrint()" class="bg-slate-50 border border-slate-200 text-sm font-bold text-slate-700 rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-primary/20 flex-1">
+                                    <option value="manual">Manual (Pilih Sendiri)</option>
+                                    <option value="bluetooth">Otomatis - Bluetooth Thermal</option>
+                                    <option value="usb">Otomatis - USB/Printer Biasa</option>
+                                </select>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-2 font-medium">Jika diset Otomatis, struk akan langsung tercetak saat transaksi berhasil tanpa perlu klik tombol.</p>
+                        </div>
                     </div>
 
                     <div class="bg-white rounded-[1.5rem] shadow-sm border border-slate-200 p-6 opacity-60 grayscale-[30%]">

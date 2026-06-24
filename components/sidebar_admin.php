@@ -81,7 +81,28 @@ function isDropdownActive($paths, $current_uri) {
         <!-- MENU TRANSAKSI & EWALLET DI-HIDE SESUAI PERMINTAAN CLIENT -->
 
         <?php 
-            $paths = ['/pos/laporan/ringkasan/', '/pos/laporan/penjualan_shift/', '/pos/laporan/produk_kategori/', '/pos/laporan/pelanggan/', '/pos/laporan/pencairan/', '/pos/laporan/akuntansi/', '/pos/laporan/pihak_ketiga/', '/pos/laporan/penjualan/', '/pos/laporan/opname/']; 
+            // MENU BARU: LAPORAN PENJUALAN & SHIFT
+            $paths_shift = ['/pos/laporan/penjualan_shift/ringkasan_omset/', '/pos/laporan/penjualan_shift/analisis_produk/', '/pos/laporan/penjualan_shift/riwayat_transaksi/', '/pos/laporan/penjualan_shift/evaluasi_kasir/'];
+            $isActiveShift = isDropdownActive($paths_shift, $current_uri);
+        ?>
+        <div class="mb-1">
+            <button onclick="toggleSubmenu('sub-penjualan-shift', 'icon-penjualan-shift')" class="w-full flex items-center justify-between px-4 py-2.5 rounded-xl transition-all <?= $isActiveShift ? 'bg-blue-50 text-blue-600 font-bold shadow-sm ring-1 ring-blue-100/50' : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600 font-medium' ?>">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-receipt w-5 text-center text-lg shrink-0"></i>
+                    <span class="text-sm whitespace-nowrap">Penjualan & Shift</span>
+                </div>
+                <i id="icon-penjualan-shift" class="fa-solid fa-chevron-<?= $isActiveShift ? 'down' : 'right' ?> text-[10px] transition-transform duration-200"></i>
+            </button>
+            <div id="sub-penjualan-shift" class="<?= $isActiveShift ? 'flex' : 'hidden' ?> flex-col gap-1 mt-1 pl-11 pr-2">
+                <a href="<?= BASE_URL ?>pos/laporan/penjualan_shift/ringkasan_omset/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/laporan/penjualan_shift/ringkasan_omset/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Ringkasan Omset</a>
+                <a href="<?= BASE_URL ?>pos/laporan/penjualan_shift/analisis_produk/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/laporan/penjualan_shift/analisis_produk/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Analisis Produk</a>
+                <a href="<?= BASE_URL ?>pos/laporan/penjualan_shift/riwayat_transaksi/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/laporan/penjualan_shift/riwayat_transaksi/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Riwayat Transaksi</a>
+                <a href="<?= BASE_URL ?>pos/laporan/penjualan_shift/evaluasi_kasir/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/laporan/penjualan_shift/evaluasi_kasir/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Evaluasi Kasir</a>
+            </div>
+        </div>
+
+        <?php 
+            $paths = ['/pos/laporan/ringkasan/', '/pos/laporan/produk_kategori/', '/pos/laporan/pelanggan/', '/pos/laporan/pencairan/', '/pos/laporan/akuntansi/', '/pos/laporan/pihak_ketiga/', '/pos/laporan/penjualan/', '/pos/laporan/opname/']; 
             $isActive = isDropdownActive($paths, $current_uri);
         ?>
         <div class="mb-1">
@@ -94,7 +115,6 @@ function isDropdownActive($paths, $current_uri) {
             </button>
             <div id="sub-laporan" class="<?= $isActive ? 'flex' : 'hidden' ?> flex-col gap-1 mt-1 pl-11 pr-2">
                 <a href="<?= BASE_URL ?>pos/laporan/ringkasan/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/laporan/ringkasan/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Ringkasan & Jam Ramai</a>
-                <a href="<?= BASE_URL ?>pos/laporan/penjualan_shift/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/laporan/penjualan_shift/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Penjualan & Shift</a>
                 <a href="<?= BASE_URL ?>pos/laporan/produk_kategori/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/laporan/produk_kategori/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Analisa Produk Laku</a>
                 <a href="<?= BASE_URL ?>pos/laporan/pelanggan/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/laporan/pelanggan/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Riwayat Pelanggan</a>
                 <a href="<?= BASE_URL ?>pos/laporan/penjualan/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/laporan/penjualan/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Penjualan</a>

@@ -690,6 +690,9 @@ document.addEventListener('alpine:init', () => {
                     this.lastInvoice = result.invoice; this.totalAmountSaved = this.totalAmount; this.paymentStatusSaved = this.paymentStatus;
                     this.dpAmountSaved = this.dpAmount; this.amountPaidSaved = this.amountPaid; this.changeAmountSaved = this.changeAmount; this.paymentMethodSaved = this.paymentMethod;
                     this.showSuccessModal = true;
+                    const autoMode = localStorage.getItem('pos_auto_print_mode');
+                    if (autoMode === 'bluetooth') { this.printReceipt(true, 'bluetooth'); }
+                    else if (autoMode === 'usb') { this.printReceipt(true, 'usb'); }
                 } else { window.alert(result.message); }
             } catch (e) {
                 // Mode Offline: Simpan ke IndexedDB
@@ -698,6 +701,9 @@ document.addEventListener('alpine:init', () => {
                 this.lastInvoice = offlineId; this.totalAmountSaved = this.totalAmount; this.paymentStatusSaved = this.paymentStatus;
                 this.dpAmountSaved = this.dpAmount; this.amountPaidSaved = this.amountPaid; this.changeAmountSaved = this.changeAmount; this.paymentMethodSaved = this.paymentMethod;
                 this.showSuccessModal = true;
+                const autoMode = localStorage.getItem('pos_auto_print_mode');
+                if (autoMode === 'bluetooth') { this.printReceipt(true, 'bluetooth'); }
+                else if (autoMode === 'usb') { this.printReceipt(true, 'usb'); }
                 await this.updatePendingCount();
             } finally { this.isLoading = false; }
         },
@@ -735,8 +741,11 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
-        printReceipt() {
-            if(this.lastInvoice) window.open(`print_receipt.php?invoice=${this.lastInvoice}`, '_blank', 'width=400,height=600');
+        printReceipt(isAuto = false, mode = '') {
+            let url = `print_receipt.php?invoice=${this.lastInvoice}`;
+            if (isAuto && mode === 'bluetooth') url += `&auto_print_bt=1`;
+            if (isAuto && mode === 'usb') url += `&auto_print_usb=1`;
+            if(this.lastInvoice) window.open(url, '_blank', 'width=400,height=600');
             this.resetCart();
         },
 

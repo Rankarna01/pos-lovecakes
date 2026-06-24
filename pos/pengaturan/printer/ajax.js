@@ -3,6 +3,7 @@ document.addEventListener('alpine:init', () => {
     Alpine.data('printerApp', () => ({
         printerName: 'Belum ada printer terhubung',
         isConnected: false,
+        autoPrintMode: 'manual',
 
         init() {
             // Cek apakah sebelumnya sudah ada printer yang disimpan
@@ -11,6 +12,18 @@ document.addEventListener('alpine:init', () => {
                 this.printerName = savedPrinter;
                 this.isConnected = true;
             }
+            // Load setting auto print
+            const savedMode = localStorage.getItem('pos_auto_print_mode');
+            if (savedMode) this.autoPrintMode = savedMode;
+        },
+
+        saveAutoPrint() {
+            localStorage.setItem('pos_auto_print_mode', this.autoPrintMode);
+            Swal.fire({
+                toast: true, position: 'top-end', icon: 'success',
+                title: 'Pengaturan Disimpan!',
+                showConfirmButton: false, timer: 1500
+            });
         },
 
         async hubungkanPrinter() {

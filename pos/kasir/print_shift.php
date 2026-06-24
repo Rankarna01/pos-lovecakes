@@ -123,7 +123,7 @@ function fRp($val) {
         }
     </style>
 </head>
-<body onload="window.print();">
+<body onload="window.print(); setTimeout(function(){ window.close(); }, 1500);">
 
     <div class="text-center" style="margin-bottom: 10px;">
         <div class="font-bold uppercase"><?= $store_name ?></div>
@@ -189,14 +189,101 @@ function fRp($val) {
     <div class="flex"><span>Total Aktual</span><span><?= $shift['end_time'] ? fRp($grand_total_aktual) : '-' ?></span></div>
     <div class="flex font-bold" style="margin-bottom: 20px;"><span>Total Selisih</span><span><?= fRp($selisih) ?></span></div>
 
-    <div class="flex" style="margin-top: 30px;">
-        <div class="text-center" style="width: 45%;">
-            <div style="border-bottom: 1px solid #000; height: 50px;"></div>
-        </div>
-        <div class="text-center" style="width: 45%;">
-            <div style="border-bottom: 1px solid #000; height: 50px;"></div>
-        </div>
+    <div class="text-center no-print" style="margin-top: 20px;">
+        <button onclick="printBluetooth()" class="btn btn-bt" id="btn-bt" style="padding:10px; background:#3b82f6; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">📶 Print Bluetooth</button>
     </div>
 
+    <script>
+        const shiftData = {
+            storeName: <?= json_encode($store_name) ?>,
+            cashier: <?= json_encode($shift['cashier_name']) ?>,
+            printed: <?= json_encode(date('d M Y H:i')) ?>,
+            start: <?= json_encode(date('d M Y H:i', strtotime($shift['start_time']))) ?>,
+            end: <?= json_encode($shift['end_time'] ? date('d M Y H:i', strtotime($shift['end_time'])) : '-') ?>,
+            tamu: <?= json_encode($total_tamu) ?>,
+            
+            tunai_diharapkan: "<?= fRp($expected_cash) ?>",
+            awal_laci: "<?= fRp($awal_laci) ?>",
+            penjualan_tunai: "<?= fRp($total_penjualan_tunai) ?>",
+            kredit_tunai: "<?= fRp($total_pembayaran_kredit_tunai) ?>",
+            kas_masuk_keluar: "<?= fRp($kas_masuk - $kas_keluar) ?>",
+            kas_aktual: "<?= $shift['end_time'] ? fRp($shift['end_cash']) : '-' ?>",
+            kas_selisih: "<?= fRp($selisih) ?>",
+            
+            total_diharapkan: "<?= fRp($grand_total_diharapkan) ?>",
+            total_aktual: "<?= $shift['end_time'] ? fRp($grand_total_aktual) : '-' ?>",
+            total_selisih: "<?= fRp($selisih) ?>"
+        };
+
+        document.addEventListener("DOMContentLoaded", function() {
+            const savedPrinter = localStorage.getItem('pos_printer_name');
+            if(savedPrinter && navigator.bluetooth) {
+                setTimeout(() => { printBluetooth(true); }, 500);
+            }
+        });
+
+        async function printBluetooth(isAutoPrint = false) {
+            const btn = document.getElementById('btn-bt');
+            const savedPrinter = localStorage.getItem('pos_printer_name');
+            let device;
+
+            btn.innerHTML = 'Menghubungkan...';
+            btn.disabled = true;
+
+            try {
+                if (savedPrinter && navigator.bluetooth.getDevices) {
+                    const devices = await navigator.bluetooth.getDevices();
+                    device = devices.find(d => d.name === savedPrinter);
+                }
+                if (!device) {
+                    if (isAutoPrint) { btn.innerHTML = '📶 Print Bluetooth'; btn.disabled = false; return; }
+                    device = await navigator.bluetooth.requestDevice({
+                        filters: [{ services: ['000018f0-0000-1000-8000-00805f9b34fb'] }],
+                        optionalServices: ['e7810a71-73ae-499d-8c15-faa9aef0c3f2'] 
+                    });
+                    localStorage.setItem('pos_printer_name', device.name);
+                }
+
+                const server = await device.gatt.connect();
+                const service = await server.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb');
+                const characteristic = await service.getCharacteristic('00002af1-0000-1000-8000-00805f9b34fb');
+
+                const encoder = new TextEncoder();
+                let printText = "\x1B\x61\x01\x1B\x45\x01" + shiftData.storeName + "\nPenutupan Penjualan\x1B\x45\x00\x1B\x61\x00\n";
+                printText += "--------------------------------\n";
+                printText += "Dicetak : " + shiftData.printed + "\n";
+                printText += "Kasir   : " + shiftData.cashier + "\n";
+                printText += "Buka    : " + shiftData.start + "\n";
+                printText += "Tutup   : " + shiftData.end + "\n";
+                printText += "Tamu    : " + shiftData.tamu + "\n";
+                printText += "--------------------------------\n";
+                printText += "TUNAI\n";
+                printText += "Diharapkan     : Rp " + shiftData.tunai_diharapkan + "\n";
+                printText += "Awal Laci      : Rp " + shiftData.awal_laci + "\n";
+                printText += "Penjualan      : Rp " + shiftData.penjualan_tunai + "\n";
+                printText += "P. Kredit      : Rp " + shiftData.kredit_tunai + "\n";
+                printText += "Kas In-Out     : Rp " + shiftData.kas_masuk_keluar + "\n";
+                printText += "Kas Aktual     : Rp " + shiftData.kas_aktual + "\n";
+                printText += "Selisih        : Rp " + shiftData.kas_selisih + "\n";
+                printText += "--------------------------------\n";
+                printText += "TOTAL DIHARAPKAN : Rp " + shiftData.total_diharapkan + "\n";
+                printText += "TOTAL AKTUAL     : Rp " + shiftData.total_aktual + "\n";
+                printText += "TOTAL SELISIH    : Rp " + shiftData.total_selisih + "\n";
+                printText += "--------------------------------\n";
+                printText += "\n\n\n\n"; 
+
+                await characteristic.writeValue(encoder.encode(printText));
+                
+                btn.innerHTML = 'Berhasil ✅';
+                setTimeout(() => { btn.innerHTML = '📶 Print Bluetooth'; btn.disabled = false; if(isAutoPrint) window.close(); }, 2000);
+
+            } catch (error) {
+                console.error("Gagal Print:", error);
+                btn.innerHTML = '📶 Print Bluetooth';
+                btn.disabled = false;
+                if(isAutoPrint) { setTimeout(() => window.close(), 1500); }
+            }
+        }
+    </script>
 </body>
 </html>
