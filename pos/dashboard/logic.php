@@ -16,10 +16,10 @@ if ($action === 'get_dashboard_data') {
         // 🚨 PENGATURAN NAMA TABEL & KOLOM DATABASE
         // Sesuaikan dengan yang ada di phpMyAdmin kamu!
         // =========================================================================
-        $tabel_transaksi = 'penjualan';      // Nama tabel penjualan/transaksi
+        $tabel_transaksi = 'sales_pos';      // Nama tabel penjualan/transaksi
         $kolom_tanggal   = 'created_at';     // Kolom tanggal transaksi
-        $kolom_total     = 'total_bayar';    // Kolom total uang yang dibayar pelanggan
-        $kolom_laba      = 'laba';           // Kolom laba (opsional, set sama dgn total jika belum ada)
+        $kolom_total     = 'total_amount';    // Kolom total uang yang dibayar pelanggan
+        $kolom_laba      = 'total_amount';           // Kolom laba (opsional, set sama dgn total jika belum ada)
         
         $tabel_pelanggan = 'customers_pos';  // (Sesuai screenshotmu)
         // =========================================================================
@@ -105,11 +105,30 @@ if ($action === 'get_dashboard_data') {
             'values' => $chart_values
         ];
 
+        // 5. CHART METODE PEMBAYARAN
+        $stmt_pay = $pdo->query("SELECT payment_method, COUNT(*) as total, SUM(total_amount) as nominal FROM sales_pos WHERE MONTH(created_at) = MONTH(CURRENT_DATE()) AND YEAR(created_at) = YEAR(CURRENT_DATE()) GROUP BY payment_method");
+        $pay_labels = [];
+        $pay_values = [];
+        while($r = $stmt_pay->fetch(PDO::FETCH_ASSOC)) {
+            $pay_labels[] = strtoupper($r['payment_method'] ?: 'CASH');
+            $pay_values[] = $r['nominal'];
+        }
+        $chart_pay = [
+            'labels' => $pay_labels,
+            'values' => $pay_values
+        ];
+
+        // 6. RIWAYAT TRANSAKSI TERAKHIR
+        $stmt_recent = $pdo->query("SELECT s.*, COALESCE(c.name, 'Pelanggan Umum') as customer_name FROM sales_pos s LEFT JOIN customers_pos c ON s.customer_id = c.id ORDER BY s.created_at DESC LIMIT 15");
+        $recent_sales = $stmt_recent->fetchAll(PDO::FETCH_ASSOC);
+
         // Output JSON untuk ditangkap oleh Alpine/Ajax
         echo json_encode([
             'status' => 'success',
             'summary' => $summary,
-            'chart' => $chart_data
+            'chart' => $chart_data,
+            'chart_pay' => $chart_pay,
+            'recent_sales' => $recent_sales
         ]);
 
     } catch (PDOException $e) {

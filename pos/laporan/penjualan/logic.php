@@ -6,8 +6,8 @@ header('Content-Type: application/json');
 $action = $_REQUEST['action'] ?? '';
 
 if ($action === 'get_sales') {
-    $start_date = $_GET['start_date'] ?? date('Y-m-d');
-    $end_date = $_GET['end_date'] ?? date('Y-m-d');
+    $start_date = $_REQUEST['start_date'] ?? date('Y-m-d');
+    $end_date = $_REQUEST['end_date'] ?? date('Y-m-d');
     $role = $_SESSION['pos_role'] ?? 'kasir';
     
     try {
@@ -97,7 +97,6 @@ if ($action === 'get_sales') {
             WHERE DATE(s.created_at) BETWEEN ? AND ?
             GROUP BY COALESCE(p.name, sd.custom_name)
             ORDER BY total_amount DESC
-            LIMIT 50
         ");
         $stmt_item->execute([$start_date, $end_date]);
         $sales_by_item = $stmt_item->fetchAll(PDO::FETCH_ASSOC);
@@ -110,7 +109,6 @@ if ($action === 'get_sales') {
             WHERE DATE(s.created_at) BETWEEN ? AND ?
             GROUP BY s.customer_id
             ORDER BY total_spent DESC
-            LIMIT 50
         ");
         $stmt_cust->execute([$start_date, $end_date]);
         $sales_by_customer = $stmt_cust->fetchAll(PDO::FETCH_ASSOC);
@@ -133,7 +131,7 @@ if ($action === 'get_sales') {
 }
 
 if ($action === 'get_detail') {
-    $sale_id = $_GET['id'] ?? 0;
+    $sale_id = $_REQUEST['id'] ?? $_REQUEST['sale_id'] ?? 0;
     try {
         $stmt = $pdo->prepare("
             SELECT sd.*, COALESCE(p.name, sd.custom_name) as product_name, p.image

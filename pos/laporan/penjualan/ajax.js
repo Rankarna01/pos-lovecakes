@@ -8,6 +8,7 @@ document.addEventListener('alpine:init', () => {
             start_date: new Date().toISOString().split('T')[0],
             end_date: new Date().toISOString().split('T')[0]
         },
+        activeTab: 'ringkasan',
         sales: [],
         showModal: false,
         activeSale: null,
@@ -21,6 +22,13 @@ document.addEventListener('alpine:init', () => {
         salesByItem: [],
         salesByCustomer: [],
 
+        // Pagination variables
+        catPage: 1,
+        itemPage: 1,
+        custPage: 1,
+        salePage: 1,
+        perPage: 10,
+
         async init() {
             // 🛡️ 1. SMART GUARD ANTI-MEMBAL
             if (window.dbAuth) {
@@ -28,41 +36,59 @@ document.addEventListener('alpine:init', () => {
                 // HANYA tendang ke auth/index.php JIKA internet offline DAN sesi lokal hilang.
                 if (!user && !navigator.onLine) { 
                     window.location.href = '../../../auth/index.php'; 
-                    return; 
+                    return;
                 }
             }
 
-            // 🎯 2. WATCHER TANGGAL (Agar filter tanggal berfungsi!)
-            this.$watch('filters.start_date', () => { this.fetchData(false); });
-            this.$watch('filters.end_date', () => { this.fetchData(false); });
-
-            await this.fetchData(false);
+            this.checkRestriction();
+            this.$watch('filters.start_date', () => { this.fetchSales(); });
+            this.$watch('filters.end_date', () => { this.fetchSales(); });
+            this.$watch('searchQuery', () => { this.salePage = 1; });
+            this.fetchSales();
         },
 
-        async fetchData(isManual = true) {
-            // 🛡️ 3. CEGAT JIKA OFFLINE
-            if (!navigator.onLine) {
-                this.isLoading = false;
-                this.isSyncing = false;
-                if (typeof Swal !== 'undefined') Swal.fire('Offline', 'Halaman ini membutuhkan koneksi internet!', 'warning');
-                return;
+        checkRestriction() {
+            const role = localStorage.getItem('pos_role');
+            if (role === 'kasir') {
+                this.isRestricted = true;
+                const today = new Date().toISOString().split('T')[0];
+                this.filters.start_date = today;
+                this.filters.end_date = today;
             }
+        },
 
-            if (isManual) this.isSyncing = true;
-            else this.isLoading = true;
-
+        async syncNow() {
+            if (this.isSyncing) return;
+            this.isSyncing = true;
             try {
-                const params = new URLSearchParams(this.filters);
-                params.append('action', 'get_sales');
-                params.append('nocache', Date.now());
+                if (window.syncSalesToServer) {
+                    await window.syncSalesToServer();
+                }
+                await this.fetchSales();
+            } catch (error) {
+                console.error("Gagal sinkronisasi:", error);
+            } finally {
+                this.isSyncing = false;
+            }
+        },
 
-                const response = await fetch(`logic.php?${params.toString()}`);
+        async fetchSales() {
+            this.isLoading = true;
+            try {
+                const formData = new FormData();
+                formData.append('action', 'get_sales');
+                formData.append('start_date', this.filters.start_date);
+                formData.append('end_date', this.filters.end_date);
+
+                const response = await fetch('logic.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                
                 const result = await response.json();
-
                 if (result.status === 'success') {
                     this.sales = result.data || [];
                     this.isRestricted = result.restricted || false;
-                    
                     this.paymentData = result.payments || { cash: 0, qris: 0, total: 0 };
                     this.paymentBreakdown = result.payment_breakdown || [];
                     this.dpPelunasan = result.dp_pelunasan || [];
@@ -70,45 +96,86 @@ document.addEventListener('alpine:init', () => {
                     this.salesByItem = result.sales_by_item || [];
                     this.salesByCustomer = result.sales_by_customer || [];
 
-                    if (isManual) {
-                        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Data riwayat sinkron!', showConfirmButton: false, timer: 1500 });
-                    }
+                    this.catPage = 1;
+                    this.itemPage = 1;
+                    this.custPage = 1;
+                    this.salePage = 1;
                 }
-            } catch (e) {
-                Swal.fire('Error', 'Gagal memuat data.', 'error');
+            } catch (error) {
+                console.error('Error fetching sales report:', error);
             } finally {
                 this.isLoading = false;
-                this.isSyncing = false;
             }
         },
 
         get filteredSales() {
-            if (this.searchQuery.trim() === '') return this.sales;
-            const q = this.searchQuery.toLowerCase();
-            return this.sales.filter(s => s.invoice_no.toLowerCase().includes(q) || (s.customer_name && s.customer_name.toLowerCase().includes(q)));
+            if (!this.searchQuery) return this.sales;
+            const query = this.searchQuery.toLowerCase();
+            return this.sales.filter(s => 
+                s.invoice_no.toLowerCase().includes(query) ||
+                (s.customer_name && s.customer_name.toLowerCase().includes(query))
+            );
+        },
+
+        // Pagination computed properties
+        get paginatedCategories() {
+            const start = (this.catPage - 1) * this.perPage;
+            return this.salesByCategory.slice(start, start + this.perPage);
+        },
+        get totalCatPages() {
+            return Math.ceil(this.salesByCategory.length / this.perPage) || 1;
+        },
+
+        get paginatedItems() {
+            const start = (this.itemPage - 1) * this.perPage;
+            return this.salesByItem.slice(start, start + this.perPage);
+        },
+        get totalItemPages() {
+            return Math.ceil(this.salesByItem.length / this.perPage) || 1;
+        },
+
+        get paginatedCustomers() {
+            const start = (this.custPage - 1) * this.perPage;
+            return this.salesByCustomer.slice(start, start + this.perPage);
+        },
+        get totalCustPages() {
+            return Math.ceil(this.salesByCustomer.length / this.perPage) || 1;
+        },
+
+        get paginatedSales() {
+            const start = (this.salePage - 1) * this.perPage;
+            return this.filteredSales.slice(start, start + this.perPage);
+        },
+        get totalSalePages() {
+            return Math.ceil(this.filteredSales.length / this.perPage) || 1;
         },
 
         async openDetail(sale) {
-            // 🛡️ 4. CEGAT JIKA OFFLINE
-            if (!navigator.onLine) {
-                if (typeof Swal !== 'undefined') Swal.fire('Offline', 'Tidak bisa melihat detail saat offline.', 'warning');
-                return;
-            }
-
             this.activeSale = sale;
             this.activeDetails = [];
             this.showModal = true;
+
             try {
-                const response = await fetch(`logic.php?action=get_detail&id=${sale.id}`);
+                const formData = new FormData();
+                formData.append('action', 'get_detail');
+                formData.append('id', sale.id);
+
+                const response = await fetch('logic.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                
                 const result = await response.json();
-                if (result.status === 'success') this.activeDetails = result.data;
-            } catch (e) { 
-                console.error(e); 
+                if (result.status === 'success') {
+                    this.activeDetails = result.data || [];
+                }
+            } catch (error) {
+                console.error('Error fetching sale details:', error);
             }
         },
 
-        printReceipt(invoice) {
-            window.open(`../../kasir/print_receipt.php?invoice=${invoice}`, '_blank', 'width=400,height=600');
+        printReceipt(invoiceNo) {
+            window.open(`../../kasir/print_receipt.php?invoice=${invoiceNo}`, '_blank', 'width=400,height=600');
         },
 
         formatDate(dateString) {
@@ -119,6 +186,66 @@ document.addEventListener('alpine:init', () => {
 
         formatRupiah(angka) {
             return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(parseFloat(angka) || 0);
+        },
+
+        printPDF(type, title) {
+            let headers = [];
+            let rows = [];
+            
+            if (type === 'metode_pembayaran') {
+                headers = ['Metode Pembayaran', 'Total Pendapatan'];
+                rows = this.paymentBreakdown.map(p => [p.payment_method, 'Rp ' + this.formatRupiah(p.total_amount)]);
+            } else if (type === 'dp_pelunasan') {
+                headers = ['Jenis Pembayaran', 'Jumlah Transaksi', 'Total Pendapatan'];
+                rows = this.dpPelunasan.map(p => [p.payment_type, p.total_transactions + ' trx', 'Rp ' + this.formatRupiah(p.total_amount)]);
+            } else if (type === 'kategori') {
+                headers = ['Kategori', 'Item Terjual', 'Total Pendapatan'];
+                rows = this.salesByCategory.map(c => [c.category_name, c.total_qty + ' items', 'Rp ' + this.formatRupiah(c.total_amount)]);
+            } else if (type === 'barang') {
+                headers = ['Peringkat', 'Nama Barang', 'Terjual (Pcs)', 'Total Pendapatan'];
+                rows = this.salesByItem.map((i, idx) => [idx + 1, i.item_name, i.total_qty + ' pcs', 'Rp ' + this.formatRupiah(i.total_amount)]);
+            } else if (type === 'pelanggan') {
+                headers = ['Nama Pelanggan', 'Jumlah Transaksi', 'Total Belanja'];
+                rows = this.salesByCustomer.map(c => [c.customer_name, c.total_transactions + ' trx', 'Rp ' + this.formatRupiah(c.total_spent)]);
+            } else if (type === 'rincian') {
+                headers = ['Invoice', 'Waktu', 'Pelanggan', 'Status', 'Metode', 'Total Bayar'];
+                rows = this.filteredSales.map(s => [s.invoice_no, this.formatDate(s.created_at), s.customer_name || 'Pelanggan Umum', s.payment_status, s.payment_method, 'Rp ' + this.formatRupiah(s.total_amount)]);
+            }
+
+            let html = `
+            <html>
+            <head>
+                <title>${title} - Love Cakes POS</title>
+                <style>
+                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 25px; color: #333; }
+                    h2 { color: #2563eb; margin-bottom: 5px; font-size: 20px; }
+                    p { color: #666; font-size: 13px; margin-top: 0; margin-bottom: 20px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                    th, td { border: 1px solid #e2e8f0; padding: 10px 14px; text-align: left; font-size: 13px; }
+                    th { background-color: #f8fafc; color: #334155; font-weight: bold; text-transform: uppercase; font-size: 11px; }
+                    tr:nth-child(even) { background-color: #f8fafc; }
+                    .footer { margin-top: 30px; font-size: 11px; color: #94a3b8; text-align: right; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+                </style>
+            </head>
+            <body>
+                <h2>${title}</h2>
+                <p>Periode Filter: ${this.filters.start_date} s/d ${this.filters.end_date}</p>
+                <table>
+                    <thead>
+                        <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+                    </thead>
+                    <tbody>
+                        ${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}
+                    </tbody>
+                </table>
+                <div class="footer">Dicetak otomatis dari Love Cakes POS pada ${new Date().toLocaleString('id-ID')}</div>
+                <script>window.onload = function() { window.print(); }</script>
+            </body>
+            </html>`;
+            
+            let win = window.open('', '_blank', 'width=900,height=700');
+            win.document.write(html);
+            win.document.close();
         },
 
         exportCSV(type) {

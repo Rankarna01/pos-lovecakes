@@ -4,6 +4,8 @@ function dashboardApp() {
         showInstallBtn: false,
         deferredPrompt: null,
         chartInstance: null,
+        payChartInstance: null,
+        recentSales: [],
 
         // Wadah Data Default
         summary: {
@@ -21,7 +23,9 @@ function dashboardApp() {
                 e.preventDefault();
                 this.deferredPrompt = e;
                 this.showInstallBtn = true;
-                this.$el.querySelector('button[x-show="showInstallBtn"]').style.display = 'flex';
+                if(this.$el.querySelector('button[x-show="showInstallBtn"]')) {
+                    this.$el.querySelector('button[x-show="showInstallBtn"]').style.display = 'flex';
+                }
             });
 
             // Panggil Data dari Database
@@ -43,7 +47,9 @@ function dashboardApp() {
 
                 if (result.status === 'success') {
                     this.summary = result.summary;
+                    this.recentSales = result.recent_sales || [];
                     this.renderChart(result.chart);
+                    if(result.chart_pay) this.renderPayChart(result.chart_pay);
                 } else {
                     console.error("Gagal memuat data:", result.message);
                 }
@@ -52,6 +58,14 @@ function dashboardApp() {
             } finally {
                 this.isLoading = false;
             }
+        },
+
+        printReceipt(invoice) {
+            window.open(`../kasir/print_receipt.php?invoice=${invoice}`, '_blank', 'width=400,height=600');
+        },
+
+        printInvoice(invoice) {
+            window.open(`../laporan/penjualan_shift/riwayat_transaksi/print_pdf.php?invoice=${invoice}`, '_blank');
         },
 
         renderChart(chartData) {
@@ -116,6 +130,41 @@ function dashboardApp() {
                             beginAtZero: true
                         }
                     }
+            });
+        },
+
+        renderPayChart(payData) {
+            const el = document.getElementById('payChart');
+            if (!el) return;
+            const ctx = el.getContext('2d');
+            if (this.payChartInstance) {
+                this.payChartInstance.destroy();
+            }
+            this.payChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: payData.labels.length ? payData.labels : ['Belum Ada'],
+                    datasets: [{
+                        data: payData.values.length ? payData.values : [1],
+                        backgroundColor: ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { font: { family: 'Poppins', size: 11, weight: 'bold' } } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ' ' + context.label + ': IDR ' + (context.parsed || 0).toLocaleString('id-ID');
+                                }
+                            }
+                        }
+                    },
+                    cutout: '70%'
                 }
             });
         },

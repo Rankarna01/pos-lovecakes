@@ -43,7 +43,7 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                         <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
                         <input type="text" x-model="searchQuery" placeholder="Cari No. Invoice / Pelanggan..." class="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 font-bold text-sm">
                     </div>
-                    <button @click="fetchData()" class="w-full md:w-auto bg-primary text-white px-6 py-2.5 rounded-xl text-sm font-black transition-all">Filter</button>
+                    <button @click="fetchSales()" class="w-full md:w-auto bg-primary text-white px-6 py-2.5 rounded-xl text-sm font-black transition-all">Filter</button>
                 </div>
 
                 <div x-show="isRestricted" class="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center gap-3 text-amber-700">
@@ -57,204 +57,292 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                 </div>
 
                 <div x-show="!isLoading" class="space-y-6">
-                    <!-- SUMMARY OMSET -->
-                    <div class="bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-200 flex flex-col sm:flex-row gap-6 items-center">
-                        <div class="flex-1 w-full">
-                            <h3 class="font-black text-slate-400 uppercase text-[10px] tracking-widest mb-2"><i class="fa-solid fa-chart-pie mr-1"></i> Komposisi Omset Sistem</h3>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div class="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
-                                    <p class="text-xs font-bold text-emerald-600 mb-1">Cash / Tunai</p>
-                                    <p class="text-xl font-black text-emerald-700" x-text="'Rp ' + formatRupiah(paymentData.cash)"></p>
-                                </div>
-                                <div class="p-4 bg-blue-50 rounded-xl border border-blue-100">
-                                    <p class="text-xs font-bold text-blue-600 mb-1">QRIS & Transfer</p>
-                                    <p class="text-xl font-black text-blue-700" x-text="'Rp ' + formatRupiah(paymentData.qris)"></p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="w-full sm:w-1/3 p-5 bg-slate-800 rounded-[1.5rem] text-white shadow-lg text-center flex flex-col justify-center">
-                            <span class="font-black uppercase tracking-widest text-[10px] opacity-80 mb-1">Total Omset</span>
-                            <span class="font-black text-3xl text-emerald-400" x-text="'Rp ' + formatRupiah(paymentData.total)"></span>
-                        </div>
+                    <!-- TAB NAVIGATION -->
+                    <div class="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-2">
+                        <button @click="activeTab = 'ringkasan'" :class="activeTab === 'ringkasan' ? 'bg-primary text-white shadow-md shadow-primary/20' : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'" class="px-5 py-3 rounded-xl font-black text-xs flex items-center gap-2 transition-all whitespace-nowrap">
+                            <i class="fa-solid fa-chart-pie"></i> Ringkasan & Pembayaran
+                        </button>
+                        <button @click="activeTab = 'produk'" :class="activeTab === 'produk' ? 'bg-primary text-white shadow-md shadow-primary/20' : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'" class="px-5 py-3 rounded-xl font-black text-xs flex items-center gap-2 transition-all whitespace-nowrap">
+                            <i class="fa-solid fa-cake-candles"></i> Kategori & Barang Terlaris
+                        </button>
+                        <button @click="activeTab = 'pelanggan'" :class="activeTab === 'pelanggan' ? 'bg-primary text-white shadow-md shadow-primary/20' : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'" class="px-5 py-3 rounded-xl font-black text-xs flex items-center gap-2 transition-all whitespace-nowrap">
+                            <i class="fa-solid fa-users"></i> Penjualan per Konsumen
+                        </button>
+                        <button @click="activeTab = 'rincian'" :class="activeTab === 'rincian' ? 'bg-primary text-white shadow-md shadow-primary/20' : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'" class="px-5 py-3 rounded-xl font-black text-xs flex items-center gap-2 transition-all whitespace-nowrap">
+                            <i class="fa-solid fa-receipt"></i> Rincian Detail Transaksi
+                        </button>
                     </div>
 
-                    <!-- METODE PEMBAYARAN & STATUS DP/LUNAS -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-200">
-                            <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
-                                <h3 class="font-black text-slate-700 uppercase text-xs tracking-widest">
-                                    <i class="fa-solid fa-credit-card text-blue-400 mr-2"></i> Pembayaran TF / Cash
-                                </h3>
-                                <button @click="exportCSV('metode_pembayaran')" class="text-blue-500 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 rounded transition-colors text-xs font-bold" title="Unduh Laporan Pembayaran">
-                                    <i class="fa-solid fa-download"></i> Unduh
-                                </button>
-                            </div>
-                            <div class="space-y-3">
-                                <template x-for="pay in paymentBreakdown" :key="pay.payment_method">
-                                    <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                        <span class="font-bold text-slate-600 text-sm uppercase tracking-wide" x-text="pay.payment_method"></span>
-                                        <span class="font-black text-slate-800" x-text="'Rp ' + formatRupiah(pay.total_amount)"></span>
+                    <!-- TAB 1: RINGKASAN & PEMBAYARAN -->
+                    <div x-show="activeTab === 'ringkasan'" class="space-y-6">
+                        <!-- SUMMARY OMSET -->
+                        <div class="bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-200 flex flex-col sm:flex-row gap-6 items-center">
+                            <div class="flex-1 w-full">
+                                <h3 class="font-black text-slate-400 uppercase text-[10px] tracking-widest mb-2"><i class="fa-solid fa-chart-pie mr-1"></i> Komposisi Omset Sistem</h3>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+                                        <p class="text-xs font-bold text-emerald-600 mb-1">Cash / Tunai</p>
+                                        <p class="text-xl font-black text-emerald-700" x-text="'Rp ' + formatRupiah(paymentData.cash)"></p>
                                     </div>
-                                </template>
-                                <div x-show="paymentBreakdown.length === 0" class="text-center py-4 text-xs font-bold text-slate-400">Belum ada data</div>
+                                    <div class="p-4 bg-blue-50 rounded-xl border border-blue-100">
+                                        <p class="text-xs font-bold text-blue-600 mb-1">QRIS & Transfer</p>
+                                        <p class="text-xl font-black text-blue-700" x-text="'Rp ' + formatRupiah(paymentData.qris)"></p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="w-full sm:w-1/3 p-5 bg-slate-800 rounded-[1.5rem] text-white shadow-lg text-center flex flex-col justify-center">
+                                <span class="font-black uppercase tracking-widest text-[10px] opacity-80 mb-1">Total Omset</span>
+                                <span class="font-black text-3xl text-emerald-400" x-text="'Rp ' + formatRupiah(paymentData.total)"></span>
                             </div>
                         </div>
 
-                        <div class="bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-200">
-                            <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
-                                <h3 class="font-black text-slate-700 uppercase text-xs tracking-widest">
-                                    <i class="fa-solid fa-file-invoice-dollar text-emerald-400 mr-2"></i> Pembayaran DP vs Pelunasan
-                                </h3>
-                                <button @click="exportCSV('dp_pelunasan')" class="text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 px-2 py-1 rounded transition-colors text-xs font-bold" title="Unduh Laporan DP">
-                                    <i class="fa-solid fa-download"></i> Unduh
-                                </button>
-                            </div>
-                            <div class="space-y-3">
-                                <template x-for="dp in dpPelunasan" :key="dp.payment_type">
-                                    <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                        <div>
-                                            <span class="font-bold text-slate-600 text-sm uppercase tracking-wide" x-text="dp.payment_type"></span>
-                                            <span class="text-[10px] bg-slate-200 text-slate-500 px-2 py-0.5 rounded ml-2" x-text="dp.total_transactions + ' trx'"></span>
+                        <!-- METODE PEMBAYARAN & STATUS DP/LUNAS -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-200">
+                                <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
+                                    <h3 class="font-black text-slate-700 uppercase text-xs tracking-widest">
+                                        <i class="fa-solid fa-credit-card text-blue-400 mr-2"></i> Pembayaran TF / Cash
+                                    </h3>
+                                    <div class="flex items-center gap-1.5">
+                                        <button @click="printPDF('metode_pembayaran', 'Laporan Pembayaran TF / Cash')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg transition-colors text-xs font-black flex items-center gap-1" title="Cetak PDF">
+                                            <i class="fa-solid fa-print text-rose-500"></i> PDF
+                                        </button>
+                                        <button @click="exportCSV('metode_pembayaran')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2.5 py-1 rounded-lg transition-colors text-xs font-black flex items-center gap-1" title="Unduh Excel/CSV">
+                                            <i class="fa-solid fa-file-excel text-emerald-600"></i> Excel
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="space-y-3">
+                                    <template x-for="pay in paymentBreakdown" :key="pay.payment_method">
+                                        <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                            <span class="font-bold text-slate-600 text-sm uppercase tracking-wide" x-text="pay.payment_method"></span>
+                                            <span class="font-black text-slate-800" x-text="'Rp ' + formatRupiah(pay.total_amount)"></span>
                                         </div>
-                                        <span class="font-black text-emerald-600" x-text="'Rp ' + formatRupiah(dp.total_amount)"></span>
+                                    </template>
+                                    <div x-show="paymentBreakdown.length === 0" class="text-center py-4 text-xs font-bold text-slate-400">Belum ada data</div>
+                                </div>
+                            </div>
+
+                            <div class="bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-200">
+                                <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
+                                    <h3 class="font-black text-slate-700 uppercase text-xs tracking-widest">
+                                        <i class="fa-solid fa-file-invoice-dollar text-emerald-400 mr-2"></i> Pembayaran DP vs Pelunasan
+                                    </h3>
+                                    <div class="flex items-center gap-1.5">
+                                        <button @click="printPDF('dp_pelunasan', 'Laporan DP vs Pelunasan')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg transition-colors text-xs font-black flex items-center gap-1" title="Cetak PDF">
+                                            <i class="fa-solid fa-print text-rose-500"></i> PDF
+                                        </button>
+                                        <button @click="exportCSV('dp_pelunasan')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2.5 py-1 rounded-lg transition-colors text-xs font-black flex items-center gap-1" title="Unduh Excel/CSV">
+                                            <i class="fa-solid fa-file-excel text-emerald-600"></i> Excel
+                                        </button>
                                     </div>
-                                </template>
-                                <div x-show="dpPelunasan.length === 0" class="text-center py-4 text-xs font-bold text-slate-400">Belum ada data DP/Pelunasan</div>
+                                </div>
+                                <div class="space-y-3">
+                                    <template x-for="dp in dpPelunasan" :key="dp.payment_type">
+                                        <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                            <div>
+                                                <span class="font-bold text-slate-600 text-sm uppercase tracking-wide" x-text="dp.payment_type"></span>
+                                                <span class="text-[10px] bg-slate-200 text-slate-500 px-2 py-0.5 rounded ml-2" x-text="dp.total_transactions + ' trx'"></span>
+                                            </div>
+                                            <span class="font-black text-emerald-600" x-text="'Rp ' + formatRupiah(dp.total_amount)"></span>
+                                        </div>
+                                    </template>
+                                    <div x-show="dpPelunasan.length === 0" class="text-center py-4 text-xs font-bold text-slate-400">Belum ada data DP/Pelunasan</div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- KATEGORI & ITEM TERLARIS -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- TAB 2: PRODUK & KATEGORI -->
+                    <div x-show="activeTab === 'produk'" class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-200">
                             <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
                                 <h3 class="font-black text-slate-700 uppercase text-xs tracking-widest">
                                     <i class="fa-solid fa-layer-group text-purple-400 mr-2"></i> Penjualan per Kategori
                                 </h3>
-                                <button @click="exportCSV('kategori')" class="text-purple-500 hover:text-purple-700 hover:bg-purple-50 px-2 py-1 rounded transition-colors text-xs font-bold" title="Unduh Laporan Kategori">
-                                    <i class="fa-solid fa-download"></i> Unduh
-                                </button>
+                                <div class="flex items-center gap-1.5">
+                                    <button @click="printPDF('kategori', 'Laporan Penjualan per Kategori')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg transition-colors text-xs font-black flex items-center gap-1" title="Cetak PDF">
+                                        <i class="fa-solid fa-print text-rose-500"></i> PDF
+                                    </button>
+                                    <button @click="exportCSV('kategori')" class="bg-purple-50 hover:bg-purple-100 text-purple-600 px-2.5 py-1 rounded-lg transition-colors text-xs font-black flex items-center gap-1" title="Unduh Excel/CSV">
+                                        <i class="fa-solid fa-file-excel text-emerald-600"></i> Excel
+                                    </button>
+                                </div>
                             </div>
-                            <div class="overflow-y-auto max-h-[300px] custom-scrollbar pr-2 space-y-3">
-                                <template x-for="cat in salesByCategory" :key="cat.category_name">
-                                    <div class="flex justify-between items-center border-b border-slate-100 pb-2 last:border-0 last:pb-0">
+                            <div class="overflow-y-auto max-h-[450px] custom-scrollbar pr-2 space-y-3">
+                                <template x-for="cat in paginatedCategories" :key="cat.category_name">
+                                    <div class="flex justify-between items-center border-b border-slate-100 pb-3 last:border-0 last:pb-0">
                                         <div>
                                             <div class="font-bold text-sm text-slate-700" x-text="cat.category_name"></div>
-                                            <div class="text-[10px] text-slate-500 font-medium" x-text="cat.total_qty + ' items terjual'"></div>
+                                            <div class="text-xs text-slate-500 font-medium mt-0.5" x-text="cat.total_qty + ' items terjual'"></div>
                                         </div>
-                                        <div class="font-black text-primary text-sm" x-text="'Rp ' + formatRupiah(cat.total_amount)"></div>
+                                        <div class="font-black text-primary text-base" x-text="'Rp ' + formatRupiah(cat.total_amount)"></div>
                                     </div>
                                 </template>
-                                <div x-show="salesByCategory.length === 0" class="text-center py-4 text-xs font-bold text-slate-400">Belum ada data</div>
+                                <div x-show="salesByCategory.length === 0" class="text-center py-8 text-sm font-bold text-slate-400">Belum ada data</div>
+                            </div>
+                            <div x-show="totalCatPages > 1" class="flex items-center justify-between mt-4 pt-3 border-t border-slate-100 text-xs font-bold text-slate-500">
+                                <span>Halaman <span x-text="catPage"></span> dari <span x-text="totalCatPages"></span></span>
+                                <div class="flex gap-1.5">
+                                    <button @click="if(catPage > 1) catPage--" :disabled="catPage === 1" class="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-40 transition-all"><i class="fa-solid fa-chevron-left"></i> Prev</button>
+                                    <button @click="if(catPage < totalCatPages) catPage++" :disabled="catPage === totalCatPages" class="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-40 transition-all">Next <i class="fa-solid fa-chevron-right"></i></button>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-200">
-                            <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
-                                <h3 class="font-black text-slate-700 uppercase text-xs tracking-widest">
-                                    <i class="fa-solid fa-ranking-star text-amber-400 mr-2"></i> Penjualan per Barang
-                                </h3>
-                                <button @click="exportCSV('barang')" class="text-amber-500 hover:text-amber-700 hover:bg-amber-50 px-2 py-1 rounded transition-colors text-xs font-bold" title="Unduh Laporan Barang">
-                                    <i class="fa-solid fa-download"></i> Unduh
-                                </button>
-                            </div>
-                            <div class="overflow-y-auto max-h-[300px] custom-scrollbar pr-2 space-y-3">
-                                <template x-for="(item, index) in salesByItem" :key="item.item_name">
-                                    <div class="flex justify-between items-center border-b border-slate-100 pb-2 last:border-0 last:pb-0">
-                                        <div class="flex items-center gap-3">
-                                            <span class="w-6 h-6 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-xs font-black" x-text="index + 1"></span>
-                                            <div>
-                                                <div class="font-bold text-sm text-slate-700" x-text="item.item_name"></div>
-                                                <div class="text-[10px] text-slate-500 font-medium" x-text="item.total_qty + ' pcs terjual'"></div>
-                                            </div>
-                                        </div>
-                                        <div class="font-black text-primary text-sm" x-text="'Rp ' + formatRupiah(item.total_amount)"></div>
+                        <div class="bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-200 flex flex-col justify-between">
+                            <div>
+                                <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
+                                    <h3 class="font-black text-slate-700 uppercase text-xs tracking-widest">
+                                        <i class="fa-solid fa-ranking-star text-amber-400 mr-2"></i> Penjualan per Barang
+                                    </h3>
+                                    <div class="flex items-center gap-1.5">
+                                        <button @click="printPDF('barang', 'Laporan Penjualan per Barang Terlaris')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg transition-colors text-xs font-black flex items-center gap-1" title="Cetak PDF">
+                                            <i class="fa-solid fa-print text-rose-500"></i> PDF
+                                        </button>
+                                        <button @click="exportCSV('barang')" class="bg-amber-50 hover:bg-amber-100 text-amber-600 px-2.5 py-1 rounded-lg transition-colors text-xs font-black flex items-center gap-1" title="Unduh Excel/CSV">
+                                            <i class="fa-solid fa-file-excel text-emerald-600"></i> Excel
+                                        </button>
                                     </div>
-                                </template>
-                                <div x-show="salesByItem.length === 0" class="text-center py-4 text-xs font-bold text-slate-400">Belum ada data</div>
+                                </div>
+                                <div class="overflow-y-auto max-h-[450px] custom-scrollbar pr-2 space-y-3">
+                                    <template x-for="(item, index) in paginatedItems" :key="item.item_name">
+                                        <div class="flex justify-between items-center border-b border-slate-100 pb-3 last:border-0 last:pb-0">
+                                            <div class="flex items-center gap-3">
+                                                <span class="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-black shrink-0" x-text="(itemPage - 1) * perPage + index + 1"></span>
+                                                <div>
+                                                    <div class="font-bold text-sm text-slate-700" x-text="item.item_name"></div>
+                                                    <div class="text-xs text-slate-500 font-medium mt-0.5" x-text="item.total_qty + ' pcs terjual'"></div>
+                                                </div>
+                                            </div>
+                                            <div class="font-black text-primary text-base" x-text="'Rp ' + formatRupiah(item.total_amount)"></div>
+                                        </div>
+                                    </template>
+                                    <div x-show="salesByItem.length === 0" class="text-center py-8 text-sm font-bold text-slate-400">Belum ada data</div>
+                                </div>
+                            </div>
+                            <div x-show="totalItemPages > 1" class="flex items-center justify-between mt-4 pt-3 border-t border-slate-100 text-xs font-bold text-slate-500">
+                                <span>Halaman <span x-text="itemPage"></span> dari <span x-text="totalItemPages"></span></span>
+                                <div class="flex gap-1.5">
+                                    <button @click="if(itemPage > 1) itemPage--" :disabled="itemPage === 1" class="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-40 transition-all"><i class="fa-solid fa-chevron-left"></i> Prev</button>
+                                    <button @click="if(itemPage < totalItemPages) itemPage++" :disabled="itemPage === totalItemPages" class="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-40 transition-all">Next <i class="fa-solid fa-chevron-right"></i></button>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- PELANGGAN & DETAIL TRANSAKSI -->
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        
-                        <div class="lg:col-span-1 bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-200">
-                            <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
-                                <h3 class="font-black text-slate-700 uppercase text-xs tracking-widest">
-                                    <i class="fa-solid fa-users text-rose-400 mr-2"></i> Penjualan per Konsumen
-                                </h3>
-                                <button @click="exportCSV('pelanggan')" class="text-rose-500 hover:text-rose-700 hover:bg-rose-50 px-2 py-1 rounded transition-colors text-xs font-bold" title="Unduh Laporan Pelanggan">
-                                    <i class="fa-solid fa-download"></i> Unduh
-                                </button>
+                    <!-- TAB 3: PELANGGAN -->
+                    <div x-show="activeTab === 'pelanggan'" class="bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-200">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b border-slate-100 pb-4">
+                            <div>
+                                <h3 class="font-black text-slate-800 text-base">Penjualan per Konsumen</h3>
+                                <p class="text-xs text-slate-400 font-medium mt-0.5">Daftar pelanggan loyal berdasarkan total transaksi belanja</p>
                             </div>
-                            <div class="overflow-y-auto max-h-[400px] custom-scrollbar pr-2 space-y-3">
-                                <template x-for="cust in salesByCustomer" :key="cust.customer_name">
-                                    <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                        <div>
-                                            <div class="font-bold text-sm text-slate-700" x-text="cust.customer_name"></div>
-                                            <div class="text-[10px] text-slate-500 font-medium" x-text="cust.total_transactions + ' transaksi'"></div>
-                                        </div>
-                                        <div class="font-black text-rose-500 text-sm" x-text="'Rp ' + formatRupiah(cust.total_spent)"></div>
-                                    </div>
-                                </template>
-                                <div x-show="salesByCustomer.length === 0" class="text-center py-4 text-xs font-bold text-slate-400">Belum ada data</div>
+                            <div class="flex items-center gap-2">
+                                <button @click="printPDF('pelanggan', 'Laporan Penjualan per Konsumen')" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl transition-colors text-xs font-black flex items-center gap-1.5 shadow-sm" title="Cetak PDF">
+                                    <i class="fa-solid fa-print text-rose-400"></i> Cetak PDF
+                                </button>
+                                <button @click="exportCSV('pelanggan')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl transition-colors text-xs font-black flex items-center gap-1.5 shadow-sm" title="Unduh Excel/CSV">
+                                    <i class="fa-solid fa-file-excel"></i> Unduh Excel
+                                </button>
                             </div>
                         </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <template x-for="cust in paginatedCustomers" :key="cust.customer_name">
+                                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 flex items-center justify-between hover:shadow-md transition-all">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center font-black text-sm shrink-0">
+                                            <i class="fa-solid fa-user"></i>
+                                        </div>
+                                        <div>
+                                            <div class="font-black text-sm text-slate-800" x-text="cust.customer_name"></div>
+                                            <div class="text-xs text-slate-500 font-bold mt-0.5" x-text="cust.total_transactions + ' transaksi'"></div>
+                                        </div>
+                                    </div>
+                                    <div class="text-right font-black text-rose-600 text-base" x-text="'Rp ' + formatRupiah(cust.total_spent)"></div>
+                                </div>
+                            </template>
+                        </div>
+                        <div x-show="salesByCustomer.length === 0" class="text-center py-12 text-sm font-bold text-slate-400">Belum ada data pelanggan pada periode ini.</div>
+                        
+                        <div x-show="totalCustPages > 1" class="flex items-center justify-between mt-6 pt-4 border-t border-slate-100 text-xs font-bold text-slate-500">
+                            <span>Menampilkan halaman <span x-text="custPage"></span> dari <span x-text="totalCustPages"></span> (<span x-text="salesByCustomer.length"></span> pelanggan)</span>
+                            <div class="flex gap-1.5">
+                                <button @click="if(custPage > 1) custPage--" :disabled="custPage === 1" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-40 transition-all font-black"><i class="fa-solid fa-chevron-left mr-1"></i> Prev</button>
+                                <button @click="if(custPage < totalCustPages) custPage++" :disabled="custPage === totalCustPages" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-40 transition-all font-black">Next <i class="fa-solid fa-chevron-right ml-1"></i></button>
+                            </div>
+                        </div>
+                    </div>
 
-                        <div class="lg:col-span-2 bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-200">
-                            <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
-                                <h3 class="font-black text-slate-700 uppercase text-xs tracking-widest">
-                                    <i class="fa-solid fa-receipt text-primary mr-2"></i> Rincian Detail Penjualan
-                                </h3>
-                                <button @click="exportCSV('rincian')" class="text-primary hover:text-blue-700 hover:bg-blue-50 px-2 py-1 rounded transition-colors text-xs font-bold" title="Unduh Rincian Penjualan">
-                                    <i class="fa-solid fa-download"></i> Unduh
+                    <!-- TAB 4: RINCIAN TRANSAKSI -->
+                    <div x-show="activeTab === 'rincian'" class="bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-200">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b border-slate-100 pb-4">
+                            <div>
+                                <h3 class="font-black text-slate-800 text-base">Rincian Detail Penjualan</h3>
+                                <p class="text-xs text-slate-400 font-medium mt-0.5">Daftar seluruh nota penjualan sesuai rentang tanggal filter</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button @click="printPDF('rincian', 'Laporan Rincian Transaksi Penjualan')" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl transition-colors text-xs font-black flex items-center gap-1.5 shadow-sm" title="Cetak PDF">
+                                    <i class="fa-solid fa-print text-rose-400"></i> Cetak PDF
+                                </button>
+                                <button @click="exportCSV('rincian')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl transition-colors text-xs font-black flex items-center gap-1.5 shadow-sm" title="Unduh Excel/CSV">
+                                    <i class="fa-solid fa-file-excel"></i> Unduh Excel
                                 </button>
                             </div>
-                            <div class="overflow-x-auto custom-scrollbar">
-                        <table class="w-full text-left border-collapse whitespace-nowrap min-w-[1000px]">
-                            <thead>
-                                <tr class="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase tracking-widest">
-                                    <th class="p-4 font-black">Invoice & Waktu</th>
-                                    <th class="p-4 font-black">Pelanggan</th>
-                                    <th class="p-4 font-black text-center">Status</th>
-                                    <th class="p-4 font-black text-right">Total Bayar</th>
-                                    <th class="p-4 font-black text-center">Metode</th>
-                                    <th class="p-4 font-black text-center">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody class="text-sm divide-y divide-slate-100">
-                                <template x-for="sale in filteredSales" :key="sale.id">
-                                    <tr class="hover:bg-slate-50 transition-colors">
-                                        <td class="p-4">
-                                            <div class="font-black text-slate-800" x-text="sale.invoice_no"></div>
-                                            <div class="text-[10px] font-bold text-slate-400 mt-1" x-text="formatDate(sale.created_at)"></div>
-                                        </td>
-                                        <td class="p-4">
-                                            <div class="font-black text-slate-700" x-text="sale.customer_name || 'Pelanggan Umum'"></div>
-                                            <div class="text-[10px] font-bold text-slate-400" x-text="sale.channel || 'toko'"></div>
-                                        </td>
-                                        <td class="p-4 text-center">
-                                            <span :class="sale.payment_status === 'lunas' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'" class="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider" x-text="sale.payment_status"></span>
-                                        </td>
-                                        <td class="p-4 text-right font-black text-primary" x-text="'Rp ' + formatRupiah(sale.total_amount)"></td>
-                                        <td class="p-4 text-center"><span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-black uppercase" x-text="sale.payment_method"></span></td>
-                                        <td class="p-4 text-center">
-                                            <div class="flex items-center justify-center gap-2">
-                                                <button @click="openDetail(sale)" class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 text-slate-500 hover:bg-primary hover:text-white transition-all"><i class="fa-solid fa-eye text-xs"></i></button>
-                                                <button @click="printReceipt(sale.invoice_no)" class="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all"><i class="fa-solid fa-print text-xs"></i></button>
-                                            </div>
-                                        </td>
+                        </div>
+                        <div class="overflow-x-auto custom-scrollbar">
+                            <table class="w-full text-left border-collapse whitespace-nowrap min-w-[900px]">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase tracking-widest">
+                                        <th class="p-4 font-black">Invoice & Waktu</th>
+                                        <th class="p-4 font-black">Pelanggan</th>
+                                        <th class="p-4 font-black text-center">Status</th>
+                                        <th class="p-4 font-black text-right">Total Bayar</th>
+                                        <th class="p-4 font-black text-center">Metode</th>
+                                        <th class="p-4 font-black text-center">Aksi</th>
                                     </tr>
-                                </template>
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody class="text-sm divide-y divide-slate-100">
+                                    <tr x-show="filteredSales.length === 0">
+                                        <td colspan="6" class="p-8 text-center text-slate-400 font-bold">Belum ada transaksi penjualan pada periode ini.</td>
+                                    </tr>
+                                    <template x-for="sale in paginatedSales" :key="sale.id">
+                                        <tr class="hover:bg-slate-50 transition-colors">
+                                            <td class="p-4">
+                                                <div class="font-black text-slate-800" x-text="sale.invoice_no"></div>
+                                                <div class="text-[10px] font-bold text-slate-400 mt-1" x-text="formatDate(sale.created_at)"></div>
+                                            </td>
+                                            <td class="p-4">
+                                                <div class="font-black text-slate-700" x-text="sale.customer_name || 'Pelanggan Umum'"></div>
+                                                <div class="text-[10px] font-bold text-slate-400" x-text="sale.channel || 'toko'"></div>
+                                            </td>
+                                            <td class="p-4 text-center">
+                                                <span :class="sale.payment_status === 'lunas' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'" class="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider" x-text="sale.payment_status"></span>
+                                            </td>
+                                            <td class="p-4 text-right font-black text-primary" x-text="'Rp ' + formatRupiah(sale.total_amount)"></td>
+                                            <td class="p-4 text-center"><span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-black uppercase border border-slate-200" x-text="sale.payment_method"></span></td>
+                                            <td class="p-4 text-center">
+                                                <div class="flex items-center justify-center gap-2">
+                                                    <button @click="openDetail(sale)" class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 text-slate-500 hover:bg-primary hover:text-white transition-all" title="Lihat Detail Barang"><i class="fa-solid fa-eye text-xs"></i></button>
+                                                    <button @click="printReceipt(sale.invoice_no)" class="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all" title="Cetak Struk"><i class="fa-solid fa-print text-xs"></i></button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div x-show="totalSalePages > 1" class="flex items-center justify-between mt-6 pt-4 border-t border-slate-100 text-xs font-bold text-slate-500">
+                            <span>Menampilkan halaman <span x-text="salePage"></span> dari <span x-text="totalSalePages"></span> (<span x-text="filteredSales.length"></span> transaksi)</span>
+                            <div class="flex gap-1.5">
+                                <button @click="if(salePage > 1) salePage--" :disabled="salePage === 1" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-40 transition-all font-black"><i class="fa-solid fa-chevron-left mr-1"></i> Prev</button>
+                                <button @click="if(salePage < totalSalePages) salePage++" :disabled="salePage === totalSalePages" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-40 transition-all font-black">Next <i class="fa-solid fa-chevron-right ml-1"></i></button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-            </div>
-            </div>
-        </main>
+            </main>
 
         <div x-show="showModal" class="fixed inset-0 z-50 flex items-center justify-center" style="display: none;" x-cloak>
             <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="showModal = false"></div>
