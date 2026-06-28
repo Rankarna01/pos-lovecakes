@@ -42,6 +42,12 @@ $page_title = "Riwayat Transaksi - Love Cakes POS";
                     <input type="date" x-model="startDate" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20">
                     <span class="py-2 text-slate-400 font-bold text-xs">s/d</span>
                     <input type="date" x-model="endDate" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20">
+                    <select x-model="filterStatus" @change="currentPage = 1" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-primary/20">
+                        <option value="all">Semua Status</option>
+                        <option value="lunas_langsung">✅ Lunas Langsung</option>
+                        <option value="dp_belum">⚠️ DP Belum Lunas</option>
+                        <option value="dp_lunas">🎉 DP Sudah Lunas</option>
+                    </select>
                     <button @click="fetchReport()" :disabled="isLoading" class="bg-primary hover:bg-slate-200 text-primary px-6 py-2.5 rounded-xl font-black transition-all flex items-center gap-2 shadow-sm disabled:opacity-50">
                         <i class="fa-solid fa-magnifying-glass"></i> Tampilkan
                     </button>
@@ -77,11 +83,11 @@ $page_title = "Riwayat Transaksi - Love Cakes POS";
                         </div>
                     </div>
 
-                    <div class="lg:col-span-2 bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-200">
+                    <div class="lg:col-span-2 bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-200 flex flex-col">
                         <h3 class="font-black text-slate-700 mb-4 uppercase text-xs tracking-widest border-b border-slate-100 pb-3">
                             <i class="fa-solid fa-list-check text-slate-400 mr-2"></i> Rincian Transaksi
                         </h3>
-                        <div class="overflow-x-auto overflow-y-auto max-h-[500px] custom-scrollbar">
+                        <div class="overflow-x-auto overflow-y-auto max-h-[500px] custom-scrollbar flex-1">
                             <table class="w-full text-left text-sm whitespace-nowrap">
                                 <thead class="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-widest sticky top-0">
                                     <tr>
@@ -93,7 +99,7 @@ $page_title = "Riwayat Transaksi - Love Cakes POS";
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <template x-for="dt in salesDetails" :key="dt.invoice_no">
+                                    <template x-for="dt in paginatedDetails" :key="dt.invoice_no">
                                         <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                                             <td class="p-3">
                                                 <div class="font-black text-slate-800 text-xs" x-text="dt.invoice_no"></div>
@@ -101,7 +107,9 @@ $page_title = "Riwayat Transaksi - Love Cakes POS";
                                             </td>
                                             <td class="p-3 font-bold text-slate-600 text-xs" x-text="dt.customer_name"></td>
                                             <td class="p-3 text-center">
-                                                <span :class="dt.payment_status === 'lunas' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'" class="px-2 py-1 rounded text-[9px] font-black uppercase" x-text="dt.payment_status"></span>
+                                                <span x-show="dt.payment_status === 'dp'" class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-[9px] font-black uppercase border border-amber-300">⚠️ DP Belum Lunas</span>
+                                                <span x-show="dt.payment_status === 'lunas' && parseFloat(dt.dp_amount) > 0" class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-[9px] font-black uppercase border border-blue-300">🎉 DP Sudah Lunas</span>
+                                                <span x-show="dt.payment_status === 'lunas' && (!dt.dp_amount || parseFloat(dt.dp_amount) == 0)" class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-[9px] font-black uppercase border border-emerald-300">✅ Lunas Langsung</span>
                                             </td>
                                             <td class="p-3 text-center">
                                                 <span class="bg-slate-100 text-slate-500 px-2 py-1 rounded text-[9px] font-black uppercase" x-text="dt.payment_method"></span>
@@ -109,11 +117,22 @@ $page_title = "Riwayat Transaksi - Love Cakes POS";
                                             <td class="p-3 text-right font-black text-primary text-sm" x-text="'Rp ' + formatRupiah(dt.total_amount)"></td>
                                         </tr>
                                     </template>
-                                    <tr x-show="salesDetails.length === 0">
-                                        <td colspan="5" class="p-8 text-center text-slate-400 font-bold">Belum ada rincian penjualan.</td>
+                                    <tr x-show="filteredDetails.length === 0">
+                                        <td colspan="5" class="p-8 text-center text-slate-400 font-bold">Belum ada rincian penjualan yang sesuai filter.</td>
                                     </tr>
                                 </tbody>
                             </table>
+                        </div>
+
+                        <!-- PAGINATION CONTROLS -->
+                        <div x-show="totalPages > 1" class="flex justify-between items-center pt-4 border-t border-slate-100 mt-4">
+                            <div class="text-xs font-bold text-slate-500">
+                                Halaman <span x-text="currentPage"></span> dari <span x-text="totalPages"></span> (<span x-text="filteredDetails.length"></span> data)
+                            </div>
+                            <div class="flex gap-1">
+                                <button @click="if(currentPage > 1) currentPage--" :disabled="currentPage === 1" class="px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg font-bold text-xs disabled:opacity-50 transition-colors">Prev</button>
+                                <button @click="if(currentPage < totalPages) currentPage++" :disabled="currentPage === totalPages" class="px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg font-bold text-xs disabled:opacity-50 transition-colors">Next</button>
+                            </div>
                         </div>
                     </div>
 

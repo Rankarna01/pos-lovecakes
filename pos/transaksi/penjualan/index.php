@@ -42,9 +42,11 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                     </select>
 
                     <select x-model="filters.status" @change="applyFilter()" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary font-bold text-sm text-slate-600">
-                        <option value="">Semua Status</option>
-                        <option value="lunas">Lunas (Cash/QRIS)</option>
-                        <option value="dp">Menunggak (DP)</option>
+                        <option value="">Semua Jenis & Status</option>
+                        <option value="lunas_langsung">✅ Lunas Langsung</option>
+                        <option value="dp_semua">⏳ Semua Riwayat DP</option>
+                        <option value="dp_belum">⚠️ DP Belum Lunas</option>
+                        <option value="dp_lunas">🎉 DP Sudah Lunas</option>
                     </select>
 
                     <select x-model="filters.channel" @change="applyFilter()" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary font-bold text-sm text-slate-600">
@@ -91,7 +93,8 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                                         </td>
                                         <td class="p-4 font-bold text-slate-600">
                                             <span x-text="sale.customer_name"></span>
-                                            <div x-show="sale.payment_status === 'dp'" class="text-[9px] text-amber-600 uppercase mt-0.5 bg-amber-50 inline-block px-1 rounded border border-amber-200">Piutang (DP)</div>
+                                            <div x-show="sale.payment_status === 'dp'" class="text-[9px] font-black text-amber-700 uppercase mt-1 bg-amber-100 inline-block px-2 py-0.5 rounded border border-amber-300 block w-max">⚠️ DP Belum Lunas</div>
+                                            <div x-show="sale.payment_status === 'lunas' && parseFloat(sale.dp_amount) > 0" class="text-[9px] font-black text-blue-700 uppercase mt-1 bg-blue-100 inline-block px-2 py-0.5 rounded border border-blue-300 block w-max">🎉 DP Sudah Lunas</div>
                                         </td>
                                         <td class="p-4">
                                             <span class="px-2 py-1 rounded bg-slate-100 text-slate-600 text-[10px] font-black uppercase border border-slate-200" x-text="sale.channel"></span>
@@ -150,7 +153,11 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                     <div class="space-y-2 mb-4 text-sm font-bold text-slate-600">
                         <div class="flex justify-between"><span>Pelanggan</span><span x-text="activeSale?.customer_name"></span></div>
                         <div class="flex justify-between"><span>Channel</span><span class="uppercase" x-text="activeSale?.channel"></span></div>
-                        <div class="flex justify-between"><span>Pembayaran</span><span class="uppercase" x-text="activeSale?.payment_method + ' (' + activeSale?.payment_status + ')'"></span></div>
+                        <div class="flex justify-between"><span>Pembayaran</span><span class="uppercase font-black" :class="activeSale?.payment_status === 'dp' ? 'text-amber-600' : 'text-emerald-600'" x-text="activeSale?.payment_method + ' (' + (activeSale?.payment_status === 'lunas' && parseFloat(activeSale?.dp_amount) > 0 ? 'PELUNASAN DP' : activeSale?.payment_status) + ')'"></span></div>
+                        <div class="flex justify-between text-blue-600 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-200 mt-1" x-show="parseFloat(activeSale?.dp_amount) > 0">
+                            <span>Setor DP Awal</span>
+                            <span class="font-black" x-text="'Rp ' + formatRupiah(activeSale?.dp_amount)"></span>
+                        </div>
                     </div>
 
                     <div class="bg-slate-50 border border-slate-100 rounded-xl p-3 mb-4">

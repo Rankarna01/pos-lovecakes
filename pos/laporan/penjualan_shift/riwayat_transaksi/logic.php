@@ -25,7 +25,7 @@ if ($action === 'get_report' || $action === 'export_excel') {
 
         // 2. Rincian Detail Penjualan (List Transaksi)
         $stmt_details = $pdo->prepare("
-            SELECT s.invoice_no, s.created_at, COALESCE(c.name, 'Pelanggan Umum') as customer_name, s.payment_status, s.payment_method, s.total_amount
+            SELECT s.invoice_no, s.created_at, COALESCE(c.name, 'Pelanggan Umum') as customer_name, s.payment_status, s.payment_method, s.total_amount, s.dp_amount
             FROM sales_pos s
             LEFT JOIN customers_pos c ON s.customer_id = c.id
             WHERE DATE(s.created_at) BETWEEN ? AND ?

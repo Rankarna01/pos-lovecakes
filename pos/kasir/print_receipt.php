@@ -36,7 +36,7 @@ try {
         $toko = ['store_name' => 'LOVE CAKES', 'store_address' => 'Alamat belum diatur', 'store_phone' => '-', 'receipt_footer' => 'Terima Kasih!'];
     }
 
-    $calculated_ongkir = $sale['total_amount'] - ($sale['subtotal'] - $sale['discount_voucher'] - $sale['discount_points'] - $sale['discount_manual']);
+    $calculated_ongkir = $sale['total_amount'] - ($sale['subtotal'] - $sale['discount_voucher'] - $sale['discount_points'] - $sale['discount_manual'] - ($sale['discount_auto'] ?? 0));
     
     $is_po = !empty($sale['is_po']) ? true : false;
     $channel = !empty($sale['channel']) ? $sale['channel'] : 'Toko';
@@ -115,7 +115,12 @@ try {
         <?php foreach($items as $i): ?>
         <tr><td colspan="2" class="item-name"><?= ($i['is_custom'] && $is_po ? '🛠️ ' : '') . htmlspecialchars($i['product_name']) ?></td></tr>
         <tr class="item-row">
-            <td style="width: 60%;"><?= $i['qty'] ?> x <?= number_format($i['price'], 0, ',', '.') ?></td>
+            <td style="width: 60%;">
+                <?= $i['qty'] ?> x <?= number_format($i['price'], 0, ',', '.') ?>
+                <?php if(!empty($i['discount_type']) && $i['discount_type'] !== 'none' && $i['discount_value'] > 0): ?>
+                    <br><small style="font-style:italic;">(Disc: <?= $i['discount_type'] == 'percent' ? $i['discount_value'].'%' : 'Rp '.number_format($i['discount_value'], 0, ',', '.') ?>)</small>
+                <?php endif; ?>
+            </td>
             <td class="text-right"><?= number_format($i['subtotal'], 0, ',', '.') ?></td>
         </tr>
         <?php endforeach; ?>
@@ -128,6 +133,7 @@ try {
         <?php if($calculated_ongkir > 0): ?><tr><td>Ongkir/Markup</td><td class="text-right">+<?= number_format($calculated_ongkir, 0, ',', '.') ?></td></tr><?php endif; ?>
         <?php if($sale['discount_voucher'] > 0): ?><tr><td>Disc. Vcr</td><td class="text-right">-<?= number_format($sale['discount_voucher'], 0, ',', '.') ?></td></tr><?php endif; ?>
         <?php if($sale['discount_points'] > 0): ?><tr><td>Disc. Poin</td><td class="text-right">-<?= number_format($sale['discount_points'], 0, ',', '.') ?></td></tr><?php endif; ?>
+        <?php if(!empty($sale['discount_auto']) && $sale['discount_auto'] > 0): ?><tr><td>Promo Otomatis</td><td class="text-right">-<?= number_format($sale['discount_auto'], 0, ',', '.') ?></td></tr><?php endif; ?>
         <?php if($sale['discount_manual'] > 0): ?><tr><td>Disc. Manual</td><td class="text-right">-<?= number_format($sale['discount_manual'], 0, ',', '.') ?></td></tr><?php endif; ?>
         <tr><td class="text-bold" style="font-size: 13px; padding-top: 5px;">TOTAL</td><td class="text-bold text-right" style="font-size: 13px; padding-top: 5px;"><?= number_format($sale['total_amount'], 0, ',', '.') ?></td></tr>
         <tr><td style="padding-top: 5px;">Dibayar (<?= strtoupper($sale['payment_method']) ?>)</td><td class="text-right" style="padding-top: 5px;"><?= number_format($sale['amount_paid'], 0, ',', '.') ?></td></tr>
@@ -148,7 +154,7 @@ try {
 
     <div class="barcode-container"><svg id="barcode"></svg></div>
 
-    <div class="text-center no-print" style="margin-top: 20px;">
+    <div class="text-center no-print" style="margin-top: 20px;" id="action-buttons">
         <button onclick="printBluetooth()" class="btn btn-bt" id="btn-bt">📶 Print Bluetooth</button>
         <button onclick="window.print()" class="btn btn-usb">🖨️ Print USB/Biasa</button>
         <button onclick="window.close()" class="btn btn-close">❌ Tutup</button>
@@ -172,20 +178,28 @@ try {
             const params = new URLSearchParams(window.location.search);
             const isAutoBt = params.get('auto_print_bt');
             const isAutoUsb = params.get('auto_print_usb');
+            const actionBtns = document.getElementById('action-buttons');
+
+            // Sembunyikan tombol pilihan saat auto-print berjalan
+            if ((isAutoBt || isAutoUsb) && actionBtns) {
+                actionBtns.style.display = 'none';
+            }
 
             // Cek Bluetooth Auto Print
             if (isAutoBt) {
                 const savedPrinter = localStorage.getItem('pos_printer_name');
                 if(savedPrinter && navigator.bluetooth) {
                     setTimeout(() => { printBluetooth(true); }, 500);
+                } else {
+                    if (actionBtns) actionBtns.style.display = 'block';
                 }
             } 
             // Cek USB Auto Print
             else if (isAutoUsb) {
                 setTimeout(() => { 
                     window.print(); 
-                    // Tutup window setelah dialog print OS selesai/ditutup
                     window.onafterprint = function() { window.close(); };
+                    setTimeout(() => { window.close(); }, 4000);
                 }, 500);
             }
         });
@@ -208,6 +222,8 @@ try {
                 // JIKA BELUM ADA IZIN ATAU KASIR KLIK MANUAL
                 if (!device) {
                     if (isAutoPrint) {
+                        const actionBtns = document.getElementById('action-buttons');
+                        if (actionBtns) actionBtns.style.display = 'block';
                         btn.innerHTML = '📶 Print Bluetooth';
                         btn.disabled = false;
                         return; // Jangan paksa muncul popup kalau mode auto
@@ -259,10 +275,11 @@ try {
 
             } catch (error) {
                 console.error("Gagal Print:", error);
+                const actionBtns = document.getElementById('action-buttons');
+                if (actionBtns) actionBtns.style.display = 'block';
                 if (!isAutoPrint) alert('Gagal menghubungkan ke Printer Bluetooth. Pastikan printer menyala.');
                 btn.innerHTML = '📶 Print Bluetooth';
                 btn.disabled = false;
-                if (isAutoPrint) { setTimeout(() => window.close(), 1500); }
             }
         }
     </script>

@@ -72,6 +72,7 @@ document.addEventListener('alpine:init', () => {
     Alpine.data('posApp', () => ({
         // --- DATA MASTER ---
         statusFilterDate: new Date().toISOString().split('T')[0],
+        statusFilterMode: 'nunggak',
         products: [], 
         savedCustoms: [], // Menyimpan data template menu custom (tabel saved_custom_items_pos)
         customers: [], 
@@ -95,7 +96,7 @@ document.addEventListener('alpine:init', () => {
 
         // --- KERANJANG & CHECKOUT ---
         orderType: 'offline', cart: [], selectedCustomerId: '',
-        voucherCode: '', appliedVoucher: null, usePoints: false, discountManual: 0, 
+        voucherCode: '', appliedVoucher: null, usePoints: false, discountManual: 0, discountManualType: 'NOMINAL', discountManualInput: 0, promosBuyGet: [], promosAutoDisc: [], appliedAutoDisc: null,
         orderNotes: '',
         poForm: { channel: 'toko', pickup_date: '', pickup_time: '', ongkir: 0, notes: '' },
 
@@ -158,6 +159,8 @@ document.addEventListener('alpine:init', () => {
                         this.savedCustoms = result.saved_customs || [];
                         this.savedCustomsReguler = result.saved_customs_reguler || [];
                         this.paymentMethods = result.payment_methods || [];
+                        this.promosBuyGet = result.promos_buy_get || [];
+                        this.promosAutoDisc = result.promos_auto_disc || [];
                         // Update IndexedDB cache juga
                         await idbPos.setMasterData('products', this.products);
                         await idbPos.setMasterData('customers', this.customers);
@@ -285,6 +288,8 @@ document.addEventListener('alpine:init', () => {
                     this.savedCustomsReguler = result.saved_customs_reguler || [];
                     this.paymentMethods = result.payment_methods || [];
                     this.loyaltyRules = result.loyalty_rules;
+                    this.promosBuyGet = result.promos_buy_get || [];
+                    this.promosAutoDisc = result.promos_auto_disc || [];
                     if(result.default_start_cash && !this.shiftForm.start_cash) {
                         this.shiftForm.start_cash = result.default_start_cash;
                     }
@@ -295,6 +300,8 @@ document.addEventListener('alpine:init', () => {
                     await idbPos.setMasterData('saved_customs', this.savedCustoms);
                     await idbPos.setMasterData('saved_customs_reguler', this.savedCustomsReguler);
                     await idbPos.setMasterData('payment_methods', this.paymentMethods);
+                    await idbPos.setMasterData('promos_buy_get', this.promosBuyGet);
+                    await idbPos.setMasterData('promos_auto_disc', this.promosAutoDisc);
                     await idbPos.setMasterData('default_start_cash', result.default_start_cash);
                     
                     if(isManualSync) Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `Database Tersinkronisasi!`, showConfirmButton: false, timer: 1500 });
@@ -307,6 +314,8 @@ document.addEventListener('alpine:init', () => {
                 this.savedCustoms = (await idbPos.getMasterData('saved_customs')) || [];
                 this.savedCustomsReguler = (await idbPos.getMasterData('saved_customs_reguler')) || [];
                 this.paymentMethods = (await idbPos.getMasterData('payment_methods')) || [];
+                this.promosBuyGet = (await idbPos.getMasterData('promos_buy_get')) || [];
+                this.promosAutoDisc = (await idbPos.getMasterData('promos_auto_disc')) || [];
                 const defCash = await idbPos.getMasterData('default_start_cash');
                 if (defCash && !this.shiftForm.start_cash) this.shiftForm.start_cash = defCash;
 
@@ -375,22 +384,143 @@ document.addEventListener('alpine:init', () => {
         addToCart(product) {
             const price = parseFloat(product.price || product.offline_price || 0);
             const isCustomPrice = product.is_custom_price == 1;
-            const existing = this.cart.find(item => item.id === product.id && !item.is_custom);
-            if (existing) { existing.qty++; existing.subtotal = existing.qty * existing.price; } 
-            else { this.cart.push({ id: product.id, name: product.name, price: price, qty: 1, subtotal: price, is_custom: false, is_custom_price: isCustomPrice }); }
+            const existing = this.cart.find(item => item.id === product.id && !item.is_custom && !item.is_promo_free);
+            if (existing) { 
+                existing.qty++; 
+                this.calcItemSubtotal(existing); 
+            } else { 
+                const newItem = { id: product.id, name: product.name, price: price, qty: 1, subtotal: price, is_custom: false, is_custom_price: isCustomPrice, discount_type: 'none', discount_value: 0 };
+                this.calcItemSubtotal(newItem);
+                this.cart.push(newItem); 
+            }
+            this.applyAutoPromos();
         },
         updateQty(index, change) {
+            if (this.cart[index].is_promo_free) return;
             this.cart[index].qty += change;
-            if (this.cart[index].qty <= 0) this.removeItem(index);
-            else this.cart[index].subtotal = this.cart[index].qty * this.cart[index].price;
+            if (this.cart[index].qty <= 0) {
+                this.removeItem(index);
+                return;
+            }
+            this.calcItemSubtotal(this.cart[index]);
+            this.applyAutoPromos();
         },
         updatePrice(index) {
             let p = parseFloat(this.cart[index].price);
             if (isNaN(p) || p < 0) p = 0;
             this.cart[index].price = p;
-            this.cart[index].subtotal = this.cart[index].qty * p;
+            this.calcItemSubtotal(this.cart[index]);
+            this.applyAutoPromos();
         },
-        removeItem(index) { this.cart.splice(index, 1); },
+        removeItem(index) { 
+            this.cart.splice(index, 1); 
+            this.applyAutoPromos();
+        },
+
+        calcItemSubtotal(item) {
+            if (item.is_promo_free) { item.subtotal = 0; return; }
+            let gross = item.qty * item.price;
+            let disc = 0;
+            if (item.discount_type === 'percent') {
+                disc = (gross * parseFloat(item.discount_value || 0)) / 100;
+            } else if (item.discount_type === 'nominal') {
+                disc = parseFloat(item.discount_value || 0);
+            }
+            let net = gross - disc;
+            item.subtotal = net > 0 ? net : 0;
+        },
+
+        async setItemDiscount(index) {
+            const item = this.cart[index];
+            if (item.is_promo_free) {
+                Swal.fire('Info', 'Barang gratis promo tidak dapat didiskon.', 'info');
+                return;
+            }
+            const { value: formValues } = await Swal.fire({
+                title: `Diskon Item: ${item.name}`,
+                html: `
+                    <div class="space-y-3 text-left">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1">Tipe Diskon</label>
+                            <select id="swal-disc-type" class="w-full border rounded-xl px-3 py-2 text-sm font-bold">
+                                <option value="percent" ${item.discount_type === 'percent' ? 'selected' : ''}>Persentase (%)</option>
+                                <option value="nominal" ${item.discount_type === 'nominal' ? 'selected' : ''}>Nominal (Rp)</option>
+                                <option value="none" ${!item.discount_type || item.discount_type === 'none' ? 'selected' : ''}>Tanpa Diskon</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1">Besaran Diskon</label>
+                            <input id="swal-disc-val" type="number" min="0" value="${item.discount_value || 0}" class="w-full border rounded-xl px-3 py-2 text-sm font-bold" placeholder="Misal: 3 atau 5000">
+                        </div>
+                    </div>
+                `,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'Terapkan',
+                cancelButtonText: 'Batal',
+                preConfirm: () => {
+                    return {
+                        type: document.getElementById('swal-disc-type').value,
+                        val: parseFloat(document.getElementById('swal-disc-val').value || 0)
+                    }
+                }
+            });
+
+            if (formValues) {
+                item.discount_type = formValues.type;
+                item.discount_value = formValues.type === 'none' ? 0 : formValues.val;
+                this.calcItemSubtotal(item);
+                this.applyAutoPromos();
+            }
+        },
+
+        applyAutoPromos() {
+            // 1. Hapus item gratis promo sebelumnya agar dikalkulasi ulang
+            this.cart = this.cart.filter(item => !item.is_promo_free);
+
+            // 2. Kalkulasi Promo Beli X Gratis Y
+            if (this.promosBuyGet && this.promosBuyGet.length > 0) {
+                this.promosBuyGet.forEach(rule => {
+                    let totalBuyQty = 0;
+                    this.cart.forEach(item => {
+                        if (!item.is_custom && item.id == rule.buy_product_id) {
+                            totalBuyQty += item.qty;
+                        }
+                    });
+                    if (totalBuyQty >= rule.buy_qty && rule.buy_qty > 0) {
+                        const multiplier = Math.floor(totalBuyQty / rule.buy_qty);
+                        const freeQty = multiplier * rule.get_qty;
+                        if (freeQty > 0) {
+                            const freeProd = this.products.find(p => p.id == rule.get_product_id);
+                            const prodName = freeProd ? freeProd.name : (rule.get_product_name || 'Item Gratis');
+                            this.cart.push({
+                                id: rule.get_product_id,
+                                name: '[GRATIS] ' + prodName,
+                                price: 0,
+                                qty: freeQty,
+                                subtotal: 0,
+                                is_custom: false,
+                                is_promo_free: true,
+                                discount_type: 'none',
+                                discount_value: 0
+                            });
+                        }
+                    }
+                });
+            }
+
+            // 3. Kalkulasi Diskon Otomatis Minimal Belanja
+            const rawSubtotal = this.cart.reduce((sum, item) => sum + item.subtotal, 0);
+            this.appliedAutoDisc = null;
+            if (this.promosAutoDisc && this.promosAutoDisc.length > 0) {
+                for (let rule of this.promosAutoDisc) {
+                    if (rawSubtotal >= rule.min_purchase) {
+                        this.appliedAutoDisc = rule;
+                        break;
+                    }
+                }
+            }
+        },
 
         // --- FUNGSI ITEM CUSTOM BARU ---
         addCustomItem() {
@@ -432,8 +562,11 @@ document.addEventListener('alpine:init', () => {
                             qty: 1,
                             subtotal: customPrice,
                             is_custom: true,
-                            is_custom_price: false
+                            is_custom_price: false,
+                            discount_type: 'none',
+                            discount_value: 0
                         });
+                        this.applyAutoPromos();
 
                         Swal.fire({ icon: 'success', title: 'Ditambahkan!', text: 'Item Custom masuk ke keranjang & tersimpan ke laporan!', timer: 1500, showConfirmButton: false });
                         fetch(`logic_kasir.php?action=get_master_data&nocache=${Date.now()}`)
@@ -465,7 +598,8 @@ document.addEventListener('alpine:init', () => {
                     const result = await res.json();
                     if (result.status === 'success') {
                         this.showCustomItemModal = false;
-                        this.cart.push({ id: result.custom_id, name: this.customItemForm.name + ' (c)', price: parseFloat(this.customItemForm.price), qty: 1, subtotal: parseFloat(this.customItemForm.price), is_custom: true, is_po: true, template_id: result.custom_id });
+                        this.cart.push({ id: result.custom_id, name: this.customItemForm.name + ' (c)', price: parseFloat(this.customItemForm.price), qty: 1, subtotal: parseFloat(this.customItemForm.price), is_custom: true, is_po: true, template_id: result.custom_id, discount_type: 'none', discount_value: 0 });
+                        this.applyAutoPromos();
                         Swal.fire({ icon: 'success', title: 'Berhasil', text: 'Item Custom PO masuk ke keranjang!', timer: 1000, showConfirmButton: false });
                         fetch(`logic_kasir.php?action=get_master_data&nocache=${Date.now()}`)
                             .then(r => r.json()).then(resData => { if (resData.status === 'success') this.savedCustoms = resData.saved_customs; });
@@ -523,13 +657,38 @@ document.addEventListener('alpine:init', () => {
                 });
                 
                 if (inputPin === realPin) {
-                    const { value: discVal } = await Swal.fire({ 
-                        title: 'Diskon Manual', 
-                        input: 'number', 
-                        inputPlaceholder: 'Masukkan Nominal (Rp)', 
-                        showCancelButton: true 
+                    const { value: formValues } = await Swal.fire({ 
+                        title: 'Diskon Manual Kasir', 
+                        html: `
+                            <div class="space-y-3 text-left">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 mb-1">Tipe Diskon</label>
+                                    <select id="swal-man-type" class="w-full border rounded-xl px-3 py-2 text-sm font-bold">
+                                        <option value="NOMINAL" ${this.discountManualType === 'NOMINAL' ? 'selected' : ''}>Nominal (Rp)</option>
+                                        <option value="PERCENT" ${this.discountManualType === 'PERCENT' ? 'selected' : ''}>Persentase (%)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 mb-1">Besaran Diskon</label>
+                                    <input id="swal-man-val" type="number" min="0" value="${this.discountManualInput || 0}" class="w-full border rounded-xl px-3 py-2 text-sm font-bold" placeholder="Misal: 10 atau 15000">
+                                </div>
+                            </div>
+                        `,
+                        focusConfirm: false,
+                        showCancelButton: true,
+                        confirmButtonText: 'Terapkan',
+                        cancelButtonText: 'Batal',
+                        preConfirm: () => {
+                            return {
+                                type: document.getElementById('swal-man-type').value,
+                                val: parseFloat(document.getElementById('swal-man-val').value || 0)
+                            }
+                        }
                     });
-                    if (discVal && parseFloat(discVal) > 0) { this.discountManual = parseFloat(discVal); }
+                    if (formValues && formValues.val >= 0) { 
+                        this.discountManualType = formValues.type;
+                        this.discountManualInput = formValues.val;
+                    }
                 } else if (inputPin) { 
                     Swal.fire('Akses Ditolak', 'PIN Supervisor Salah!', 'error'); 
                 }
@@ -561,11 +720,24 @@ document.addEventListener('alpine:init', () => {
             let d = parseFloat(this.loyaltyRules.discount_amount);
             return this.loyaltyRules.discount_type === 'PERCENT' ? (this.subtotal * d) / 100 : d;
         },
+        get discountManual() {
+            if (!this.discountManualInput || this.discountManualInput <= 0) return 0;
+            if (this.discountManualType === 'PERCENT') {
+                return (this.subtotal * this.discountManualInput) / 100;
+            }
+            return this.discountManualInput;
+        },
+        get discountAuto() {
+            if (!this.appliedAutoDisc) return 0;
+            if (this.subtotal < this.appliedAutoDisc.min_purchase) { this.appliedAutoDisc = null; return 0; }
+            let d = parseFloat(this.appliedAutoDisc.discount_value);
+            return this.appliedAutoDisc.discount_type === 'PERCENT' ? (this.subtotal * d) / 100 : d;
+        },
         get totalAmountBase() {
             let ongkir = 0;
             if (this.activeTab === 'po') ongkir = parseFloat(this.poForm.ongkir || 0);
             else if (this.activeTab === 'reguler' && this.regulerForm.is_delivery) ongkir = parseFloat(this.regulerForm.ongkir || 0);
-            let total = this.subtotal + ongkir - this.discountVoucher - this.discountPoints - this.discountManual;
+            let total = this.subtotal + ongkir - this.discountVoucher - this.discountPoints - this.discountManual - this.discountAuto;
             return total > 0 ? total : 0;
         },
         get paymentFeeAmount() {
@@ -677,7 +849,7 @@ document.addEventListener('alpine:init', () => {
                 notes: finalNotes,
                 order_type: this.orderType, customer_id: this.selectedCustomerId, subtotal: this.subtotal,
                 discount_voucher: this.discountVoucher, voucher_code: this.appliedVoucher ? this.appliedVoucher.voucher_code : null,
-                discount_points: this.discountPoints, discount_manual: this.discountManual, points_used: this.usePoints ? this.loyaltyRules.points_required : 0, points_earned: this.pointsEarned, 
+                discount_points: this.discountPoints, discount_manual: this.discountManual, discount_auto: this.discountAuto, points_used: this.usePoints ? this.loyaltyRules.points_required : 0, points_earned: this.pointsEarned, 
                 total_amount: this.totalAmount, payment_method: this.paymentMethod, payment_fee_name: this.paymentFeeName, payment_fee_amount: this.paymentFeeAmount, payment_reference: this.paymentReference, payment_status: this.paymentStatus,
                 dp_amount: this.dpAmount, amount_paid: this.amountPaid, change_amount: this.changeAmount, items: this.cart
             };
@@ -690,9 +862,7 @@ document.addEventListener('alpine:init', () => {
                     this.lastInvoice = result.invoice; this.totalAmountSaved = this.totalAmount; this.paymentStatusSaved = this.paymentStatus;
                     this.dpAmountSaved = this.dpAmount; this.amountPaidSaved = this.amountPaid; this.changeAmountSaved = this.changeAmount; this.paymentMethodSaved = this.paymentMethod;
                     this.showSuccessModal = true;
-                    const autoMode = localStorage.getItem('pos_auto_print_mode');
-                    if (autoMode === 'bluetooth') { this.printReceipt(true, 'bluetooth'); }
-                    else if (autoMode === 'usb') { this.printReceipt(true, 'usb'); }
+                    this.triggerSmartAutoPrint();
                 } else { window.alert(result.message); }
             } catch (e) {
                 // Mode Offline: Simpan ke IndexedDB
@@ -701,9 +871,7 @@ document.addEventListener('alpine:init', () => {
                 this.lastInvoice = offlineId; this.totalAmountSaved = this.totalAmount; this.paymentStatusSaved = this.paymentStatus;
                 this.dpAmountSaved = this.dpAmount; this.amountPaidSaved = this.amountPaid; this.changeAmountSaved = this.changeAmount; this.paymentMethodSaved = this.paymentMethod;
                 this.showSuccessModal = true;
-                const autoMode = localStorage.getItem('pos_auto_print_mode');
-                if (autoMode === 'bluetooth') { this.printReceipt(true, 'bluetooth'); }
-                else if (autoMode === 'usb') { this.printReceipt(true, 'usb'); }
+                this.triggerSmartAutoPrint();
                 await this.updatePendingCount();
             } finally { this.isLoading = false; }
         },
@@ -741,10 +909,41 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
-        printReceipt(isAuto = false, mode = '') {
+        triggerSmartAutoPrint() {
+            if (!this.lastInvoice) return;
+            const autoMode = localStorage.getItem('pos_auto_print_mode');
+            const savedBtPrinter = localStorage.getItem('pos_printer_name');
+
+            // Cek mode yang diinginkan atau auto-detect
+            let mode = autoMode;
+            if (!mode || mode === 'manual') {
+                // Jika belum diset atau manual, otomatis deteksi: kalau ada printer bluetooth tersimpan pakai bluetooth, kalau tidak langsung ke USB
+                mode = savedBtPrinter ? 'bluetooth' : 'usb';
+            }
+
+            // Tampilkan alert pintar di sudut kanan bawah (toast)
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    toast: true,
+                    position: 'bottom-end',
+                    icon: 'info',
+                    title: mode === 'bluetooth' ? '📶 Otomatis mencetak ke Bluetooth...' : '🖨️ Otomatis membaca & mencetak ke USB...',
+                    showConfirmButton: false,
+                    timer: 3500
+                });
+            }
+
+            this.printReceipt(true, mode);
+        },
+
+        printReceipt(isAuto = true, mode = '') {
             let url = `print_receipt.php?invoice=${this.lastInvoice}`;
-            if (isAuto && mode === 'bluetooth') url += `&auto_print_bt=1`;
-            if (isAuto && mode === 'usb') url += `&auto_print_usb=1`;
+            if (!mode) {
+                const autoMode = localStorage.getItem('pos_auto_print_mode');
+                mode = (autoMode !== 'manual' && autoMode) ? autoMode : (localStorage.getItem('pos_printer_name') ? 'bluetooth' : 'usb');
+            }
+            if (mode === 'bluetooth') url += `&auto_print_bt=1`;
+            else url += `&auto_print_usb=1`;
             if(this.lastInvoice) window.open(url, '_blank', 'width=400,height=600');
             this.resetCart();
         },
@@ -767,23 +966,31 @@ document.addEventListener('alpine:init', () => {
                 Swal.fire('Perhatian', 'Nama referensi wajib diisi!', 'warning');
                 return;
             }
+            if (this.cart.length === 0) { Swal.fire('Perhatian', 'Keranjang kosong tidak dapat disimpan!', 'warning'); return; }
+            this.draftCustomerName = this.selectedCustomerId ? (this.customers.find(c => c.id == this.selectedCustomerId)?.name || '') : '';
+            this.draftNotes = this.orderNotes || '';
+            this.showSaveDraftModal = true;
+        },
+        confirmSaveDraft() {
             const draft = {
                 id: 'draft_' + Date.now(),
                 timestamp: new Date().toISOString(),
-                reference_name: this.draftReferenceName,
+                tab: this.activeTab,
                 cart: JSON.parse(JSON.stringify(this.cart)),
-                selectedCustomerId: this.selectedCustomerId,
-                activeTab: this.activeTab,
+                customerId: this.selectedCustomerId,
+                customerName: this.draftCustomerName || 'Pelanggan Umum',
+                notes: this.draftNotes,
                 poForm: JSON.parse(JSON.stringify(this.poForm)),
                 regulerForm: JSON.parse(JSON.stringify(this.regulerForm)),
-                orderNotes: this.orderNotes,
-                totalAmount: this.totalAmount
+                voucherCode: this.voucherCode,
+                appliedVoucher: this.appliedVoucher ? JSON.parse(JSON.stringify(this.appliedVoucher)) : null,
+                usePoints: this.usePoints,
+                discountManual: this.discountManual
             };
             this.drafts.push(draft);
             localStorage.setItem('pos_drafts', JSON.stringify(this.drafts));
             this.showSaveDraftModal = false;
             this.resetCart();
-            Swal.fire({ icon: 'success', title: 'Tersimpan', text: 'Keranjang berhasil disimpan ke antrean draft!', timer: 1500, showConfirmButton: false });
         },
         restoreDraft(draftId) {
             const draftIndex = this.drafts.findIndex(d => d.id === draftId);
@@ -805,35 +1012,27 @@ document.addEventListener('alpine:init', () => {
                 this.applyDraft(draft, draftIndex);
             }
         },
-        applyDraft(draft, index) {
-            this.cart = draft.cart;
-            this.selectedCustomerId = draft.selectedCustomerId;
-            this.activeTab = draft.activeTab;
-            this.poForm = draft.poForm;
-            this.regulerForm = draft.regulerForm;
-            this.orderNotes = draft.orderNotes;
-            
-            this.drafts.splice(index, 1);
+        applyDraft(draft, draftIndex) {
+            this.activeTab = draft.tab || 'reguler';
+            this.cart = draft.cart || [];
+            this.selectedCustomerId = draft.customerId || '';
+            this.orderNotes = draft.notes || '';
+            if(draft.poForm) this.poForm = draft.poForm;
+            if(draft.regulerForm) this.regulerForm = draft.regulerForm;
+            this.voucherCode = draft.voucherCode || '';
+            this.appliedVoucher = draft.appliedVoucher || null;
+            this.usePoints = draft.usePoints || false;
+            this.discountManual = draft.discountManual || 0;
+
+            this.drafts.splice(draftIndex, 1);
             localStorage.setItem('pos_drafts', JSON.stringify(this.drafts));
             this.showDraftModal = false;
-            this.calculateTotal();
-            Swal.fire({ icon: 'success', title: 'Berhasil Dimuat', text: 'Draft keranjang berhasil dikembalikan.', timer: 1000, showConfirmButton: false });
+            this.applyAutoPromos();
+            Swal.fire({ icon: 'success', title: 'Dimuat', text: 'Draft berhasil dimuat kembali ke kasir!', timer: 1500, showConfirmButton: false });
         },
         deleteDraft(draftId) {
-            Swal.fire({
-                title: 'Hapus Draft?',
-                text: "Draft ini akan dihapus permanen.",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#ef4444',
-                confirmButtonText: 'Ya, Hapus',
-                cancelButtonText: 'Batal'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    this.drafts = this.drafts.filter(d => d.id !== draftId);
-                    localStorage.setItem('pos_drafts', JSON.stringify(this.drafts));
-                }
-            });
+            this.drafts = this.drafts.filter(d => d.id !== draftId);
+            localStorage.setItem('pos_drafts', JSON.stringify(this.drafts));
         },
         formatDraftTime(isoString) {
             const date = new Date(isoString);
@@ -842,7 +1041,7 @@ document.addEventListener('alpine:init', () => {
 
         resetCart() {
             this.cart = []; this.selectedCustomerId = ''; this.voucherCode = ''; this.appliedVoucher = null;
-            this.usePoints = false; this.discountManual = 0; this.paymentMethod = 'Cash'; this.paymentFeeName = ''; this.paymentStatus = 'lunas';
+            this.usePoints = false; this.discountManual = 0; this.discountManualInput = 0; this.appliedAutoDisc = null; this.paymentMethod = 'Cash'; this.paymentFeeName = ''; this.paymentStatus = 'lunas';
             this.amountPaid = 0; this.dpAmount = 0; this.changeAmount = 0; this.inputUang = 0;
             this.orderNotes = '';
             this.poForm = { channel: 'toko', pickup_date: '', pickup_time: '', ongkir: 0, notes: '' };
@@ -851,13 +1050,30 @@ document.addEventListener('alpine:init', () => {
         },
 
         // --- FUNGSI STATUS PO ---
-        async openStatusModal() {
+        async openStatusModal(mode = null) {
+            if (mode) this.statusFilterMode = mode;
             this.showStatusModal = true; this.isFetchingStatus = true;
             try {
-                const response = await fetch(`logic_kasir.php?action=get_active_orders&date=${this.statusFilterDate}&nocache=${Date.now()}`);
+                const response = await fetch(`logic_kasir.php?action=get_active_orders&mode=${this.statusFilterMode}&date=${this.statusFilterDate}&nocache=${Date.now()}`);
                 const result = await response.json();
                 if(result.status === 'success') { this.activeOrders = result.data; }
             } catch(e) { console.error(e); } finally { this.isFetchingStatus = false; }
+        },
+        async updateProductionStatus(orderId, newStatus) {
+            try {
+                const res = await fetch(`logic_kasir.php?action=update_production_status`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: orderId, status: newStatus })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    if (typeof Swal !== 'undefined') Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Status Diperbarui!', showConfirmButton: false, timer: 1500 });
+                    this.openStatusModal();
+                } else {
+                    if (typeof Swal !== 'undefined') Swal.fire('Error', data.message || 'Gagal update status', 'error');
+                }
+            } catch(e) { console.error(e); }
         },
 
         formatRupiah(angka) { 

@@ -126,7 +126,7 @@ function isDropdownActive($paths, $current_uri) {
         </div>
 
         <?php 
-            $paths = ['/pos/pemasaran/crm/', '/pos/pemasaran/voucher/', '/pos/pemasaran/poin/']; 
+            $paths = ['/pos/pemasaran/crm/', '/pos/pemasaran/voucher/', '/pos/pemasaran/poin/', '/pos/pemasaran/promo-items/', '/pos/pemasaran/diskon-otomatis/']; 
             $isActive = isDropdownActive($paths, $current_uri);
         ?>
         <div class="mb-1">
@@ -138,8 +138,10 @@ function isDropdownActive($paths, $current_uri) {
                 <i id="icon-pemasaran" class="fa-solid fa-chevron-<?= $isActive ? 'down' : 'right' ?> text-[10px] transition-transform duration-200"></i>
             </button>
             <div id="sub-pemasaran" class="<?= $isActive ? 'flex' : 'hidden' ?> flex-col gap-1 mt-1 pl-11 pr-2">
-                <a href="<?= BASE_URL ?>pos/pemasaran/crm/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/pemasaran/crm/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> CRM Broadcast</a>
+               
                 <a href="<?= BASE_URL ?>pos/pemasaran/voucher/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/pemasaran/voucher/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Kelola Voucher</a>
+                <a href="<?= BASE_URL ?>pos/pemasaran/promo-items/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/pemasaran/promo-items/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Promo Beli X Gratis Y</a>
+                <a href="<?= BASE_URL ?>pos/pemasaran/diskon-otomatis/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/pemasaran/diskon-otomatis/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Diskon Otomatis</a>
                 <a href="<?= BASE_URL ?>pos/pemasaran/poin-loyalitas/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/pemasaran/poin-loyalitas/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Poin Loyalitas</a>
             </div>
         </div>

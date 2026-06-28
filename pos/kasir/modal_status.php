@@ -7,9 +7,13 @@
                 <h3 class="font-black text-lg text-slate-800 flex items-center gap-2"><i class="fa-solid fa-fire-burner text-orange-500"></i> Pantau Pesanan Dapur & PO</h3>
                 <p class="text-xs font-bold text-slate-500 mt-1">Daftar pesanan dengan notifikasi otomatis untuk pengambilan terdekat.</p>
             </div>
-            <div class="flex items-center gap-3">
-                <input type="date" x-model="statusFilterDate" @change="openStatusModal()" class="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm">
-                <button @click="showStatusModal = false" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-200 hover:bg-rose-500 hover:text-white transition-colors shrink-0"><i class="fa-solid fa-xmark"></i></button>
+            <div class="flex flex-wrap items-center gap-2">
+                <button @click="openStatusModal('nunggak')" :class="statusFilterMode === 'nunggak' ? 'bg-rose-500 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'" class="px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5"><i class="fa-solid fa-clock"></i> Belum Selesai (Nunggak)</button>
+                <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                    <span class="text-xs font-bold text-slate-500 px-2 cursor-pointer" @click="openStatusModal('date')"><i class="fa-solid fa-calendar-day mr-1"></i>Tanggal:</span>
+                    <input type="date" x-model="statusFilterDate" @change="openStatusModal('date')" class="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm">
+                </div>
+                <button @click="showStatusModal = false" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-200 hover:bg-rose-500 hover:text-white transition-colors shrink-0 ml-2"><i class="fa-solid fa-xmark"></i></button>
             </div>
         </div>
         
@@ -43,8 +47,8 @@
                                 </div>
                             </div>
                             <div class="flex shrink-0">
-                                <template x-if="order.production_status === 'pending'"><span class="bg-rose-100 text-rose-600 px-4 py-2 rounded-xl text-xs font-black border border-rose-200"><i class="fa-solid fa-hourglass-half mr-1"></i> Menunggu Dapur</span></template>
-                                <template x-if="order.production_status === 'diproses'"><span class="bg-orange-500 text-white px-4 py-2 rounded-xl text-xs font-black shadow-md"><i class="fa-solid fa-fire mr-1"></i> Sedang Dimasak</span></template>
+                                <template x-if="order.production_status === 'pending'"><button @click="updateProductionStatus(order.id, 'diproses')" class="bg-rose-100 text-rose-600 hover:bg-rose-500 hover:text-white px-4 py-2 rounded-xl text-xs font-black border border-rose-200 transition-all shadow-sm" title="Klik untuk ubah jadi Sedang Dimasak"><i class="fa-solid fa-hourglass-half mr-1"></i> Menunggu Dapur <i class="fa-solid fa-arrow-right ml-1 text-[10px]"></i></button></template>
+                                <template x-if="order.production_status === 'diproses'"><button @click="updateProductionStatus(order.id, 'selesai')" class="bg-orange-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-black shadow-md transition-all" title="Klik untuk ubah jadi Siap Diambil"><i class="fa-solid fa-fire mr-1"></i> Sedang Dimasak <i class="fa-solid fa-arrow-right ml-1 text-[10px]"></i></button></template>
                                 <template x-if="order.production_status === 'selesai'"><span class="bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-black shadow-md"><i class="fa-solid fa-check-double mr-1"></i> Siap Diambil</span></template>
                             </div>
                         </div>

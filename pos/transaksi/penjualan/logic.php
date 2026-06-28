@@ -36,8 +36,18 @@ if ($action === 'get_sales') {
             $params[] = $payment;
         }
         if (!empty($status)) {
-            $query .= " AND s.payment_status = ?";
-            $params[] = $status;
+            if ($status === 'lunas_langsung') {
+                $query .= " AND s.payment_status = 'lunas' AND (s.dp_amount IS NULL OR s.dp_amount = 0)";
+            } elseif ($status === 'dp_semua') {
+                $query .= " AND s.dp_amount > 0";
+            } elseif ($status === 'dp_belum') {
+                $query .= " AND s.payment_status = 'dp'";
+            } elseif ($status === 'dp_lunas') {
+                $query .= " AND s.payment_status = 'lunas' AND s.dp_amount > 0";
+            } else {
+                $query .= " AND s.payment_status = ?";
+                $params[] = $status;
+            }
         }
 
         // FILTER RENTANG WAKTU

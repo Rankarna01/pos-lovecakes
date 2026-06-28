@@ -307,13 +307,19 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                                         </div>
                                     </template>
                                     <template x-if="item.is_custom_price != 1">
-                                        <div class="text-[11px] font-black text-primary" x-text="'Rp ' + formatRupiah(item.price)"></div>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="text-[11px] font-black" :class="item.is_promo_free ? 'text-emerald-600' : 'text-primary'" x-text="item.is_promo_free ? 'GRATIS PROMO' : ('Rp ' + formatRupiah(item.price))"></span>
+                                            <button x-show="!item.is_promo_free" @click="setItemDiscount(index)" class="px-1 py-0.5 rounded text-[9px] font-black transition-all border" :class="item.discount_type !== 'none' && item.discount_value > 0 ? 'bg-rose-100 text-rose-600 border-rose-200' : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200'">
+                                                <i class="fa-solid fa-tag text-[8px]"></i>
+                                                <span x-text="item.discount_type !== 'none' && item.discount_value > 0 ? (item.discount_type === 'percent' ? '-' + item.discount_value + '%' : '-Rp' + formatRupiah(item.discount_value)) : 'Disc'"></span>
+                                            </button>
+                                        </div>
                                     </template>
                                 </div>
                                 <div class="flex items-center gap-1 bg-white border border-slate-200 rounded-md px-0.5 py-0.5">
-                                    <button @click="updateQty(index, -1)" class="w-5 h-5 flex items-center justify-center rounded bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold"><i class="fa-solid fa-minus text-[9px]"></i></button>
+                                    <button @click="updateQty(index, -1)" :disabled="item.is_promo_free" class="w-5 h-5 flex items-center justify-center rounded bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold disabled:opacity-50"><i class="fa-solid fa-minus text-[9px]"></i></button>
                                     <span class="w-5 text-center font-black text-xs" x-text="item.qty"></span>
-                                    <button @click="updateQty(index, 1)" class="w-5 h-5 flex items-center justify-center rounded bg-primary text-white hover:bg-blue-600 font-bold"><i class="fa-solid fa-plus text-[9px]"></i></button>
+                                    <button @click="updateQty(index, 1)" :disabled="item.is_promo_free" class="w-5 h-5 flex items-center justify-center rounded bg-primary text-white hover:bg-blue-600 font-bold disabled:opacity-50"><i class="fa-solid fa-plus text-[9px]"></i></button>
                                 </div>
                                 <button @click="removeItem(index)" class="w-6 h-6 flex items-center justify-center text-rose-400 hover:text-rose-600 bg-rose-50 rounded-md shrink-0"><i class="fa-solid fa-trash-can text-[10px]"></i></button>
                             </div>
@@ -341,7 +347,8 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                         <div x-show="activeTab === 'reguler' && regulerForm.is_delivery && regulerForm.ongkir > 0" class="flex justify-between text-[11px] font-bold text-amber-500"><span>Ongkir</span> <span x-text="'+ Rp ' + formatRupiah(regulerForm.ongkir)"></span></div>
                             <div x-show="discountVoucher > 0" class="flex justify-between text-[11px] font-bold text-emerald-500"><span>Diskon Voucher</span> <span x-text="'- Rp ' + formatRupiah(discountVoucher)"></span></div>
                             <div x-show="discountPoints > 0" class="flex justify-between text-[11px] font-bold text-amber-500"><span>Diskon Poin</span> <span x-text="'- Rp ' + formatRupiah(discountPoints)"></span></div>
-                            <div x-show="discountManual > 0" class="flex justify-between text-[11px] font-bold text-rose-500"><span>Diskon Manual <i @click="discountManual = 0" class="fa-solid fa-xmark cursor-pointer ml-1"></i></span> <span x-text="'- Rp ' + formatRupiah(discountManual)"></span></div>
+                            <div x-show="discountAuto > 0" class="flex justify-between text-[11px] font-bold text-indigo-600"><span>Promo Otomatis <span x-text="appliedAutoDisc ? '(' + appliedAutoDisc.promo_name + ')' : ''" class="text-[9px]"></span></span> <span x-text="'- Rp ' + formatRupiah(discountAuto)"></span></div>
+                            <div x-show="discountManual > 0" class="flex justify-between text-[11px] font-bold text-rose-500"><span>Diskon Manual <i @click="discountManualInput = 0; discountManual = 0" class="fa-solid fa-xmark cursor-pointer ml-1"></i></span> <span x-text="'- Rp ' + formatRupiah(discountManual)"></span></div>
                         </div>
 
                         <div class="flex justify-between items-end mb-1 border-t border-slate-200 pt-1">
@@ -355,9 +362,9 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                         <div class="grid grid-cols-5 gap-1 mb-1">
                             <button @click="showNotesModal = true" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-[9px] font-bold"><i class="fa-solid fa-note-sticky text-sm mb-0.5"></i> Catatan</button>
                             <button @click="openDiscountMenu()" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-[9px] font-bold"><i class="fa-solid fa-percent text-sm mb-0.5"></i> Diskon</button>
-                            <button onclick="window.open('print_receipt.php?invoice=' + (posApp().lastInvoice || ''), '_blank', 'width=400,height=600')" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-[9px] font-bold"><i class="fa-solid fa-print text-sm mb-0.5"></i> Cetak</button>
-                            <button @click="openStatusModal()" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg bg-orange-100 hover:bg-orange-200 text-orange-600 text-[9px] font-bold"><i class="fa-solid fa-list-check text-sm mb-0.5"></i> Status</button>
-                            <button @click="showDapurModal = true" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg bg-orange-100 hover:bg-orange-200 text-orange-600 text-[9px] font-bold"><i class="fa-solid fa-fire-burner text-sm mb-0.5"></i> Dapur</button>
+                            <button @click="printReceipt()" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-[9px] font-bold"><i class="fa-solid fa-print text-sm mb-0.5"></i> Cetak</button>
+                            <button @click="openStatusModal('date')" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg bg-orange-100 hover:bg-orange-200 text-orange-600 text-[9px] font-bold"><i class="fa-solid fa-list-check text-sm mb-0.5"></i> Status</button>
+                            <button @click="openStatusModal('nunggak')" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg bg-orange-100 hover:bg-orange-200 text-orange-600 text-[9px] font-bold"><i class="fa-solid fa-fire-burner text-sm mb-0.5"></i> Dapur</button>
                         </div>
 
                     </div>

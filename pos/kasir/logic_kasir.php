@@ -65,6 +65,14 @@ if ($action === 'get_master_data') {
     } catch (Exception $e) {
         $loyalty = ['is_active' => 0, 'earn_point_ratio' => 0, 'points_required' => 0, 'discount_amount' => 0, 'discount_type' => 'IDR'];
     }
+
+    $promos_buy_get = [];
+    $promos_auto_disc = [];
+    try {
+        $promos_buy_get = $pdo->query("SELECT * FROM promo_buy_x_get_y WHERE is_active = 1 AND CURDATE() BETWEEN start_date AND end_date")->fetchAll(PDO::FETCH_ASSOC);
+        $promos_auto_disc = $pdo->query("SELECT * FROM promo_auto_discounts WHERE is_active = 1 AND CURDATE() BETWEEN start_date AND end_date ORDER BY min_purchase DESC")->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {}
+
     $stmt_set = $pdo->prepare("SELECT setting_value FROM pos_settings WHERE setting_key = 'default_start_cash'");
     $stmt_set->execute();
     $setting = $stmt_set->fetch(PDO::FETCH_ASSOC);
@@ -78,6 +86,8 @@ if ($action === 'get_master_data') {
         'saved_customs_reguler' => $saved_customs_reguler,
         'payment_methods' => $payment_methods,
         'loyalty' => $loyalty,
+        'promos_buy_get' => $promos_buy_get,
+        'promos_auto_disc' => $promos_auto_disc,
         'default_start_cash' => $default_start_cash
     ]);
     exit;
@@ -211,11 +221,15 @@ if ($action === 'save_kas_keluar') {
 
 // --- FUNGSI CHECKOUT ---
 if ($action === 'checkout') {
-    // AUTO-MIGRATE KOLOM PAYMENT_REFERENCE
+    // AUTO-MIGRATE KOLOM PAYMENT_REFERENCE & DISCOUNT_AUTO
     try {
         $checkCol = $pdo->query("SHOW COLUMNS FROM sales_pos LIKE 'payment_reference'");
         if ($checkCol->rowCount() === 0) {
             $pdo->exec("ALTER TABLE sales_pos ADD COLUMN payment_reference VARCHAR(100) NULL DEFAULT NULL AFTER payment_fee_amount");
+        }
+        $checkCol2 = $pdo->query("SHOW COLUMNS FROM sales_pos LIKE 'discount_auto'");
+        if ($checkCol2->rowCount() === 0) {
+            $pdo->exec("ALTER TABLE sales_pos ADD COLUMN discount_auto DECIMAL(15,2) DEFAULT 0.00 AFTER discount_manual");
         }
     } catch (Exception $e) {}
 
@@ -233,11 +247,12 @@ if ($action === 'checkout') {
     $payment_fee_name = !empty($data['payment_fee_name']) ? $data['payment_fee_name'] : null;
     $payment_fee_amount = !empty($data['payment_fee_amount']) ? $data['payment_fee_amount'] : 0.00;
     $payment_reference = !empty($data['payment_reference']) ? $data['payment_reference'] : null;
+    $discount_auto = !empty($data['discount_auto']) ? $data['discount_auto'] : 0.00;
 
-    $stmt = $pdo->prepare("INSERT INTO sales_pos (invoice_no, customer_id, order_type, subtotal, discount_voucher, voucher_code, discount_points, discount_manual, points_used, points_earned, total_amount, payment_method, payment_fee_name, payment_fee_amount, payment_reference, payment_status, dp_amount, amount_paid, change_amount, is_po, channel, pickup_date, pickup_time, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt = $pdo->prepare("INSERT INTO sales_pos (invoice_no, customer_id, order_type, subtotal, discount_voucher, voucher_code, discount_points, discount_manual, discount_auto, points_used, points_earned, total_amount, payment_method, payment_fee_name, payment_fee_amount, payment_reference, payment_status, dp_amount, amount_paid, change_amount, is_po, channel, pickup_date, pickup_time, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     $stmt->execute([
         $invoice_no, $customer_id, 'offline', $data['subtotal'], $data['discount_voucher'], $data['voucher_code'], 
-        $data['discount_points'], $data['discount_manual'], $data['points_used'], $data['points_earned'], 
+        $data['discount_points'], $data['discount_manual'], $discount_auto, $data['points_used'], $data['points_earned'], 
         $data['total_amount'], $data['payment_method'], $payment_fee_name, $payment_fee_amount, $payment_reference, $data['payment_status'], $data['dp_amount'], $data['amount_paid'], $data['change_amount'], $is_po, $channel, $pickup_date, $pickup_time, $notes
     ]);
     $sale_id = $pdo->lastInsertId();
@@ -248,7 +263,7 @@ if ($action === 'checkout') {
     $stmtPay = $pdo->prepare("INSERT INTO sale_payments_pos (sale_id, amount, payment_method, payment_type) VALUES (?, ?, ?, ?)");
     $stmtPay->execute([$sale_id, $amount_to_record, $data['payment_method'], $payment_type]);
 
-    $stmt_detail = $pdo->prepare("INSERT INTO sale_details_pos (sale_id, product_id, is_custom, custom_name, price, qty, subtotal, created_by_user) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt_detail = $pdo->prepare("INSERT INTO sale_details_pos (sale_id, product_id, is_custom, custom_name, price, qty, subtotal, discount_type, discount_value, created_by_user) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     $stmt_potong_stok = $pdo->prepare("UPDATE products SET stock = stock - ? WHERE id = ?");
     
     foreach ($data['items'] as $item) {
@@ -257,7 +272,9 @@ if ($action === 'checkout') {
         $custom_name = $item['is_custom'] ? $item['name'] : null;
         // Simpan created_by_user hanya untuk item custom (produk reguler NULL)
         $item_created_by = $is_custom ? $user_id : null;
-        $stmt_detail->execute([$sale_id, $prod_id, $is_custom, $custom_name, $item['price'], $item['qty'], $item['subtotal'], $item_created_by]);
+        $disc_type = !empty($item['discount_type']) ? $item['discount_type'] : 'none';
+        $disc_val  = !empty($item['discount_value']) ? (float)$item['discount_value'] : 0;
+        $stmt_detail->execute([$sale_id, $prod_id, $is_custom, $custom_name, $item['price'], $item['qty'], $item['subtotal'], $disc_type, $disc_val, $item_created_by]);
 
         // Potong stok produk katalog (baik Reguler maupun PO)
         if (!$is_custom) { $stmt_potong_stok->execute([$item['qty'], $prod_id]); }
@@ -306,11 +323,16 @@ if ($action === 'checkout') {
 
 // --- FUNGSI STATUS PO ---
 if ($action === 'get_active_orders') {
+    $mode = $_GET['mode'] ?? 'nunggak';
     $date_filter = $_GET['date'] ?? date('Y-m-d');
     
-    // Filter by pickup_date, and only pending/diproses/selesai (as long as it's not taken)
-    $stmt = $pdo->prepare("SELECT s.id, s.invoice_no, s.created_at, s.production_status, s.channel, s.pickup_date, s.pickup_time, c.name as customer_name FROM sales_pos s LEFT JOIN customers_pos c ON s.customer_id = c.id WHERE s.is_po = 1 AND s.pickup_date = ? ORDER BY s.pickup_date ASC, s.pickup_time ASC");
-    $stmt->execute([$date_filter]);
+    if ($mode === 'nunggak') {
+        $stmt = $pdo->prepare("SELECT s.id, s.invoice_no, s.created_at, s.production_status, s.channel, s.pickup_date, s.pickup_time, c.name as customer_name FROM sales_pos s LEFT JOIN customers_pos c ON s.customer_id = c.id WHERE s.is_po = 1 AND (s.production_status IS NULL OR s.production_status IN ('pending', 'diproses')) ORDER BY s.pickup_date ASC, s.pickup_time ASC");
+        $stmt->execute();
+    } else {
+        $stmt = $pdo->prepare("SELECT s.id, s.invoice_no, s.created_at, s.production_status, s.channel, s.pickup_date, s.pickup_time, c.name as customer_name FROM sales_pos s LEFT JOIN customers_pos c ON s.customer_id = c.id WHERE s.is_po = 1 AND s.pickup_date = ? ORDER BY s.pickup_date ASC, s.pickup_time ASC");
+        $stmt->execute([$date_filter]);
+    }
     $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $data = [];
@@ -329,6 +351,7 @@ if ($action === 'get_active_orders') {
         }
         $order['items_list'] = implode(', ', $itemNames); 
         $order['time'] = date('H:i', strtotime($order['created_at']));
+        if (empty($order['production_status'])) $order['production_status'] = 'pending';
         
         // Tentukan alert_type
         if ($order['pickup_date'] === $today) {
@@ -342,6 +365,21 @@ if ($action === 'get_active_orders') {
         $data[] = $order;
     }
     echo json_encode(['status' => 'success', 'data' => $data]); exit;
+}
+
+if ($action === 'update_production_status') {
+    $input = json_decode(file_get_contents('php://input'), true);
+    $id = $input['id'] ?? 0;
+    $status = $input['status'] ?? 'pending';
+    
+    if ($id) {
+        $stmt = $pdo->prepare("UPDATE sales_pos SET production_status = ? WHERE id = ?");
+        $stmt->execute([$status, $id]);
+        echo json_encode(['status' => 'success']);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'ID pesanan tidak valid']);
+    }
+    exit;
 }
 
 
