@@ -87,6 +87,11 @@ $page_title = "Katalog Produk - Love Cakes POS";
                                         <span class="text-[9px] font-black text-slate-400 uppercase">Harga</span>
                                         <div class="font-black text-emerald-600 text-xs" x-text="'Rp ' + formatRupiah(item.offline_price || item.price)"></div>
                                     </div>
+
+                                    <div class="flex items-center justify-between bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-lg text-[9px] font-black text-amber-800">
+                                        <span class="flex items-center gap-1 truncate"><i class="fa-solid fa-store text-amber-500"></i> <span x-text="item.store_name || 'gudang 01'"></span></span>
+                                        <span class="text-[8px] bg-amber-500 text-white px-1.5 py-0.5 rounded font-extrabold">OUTLET</span>
+                                    </div>
                                     
                                     <div class="flex justify-between items-center gap-1.5">
                                         <div class="px-2 py-1 rounded-lg border flex-1 flex items-center justify-center text-[9px] font-black tracking-wide" 

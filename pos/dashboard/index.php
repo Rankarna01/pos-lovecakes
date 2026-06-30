@@ -27,6 +27,11 @@ $page_title = "Dashboard - Love Cakes POS";
                 <h2 class="text-xl font-bold tracking-wide">Dasbor</h2>
             </div>
             <div class="flex items-center gap-4 md:gap-5 text-lg">
+                <?php if (!empty($_SESSION['pos_store_name'])): ?>
+                <div class="bg-black/20 text-amber-300 border border-white/20 px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-2 shadow-inner">
+                    <i class="fa-solid fa-store text-amber-400"></i> Outlet: <?= htmlspecialchars($_SESSION['pos_store_name']) ?>
+                </div>
+                <?php endif; ?>
                 <button class="hover:text-blue-200 transition-colors hidden sm:block"><i class="fa-solid fa-magnifying-glass"></i></button>
                 <button class="hover:text-blue-200 transition-colors hidden sm:block"><i class="fa-solid fa-gift"></i></button>
                 <button class="hover:text-blue-200 relative transition-colors hidden sm:block"><i class="fa-regular fa-bell"></i></button>

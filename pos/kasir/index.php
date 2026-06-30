@@ -62,6 +62,12 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                 <div x-show="!needsShiftOpen" class="hidden sm:flex bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-xs font-black items-center gap-2">
                     <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div> Kasir Aktif
                 </div>
+
+                <?php if (!empty($_SESSION['pos_store_name'])): ?>
+                <div class="flex bg-amber-500/20 text-amber-300 border border-amber-500/30 px-3 py-1.5 rounded-lg text-xs font-black items-center gap-2 shadow-inner">
+                    <i class="fa-solid fa-store text-amber-400"></i> Outlet: <?= htmlspecialchars($_SESSION['pos_store_name']) ?>
+                </div>
+                <?php endif; ?>
                 
                 <button @click="openKasKeluarModal()" x-show="!needsShiftOpen" class="hidden md:flex bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-xs font-black transition-all shadow-sm items-center gap-2">
                     <i class="fa-solid fa-money-bill-transfer"></i> Kas Keluar

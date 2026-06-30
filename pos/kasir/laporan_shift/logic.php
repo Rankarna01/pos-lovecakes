@@ -19,6 +19,11 @@ if ($action === 'get_shifts') {
         $query = "SELECT sh.*, COALESCE(u.name, 'Kasir') as cashier_name FROM shifts_history_pos sh LEFT JOIN users_pos u ON sh.user_id = u.id WHERE 1=1";
         $params = [];
 
+        if (!empty($_SESSION['pos_warehouse_id'])) {
+            $query .= " AND sh.warehouse_id = ?";
+            $params[] = intval($_SESSION['pos_warehouse_id']);
+        }
+
         if (!empty($search)) { $query .= " AND u.name LIKE ?"; $params[] = "%$search%"; }
 
         $start_date = $_GET['start_date'] ?? '';

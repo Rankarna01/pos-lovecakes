@@ -22,6 +22,11 @@ if ($action === 'get_sales') {
         ";
         $params = [];
 
+        if (!empty($_SESSION['pos_warehouse_id'])) {
+            $query .= " AND s.warehouse_id = ?";
+            $params[] = intval($_SESSION['pos_warehouse_id']);
+        }
+
         if (!empty($search)) {
             $query .= " AND (s.invoice_no LIKE ? OR c.name LIKE ?)";
             $params[] = "%$search%";

@@ -46,7 +46,17 @@ try {
     // ==========================================
     // --- FUNGSI MASTER DATA ---
 if ($action === 'get_master_data') {
-    $products = $pdo->query("SELECT * FROM products ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
+    $wh_id = !empty($_SESSION['pos_warehouse_id']) ? intval($_SESSION['pos_warehouse_id']) : 1;
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS product_warehouse_stocks (
+            id INT AUTO_INCREMENT PRIMARY KEY, product_id INT NOT NULL, warehouse_id INT NOT NULL, stock INT NOT NULL DEFAULT 0, UNIQUE KEY unique_prod_wh (product_id, warehouse_id)
+        )");
+        $pdo->exec("INSERT IGNORE INTO product_warehouse_stocks (product_id, warehouse_id, stock) SELECT id, stock, 1 FROM products");
+    } catch(Exception $e){}
+
+    $stmt_p = $pdo->prepare("SELECT p.*, COALESCE(pws.stock, 0) as stock FROM products p LEFT JOIN product_warehouse_stocks pws ON p.id = pws.product_id AND pws.warehouse_id = ? ORDER BY p.name ASC");
+    $stmt_p->execute([$wh_id]);
+    $products = $stmt_p->fetchAll(PDO::FETCH_ASSOC);
     $customers = $pdo->query("SELECT id, name, points FROM customers_pos ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
     // Tarik juga template menu custom
     $saved_customs = $pdo->query("SELECT * FROM saved_custom_items_pos ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
@@ -92,14 +102,16 @@ if ($action === 'get_master_data') {
         $pickup_date = !empty($data['pickup_date']) ? $data['pickup_date'] : null;
         $pickup_time = !empty($data['pickup_time']) ? $data['pickup_time'] : null;
 
-        $stmt = $pdo->prepare("INSERT INTO sales_pos (invoice_no, customer_id, order_type, subtotal, discount_voucher, voucher_code, discount_points, discount_manual, points_used, points_earned, total_amount, payment_method, payment_status, dp_amount, amount_paid, change_amount, is_po, channel, pickup_date, pickup_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $warehouse_id = !empty($_SESSION['pos_warehouse_id']) ? intval($_SESSION['pos_warehouse_id']) : 1;
+
+        $stmt = $pdo->prepare("INSERT INTO sales_pos (invoice_no, customer_id, order_type, subtotal, discount_voucher, voucher_code, discount_points, discount_manual, points_used, points_earned, total_amount, payment_method, payment_status, dp_amount, amount_paid, change_amount, is_po, channel, pickup_date, pickup_time, warehouse_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         
         $stmt->execute([
             $invoice_no, $customer_id, $data['order_type'], $data['subtotal'], 
             $data['discount_voucher'], $data['voucher_code'], $data['discount_points'], $data['discount_manual'], 
             $data['points_used'], $data['points_earned'], $data['total_amount'], 
             $data['payment_method'], $data['payment_status'], $data['dp_amount'], $data['amount_paid'], $data['change_amount'], 
-            $is_po, $channel, $pickup_date, $pickup_time
+            $is_po, $channel, $pickup_date, $pickup_time, $warehouse_id
         ]);
         $sale_id = $pdo->lastInsertId();
 
@@ -116,6 +128,10 @@ if ($action === 'get_master_data') {
 
             // Potong stok otomatis JIKA BUKAN ITEM CUSTOM dan BUKAN PO
             if (!$is_custom && !$is_po) {
+                $wh_id = !empty($_SESSION['pos_warehouse_id']) ? intval($_SESSION['pos_warehouse_id']) : 1;
+                $stmt_potong_wh = $pdo->prepare("INSERT INTO product_warehouse_stocks (product_id, warehouse_id, stock) VALUES (?, ?, -?) ON DUPLICATE KEY UPDATE stock = stock - ?");
+                $stmt_potong_wh->execute([$prod_id, $wh_id, $item['qty'], $item['qty']]);
+
                 $stmt_potong_stok->execute([$item['qty'], $prod_id]);
                 $stmt_history->execute([$prod_id, $item['qty'], $invoice_no]);
             }

@@ -23,6 +23,13 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                 </button>
                 <h2 class="text-xl font-black tracking-wide"><i class="fa-solid fa-receipt mr-2"></i>Riwayat Penjualan</h2>
             </div>
+            <div class="flex items-center gap-3">
+                <?php if (!empty($_SESSION['pos_store_name'])): ?>
+                <div class="bg-black/20 text-amber-300 border border-white/20 px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-2 shadow-inner">
+                    <i class="fa-solid fa-store text-amber-400"></i> Outlet: <?= htmlspecialchars($_SESSION['pos_store_name']) ?>
+                </div>
+                <?php endif; ?>
+            </div>
         </header>
 
         <main class="flex-1 overflow-x-hidden overflow-y-auto custom-scrollbar p-4 md:p-6 bg-slate-100/50">

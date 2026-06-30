@@ -10,34 +10,38 @@ $warehouse_id = $_GET['warehouse_id'] ?? ''; // Tangkap request filter toko
 
 if ($action === 'read_produk') {
     try {
-        // Query Super Cepat: Tarik Harga Online + Baca Stok Langsung dari Tabel
+        $wh_id = !empty($_SESSION['pos_warehouse_id']) ? intval($_SESSION['pos_warehouse_id']) : (!empty($warehouse_id) ? intval($warehouse_id) : 0);
+
+        // Query: Tarik Harga + Baca Stok Langsung dari Tabel multi-tenant
         $query = "
             SELECT 
-                id, 
-                code, 
-                name, 
-                category, 
-                image, 
-                modal_price, 
-                price AS offline_price, 
-                online_price, 
-                stock,
-                warehouse_id
-            FROM products 
+                p.id, 
+                p.code, 
+                p.name, 
+                p.category, 
+                p.image, 
+                p.modal_price, 
+                p.price AS offline_price, 
+                p.online_price, 
+                " . ($wh_id > 0 ? "COALESCE(pws.stock, p.stock)" : "p.stock") . " AS stock,
+                COALESCE(w.name, CASE WHEN p.warehouse_id = 2 THEN 'Gudang 02' ELSE 'gudang 01' END) AS store_name,
+                p.warehouse_id
+            FROM products p
+            " . ($wh_id > 0 ? "LEFT JOIN product_warehouse_stocks pws ON p.id = pws.product_id AND pws.warehouse_id = $wh_id" : "") . "
+            LEFT JOIN warehouses w ON " . ($wh_id > 0 ? "$wh_id = w.id" : "p.warehouse_id = w.id") . "
             WHERE 1=1
         ";
         
         $params = [];
 
         // Logic Filtering Toko / Warehouse
-        if (!empty($warehouse_id)) {
-            // Menampilkan produk sesuai ID Toko, 
-            // ATAU tampilkan juga yang NULL agar produk lama tidak gaib sebelum kamu update datanya
-            $query .= " AND (warehouse_id = ? OR warehouse_id IS NULL)";
-            $params[] = $warehouse_id;
+        if ($wh_id > 0) {
+            $query .= " AND (p.warehouse_id = ? OR p.warehouse_id IS NULL OR ? = 1)";
+            $params[] = $wh_id;
+            $params[] = $wh_id;
         }
 
-        $query .= " ORDER BY name ASC";
+        $query .= " ORDER BY p.name ASC";
 
         $stmt = $pdo->prepare($query);
         $stmt->execute($params);

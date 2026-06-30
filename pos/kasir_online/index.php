@@ -18,6 +18,12 @@ require_once '../../config/auth.php';
                 <h2 class="text-xl font-black tracking-wide"><i class="fa-solid fa-motorcycle mr-2"></i>Kasir Online (Delivery)</h2>
             </div>
             <div class="flex items-center gap-3">
+                <?php if (!empty($_SESSION['pos_store_name'])): ?>
+                <div class="bg-black/20 text-amber-100 border border-white/20 px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-2 shadow-inner">
+                    <i class="fa-solid fa-store text-amber-300"></i> Outlet: <?= htmlspecialchars($_SESSION['pos_store_name']) ?>
+                </div>
+                <?php endif; ?>
+
                 <div class="bg-white/20 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 border border-white/30 shadow-inner">
                     <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span> Mode Online
                 </div>

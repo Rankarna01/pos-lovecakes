@@ -19,6 +19,30 @@ if (!isset($_SESSION['pos_user_id']) || empty($_SESSION['pos_user_id'])) {
     exit();
 }
 
+// Segarkan info outlet dan pastikan struktur tabel mendukung multi-outlet
+try {
+    require_once __DIR__ . '/database.php';
+    try { $pdo->exec("ALTER TABLE sales_pos ADD COLUMN warehouse_id INT NULL AFTER id"); } catch (Exception $e) {}
+    try { $pdo->exec("ALTER TABLE shifts_history_pos ADD COLUMN warehouse_id INT NULL AFTER id"); } catch (Exception $e) {}
+    try { $pdo->exec("UPDATE sales_pos SET warehouse_id = 1 WHERE warehouse_id IS NULL"); } catch (Exception $e) {}
+
+    if (!isset($_SESSION['pos_warehouse_id']) || !isset($_SESSION['pos_store_name'])) {
+        $stmt_w = $pdo->prepare("
+            SELECT u.warehouse_id, w.name as store_name, w.code as store_code 
+            FROM users_pos u 
+            LEFT JOIN warehouses w ON u.warehouse_id = w.id 
+            WHERE u.id = ?
+        ");
+        $stmt_w->execute([$_SESSION['pos_user_id']]);
+        $u_w = $stmt_w->fetch(PDO::FETCH_ASSOC);
+        if ($u_w) {
+            $_SESSION['pos_warehouse_id'] = $u_w['warehouse_id'];
+            $_SESSION['pos_store_name'] = $u_w['store_name'] ?? 'Semua Outlet (Global)';
+            $_SESSION['pos_store_code'] = $u_w['store_code'] ?? 'GLOBAL';
+        }
+    }
+} catch (Exception $e) {}
+
 // ==========================================
 // KUNCI PINTU URL (ROUTE BLOCKER 403)
 // ==========================================

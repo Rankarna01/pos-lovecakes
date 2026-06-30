@@ -104,6 +104,20 @@ function isDropdownActive($paths, $current_uri) {
         </button>
     </div>
 
+    <?php if (!empty($_SESSION['pos_store_name'])): ?>
+    <div class="px-4 pt-4 pb-1 shrink-0 bg-white">
+        <div class="bg-gradient-to-r from-amber-500/15 to-orange-500/15 border border-amber-500/30 rounded-xl p-2.5 flex items-center gap-3 text-amber-800 shadow-sm">
+            <div class="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0 font-bold text-sm shadow">
+                <i class="fa-solid fa-store"></i>
+            </div>
+            <div class="overflow-hidden">
+                <div class="text-[9px] font-black uppercase tracking-wider text-amber-600 leading-tight">Lokasi / Outlet</div>
+                <div class="text-xs font-black truncate text-amber-900"><?= htmlspecialchars($_SESSION['pos_store_name']) ?></div>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <nav class="flex-1 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar bg-white">
 
         <div class="px-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Menu Utama (Kasir)</div>

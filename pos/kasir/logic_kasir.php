@@ -54,7 +54,18 @@ if ($action === 'close_shift') {
 
 // --- FUNGSI MASTER DATA ---
 if ($action === 'get_master_data') {
-    $products = $pdo->query("SELECT * FROM products ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
+    $wh_id = !empty($_SESSION['pos_warehouse_id']) ? intval($_SESSION['pos_warehouse_id']) : 0;
+    $prod_sql = "
+        SELECT p.*, 
+               " . ($wh_id > 0 ? "COALESCE(pws.stock, p.stock)" : "p.stock") . " AS stock,
+               COALESCE(w.name, CASE WHEN p.warehouse_id = 2 THEN 'Gudang 02' ELSE 'gudang 01' END) AS store_name
+        FROM products p
+        " . ($wh_id > 0 ? "LEFT JOIN product_warehouse_stocks pws ON p.id = pws.product_id AND pws.warehouse_id = $wh_id" : "") . "
+        LEFT JOIN warehouses w ON " . ($wh_id > 0 ? "$wh_id = w.id" : "p.warehouse_id = w.id") . "
+        WHERE 1=1 " . ($wh_id > 0 ? "AND (p.warehouse_id = $wh_id OR p.warehouse_id IS NULL OR $wh_id = 1)" : "") . "
+        ORDER BY p.name ASC
+    ";
+    $products = $pdo->query($prod_sql)->fetchAll(PDO::FETCH_ASSOC);
     $customers = $pdo->query("SELECT id, name, points, phone FROM customers_pos ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
     $saved_customs = $pdo->query("SELECT * FROM saved_custom_items_pos ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
     $saved_customs_reguler = $pdo->query("SELECT * FROM saved_custom_reguler_pos ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
@@ -248,12 +259,13 @@ if ($action === 'checkout') {
     $payment_fee_amount = !empty($data['payment_fee_amount']) ? $data['payment_fee_amount'] : 0.00;
     $payment_reference = !empty($data['payment_reference']) ? $data['payment_reference'] : null;
     $discount_auto = !empty($data['discount_auto']) ? $data['discount_auto'] : 0.00;
+    $warehouse_id = !empty($_SESSION['pos_warehouse_id']) ? intval($_SESSION['pos_warehouse_id']) : 1;
 
-    $stmt = $pdo->prepare("INSERT INTO sales_pos (invoice_no, customer_id, order_type, subtotal, discount_voucher, voucher_code, discount_points, discount_manual, discount_auto, points_used, points_earned, total_amount, payment_method, payment_fee_name, payment_fee_amount, payment_reference, payment_status, dp_amount, amount_paid, change_amount, is_po, channel, pickup_date, pickup_time, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt = $pdo->prepare("INSERT INTO sales_pos (invoice_no, customer_id, order_type, subtotal, discount_voucher, voucher_code, discount_points, discount_manual, discount_auto, points_used, points_earned, total_amount, payment_method, payment_fee_name, payment_fee_amount, payment_reference, payment_status, dp_amount, amount_paid, change_amount, is_po, channel, pickup_date, pickup_time, notes, warehouse_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     $stmt->execute([
         $invoice_no, $customer_id, 'offline', $data['subtotal'], $data['discount_voucher'], $data['voucher_code'], 
         $data['discount_points'], $data['discount_manual'], $discount_auto, $data['points_used'], $data['points_earned'], 
-        $data['total_amount'], $data['payment_method'], $payment_fee_name, $payment_fee_amount, $payment_reference, $data['payment_status'], $data['dp_amount'], $data['amount_paid'], $data['change_amount'], $is_po, $channel, $pickup_date, $pickup_time, $notes
+        $data['total_amount'], $data['payment_method'], $payment_fee_name, $payment_fee_amount, $payment_reference, $data['payment_status'], $data['dp_amount'], $data['amount_paid'], $data['change_amount'], $is_po, $channel, $pickup_date, $pickup_time, $notes, $warehouse_id
     ]);
     $sale_id = $pdo->lastInsertId();
 
@@ -277,7 +289,13 @@ if ($action === 'checkout') {
         $stmt_detail->execute([$sale_id, $prod_id, $is_custom, $custom_name, $item['price'], $item['qty'], $item['subtotal'], $disc_type, $disc_val, $item_created_by]);
 
         // Potong stok produk katalog (baik Reguler maupun PO)
-        if (!$is_custom) { $stmt_potong_stok->execute([$item['qty'], $prod_id]); }
+        if (!$is_custom) { 
+            $wh_id = !empty($_SESSION['pos_warehouse_id']) ? intval($_SESSION['pos_warehouse_id']) : 1;
+            $stmt_potong_wh = $pdo->prepare("INSERT INTO product_warehouse_stocks (product_id, warehouse_id, stock) VALUES (?, ?, -?) ON DUPLICATE KEY UPDATE stock = stock - ?");
+            $stmt_potong_wh->execute([$prod_id, $wh_id, $item['qty'], $item['qty']]);
+
+            $stmt_potong_stok->execute([$item['qty'], $prod_id]); 
+        }
 
         // ============================================================
         // PENGURANGAN BAHAN BAKU OTOMATIS UNTUK ITEM CUSTOM

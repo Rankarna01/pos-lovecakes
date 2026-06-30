@@ -94,13 +94,14 @@ $page_title = "Histori Inventori - Love Cakes POS";
                                     <th class="p-4 font-black">No. Referensi</th>
                                     <th class="p-4 font-black">Nama Produk</th>
                                     <th class="p-4 font-black text-center">Qty</th>
+                                    <th class="p-4 font-black">Store / Warehouse</th>
                                     <th class="p-4 font-black">Keterangan / Sumber</th>
                                 </tr>
                             </thead>
                             <tbody class="text-sm divide-y divide-slate-100">
                                 
                                 <tr x-show="paginatedData.length === 0">
-                                    <td colspan="6" class="p-10 text-center">
+                                    <td colspan="7" class="p-10 text-center">
                                         <div class="text-slate-300 text-5xl mb-3"><i class="fa-solid fa-folder-open"></i></div>
                                         <p class="text-slate-500 font-bold">Tidak ada riwayat data ditemukan.</p>
                                     </td>
@@ -121,6 +122,12 @@ $page_title = "Histori Inventori - Love Cakes POS";
                                             <span class="px-3 py-1.5 rounded-lg font-black text-xs border"
                                                   :class="item.tipe === 'Masuk' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'">
                                                 <span x-text="item.tipe === 'Masuk' ? '+' : '-'"></span><span x-text="item.qty"></span>
+                                            </span>
+                                        </td>
+                                        <td class="p-4">
+                                            <span class="bg-amber-500/10 text-amber-700 border border-amber-500/20 px-3 py-1.5 rounded-lg text-xs font-black inline-flex items-center gap-1.5 shadow-sm">
+                                                <i class="fa-solid fa-store text-amber-500"></i>
+                                                <span x-text="item.store_name || 'gudang 01'"></span>
                                             </span>
                                         </td>
                                         <td class="p-4">
