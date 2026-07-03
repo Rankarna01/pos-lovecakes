@@ -44,6 +44,7 @@ document.addEventListener('alpine:init', () => {
                 this.printerName = device.name;
                 this.isConnected = true;
                 localStorage.setItem('pos_printer_name', device.name);
+                localStorage.setItem('pos_bt_active', '1');
 
                 Swal.fire({
                     toast: true, position: 'top-end', icon: 'success',
@@ -58,10 +59,40 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
+        async hubungkanPrinterUSB() {
+            if (!navigator.usb) {
+                Swal.fire('Tidak Mendukung', 'Browser ini tidak mendukung WebUSB. Silakan langsung pasang kabel USB dan cetak secara normal.', 'info');
+                return;
+            }
+
+            try {
+                const device = await navigator.usb.requestDevice({ filters: [] });
+                const usbName = device.productName || device.manufacturerName || 'Thermal Printer USB';
+                this.printerName = usbName;
+                this.isConnected = true;
+                this.autoPrintMode = 'usb';
+                localStorage.setItem('pos_usb_printer_name', usbName);
+                localStorage.setItem('pos_auto_print_mode', 'usb');
+                localStorage.removeItem('pos_bt_active');
+
+                Swal.fire({
+                    toast: true, position: 'top-end', icon: 'success',
+                    title: `🖨️ USB ${usbName} Terhubung!`,
+                    text: 'Printer Thermal USB langsung terbaca dan otomatis aktif.',
+                    showConfirmButton: false, timer: 3500
+                });
+            } catch(e) {
+                console.error(e);
+            }
+        },
+
         hapusPrinter() {
             localStorage.removeItem('pos_printer_name');
+            localStorage.removeItem('pos_usb_printer_name');
+            localStorage.removeItem('pos_bt_active');
             this.printerName = 'Belum ada printer terhubung';
             this.isConnected = false;
+            
             
             Swal.fire({ 
                 toast: true, position: 'top-end', icon: 'warning', 

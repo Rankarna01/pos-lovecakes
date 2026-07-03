@@ -189,8 +189,9 @@ function fRp($val) {
     <div class="flex"><span>Total Aktual</span><span><?= $shift['end_time'] ? fRp($grand_total_aktual) : '-' ?></span></div>
     <div class="flex font-bold" style="margin-bottom: 20px;"><span>Total Selisih</span><span><?= fRp($selisih) ?></span></div>
 
-    <div class="text-center no-print" style="margin-top: 20px;">
-        <button onclick="printBluetooth()" class="btn btn-bt" id="btn-bt" style="padding:10px; background:#3b82f6; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">📶 Print Bluetooth</button>
+    <div class="text-center no-print" style="margin-top: 20px; display:flex; gap:10px; justify-content:center;">
+        <button onclick="window.print()" class="btn btn-usb" style="padding:10px 15px; background:#10b981; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">🖨️ Print Thermal (USB)</button>
+        <button onclick="printBluetooth()" class="btn btn-bt" id="btn-bt" style="padding:10px 15px; background:#3b82f6; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">📶 Print Bluetooth</button>
     </div>
 
     <script>
@@ -216,10 +217,9 @@ function fRp($val) {
         };
 
         document.addEventListener("DOMContentLoaded", function() {
-            const savedPrinter = localStorage.getItem('pos_printer_name');
-            if(savedPrinter && navigator.bluetooth) {
-                setTimeout(() => { printBluetooth(true); }, 500);
-            }
+            setTimeout(() => { 
+                window.print(); 
+            }, 500);
         });
 
         async function printBluetooth(isAutoPrint = false) {

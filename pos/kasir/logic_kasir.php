@@ -58,7 +58,7 @@ if ($action === 'get_master_data') {
     $prod_sql = "
         SELECT p.*, 
                " . ($wh_id > 0 ? "COALESCE(pws.stock, p.stock)" : "p.stock") . " AS stock,
-               COALESCE(w.name, CASE WHEN p.warehouse_id = 2 THEN 'Gudang 02' ELSE 'gudang 01' END) AS store_name
+               COALESCE(w.name, CASE WHEN p.warehouse_id = 2 THEN 'Store 02' ELSE 'Store 01' END) AS store_name
         FROM products p
         " . ($wh_id > 0 ? "LEFT JOIN product_warehouse_stocks pws ON p.id = pws.product_id AND pws.warehouse_id = $wh_id" : "") . "
         LEFT JOIN warehouses w ON " . ($wh_id > 0 ? "$wh_id = w.id" : "p.warehouse_id = w.id") . "
@@ -66,6 +66,10 @@ if ($action === 'get_master_data') {
         ORDER BY p.name ASC
     ";
     $products = $pdo->query($prod_sql)->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($products as &$prod) {
+        $prod['store_name'] = str_ireplace('gudang', 'Store', $prod['store_name']);
+    }
+    unset($prod);
     $customers = $pdo->query("SELECT id, name, points, phone FROM customers_pos ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
     $saved_customs = $pdo->query("SELECT * FROM saved_custom_items_pos ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
     $saved_customs_reguler = $pdo->query("SELECT * FROM saved_custom_reguler_pos ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);

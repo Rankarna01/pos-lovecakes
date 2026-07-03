@@ -155,8 +155,8 @@ try {
     <div class="barcode-container"><svg id="barcode"></svg></div>
 
     <div class="text-center no-print" style="margin-top: 20px;" id="action-buttons">
+        <button onclick="window.print()" class="btn btn-usb" style="background:#10b981; color:white;">🖨️ Print Thermal (USB)</button>
         <button onclick="printBluetooth()" class="btn btn-bt" id="btn-bt">📶 Print Bluetooth</button>
-        <button onclick="window.print()" class="btn btn-usb">🖨️ Print USB/Biasa</button>
         <button onclick="window.close()" class="btn btn-close">❌ Tutup</button>
     </div>
 
@@ -185,7 +185,7 @@ try {
                 actionBtns.style.display = 'none';
             }
 
-            // Cek Bluetooth Auto Print
+            // Cek Bluetooth Auto Print (hanya jika eksplisit diminta)
             if (isAutoBt) {
                 const savedPrinter = localStorage.getItem('pos_printer_name');
                 if(savedPrinter && navigator.bluetooth) {
@@ -194,12 +194,14 @@ try {
                     if (actionBtns) actionBtns.style.display = 'block';
                 }
             } 
-            // Cek USB Auto Print
-            else if (isAutoUsb) {
+            // Default ke USB / Thermal Printer
+            else {
                 setTimeout(() => { 
                     window.print(); 
-                    window.onafterprint = function() { window.close(); };
-                    setTimeout(() => { window.close(); }, 4000);
+                    if (isAutoUsb) {
+                        window.onafterprint = function() { window.close(); };
+                        setTimeout(() => { window.close(); }, 4000);
+                    }
                 }, 500);
             }
         });

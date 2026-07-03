@@ -24,7 +24,7 @@ if ($action === 'read_produk') {
                 p.price AS offline_price, 
                 p.online_price, 
                 " . ($wh_id > 0 ? "COALESCE(pws.stock, p.stock)" : "p.stock") . " AS stock,
-                COALESCE(w.name, CASE WHEN p.warehouse_id = 2 THEN 'Gudang 02' ELSE 'gudang 01' END) AS store_name,
+                COALESCE(w.name, CASE WHEN p.warehouse_id = 2 THEN 'Store 02' ELSE 'Store 01' END) AS store_name,
                 p.warehouse_id
             FROM products p
             " . ($wh_id > 0 ? "LEFT JOIN product_warehouse_stocks pws ON p.id = pws.product_id AND pws.warehouse_id = $wh_id" : "") . "
@@ -46,6 +46,11 @@ if ($action === 'read_produk') {
         $stmt = $pdo->prepare($query);
         $stmt->execute($params);
         $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($products as &$prod) {
+            $prod['store_name'] = str_ireplace('gudang', 'Store', $prod['store_name']);
+        }
+        unset($prod);
 
         echo json_encode([
             'status' => 'success',

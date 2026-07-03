@@ -24,10 +24,18 @@ if ($action === 'get_dashboard_data') {
         $tabel_pelanggan = 'customers_pos';  // (Sesuai screenshotmu)
         // =========================================================================
 
+        $wh_id = !empty($_SESSION['pos_warehouse_id']) ? intval($_SESSION['pos_warehouse_id']) : 0;
+        $wh_sql = $wh_id > 0 ? " AND warehouse_id = $wh_id " : "";
+        $wh_s_sql = $wh_id > 0 ? " AND s.warehouse_id = $wh_id " : "";
+
         $summary = [];
 
         // 1. DATA PELANGGAN BARU BULAN INI
-        $stmt = $pdo->query("SELECT COUNT(*) as total FROM {$tabel_pelanggan} WHERE MONTH(created_at) = MONTH(CURRENT_DATE()) AND YEAR(created_at) = YEAR(CURRENT_DATE())");
+        if ($wh_id > 0) {
+            $stmt = $pdo->query("SELECT COUNT(DISTINCT customer_id) as total FROM {$tabel_transaksi} WHERE MONTH(created_at) = MONTH(CURRENT_DATE()) AND YEAR(created_at) = YEAR(CURRENT_DATE()) AND warehouse_id = $wh_id AND customer_id IS NOT NULL AND customer_id > 0");
+        } else {
+            $stmt = $pdo->query("SELECT COUNT(*) as total FROM {$tabel_pelanggan} WHERE MONTH(created_at) = MONTH(CURRENT_DATE()) AND YEAR(created_at) = YEAR(CURRENT_DATE())");
+        }
         $summary['pelanggan_baru'] = $stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
 
         // 2. DATA PENJUALAN BULAN INI (CURRENT MONTH)
@@ -36,7 +44,7 @@ if ($action === 'get_dashboard_data') {
             SUM({$kolom_total}) as total_penjualan, 
             SUM({$kolom_laba}) as laba_kotor 
             FROM {$tabel_transaksi} 
-            WHERE MONTH({$kolom_tanggal}) = MONTH(CURRENT_DATE()) AND YEAR({$kolom_tanggal}) = YEAR(CURRENT_DATE())");
+            WHERE MONTH({$kolom_tanggal}) = MONTH(CURRENT_DATE()) AND YEAR({$kolom_tanggal}) = YEAR(CURRENT_DATE()) {$wh_sql}");
         $data_this = $stmt_this->fetch(PDO::FETCH_ASSOC);
 
         // 3. DATA PENJUALAN BULAN LALU (LAST MONTH) UNTUK PERSENTASE NAIK/TURUN
@@ -45,7 +53,7 @@ if ($action === 'get_dashboard_data') {
             SUM({$kolom_total}) as total_penjualan, 
             SUM({$kolom_laba}) as laba_kotor 
             FROM {$tabel_transaksi} 
-            WHERE MONTH({$kolom_tanggal}) = MONTH(CURRENT_DATE() - INTERVAL 1 MONTH) AND YEAR({$kolom_tanggal}) = YEAR(CURRENT_DATE() - INTERVAL 1 MONTH)");
+            WHERE MONTH({$kolom_tanggal}) = MONTH(CURRENT_DATE() - INTERVAL 1 MONTH) AND YEAR({$kolom_tanggal}) = YEAR(CURRENT_DATE() - INTERVAL 1 MONTH) {$wh_sql}");
         $data_last = $stmt_last->fetch(PDO::FETCH_ASSOC);
 
         // --- RUMUS MENGHITUNG ANGKA & PERSENTASE ---
@@ -79,7 +87,7 @@ if ($action === 'get_dashboard_data') {
         // Ambil data dari database ditarik berdasarkan tanggal
         $stmt_chart = $pdo->query("SELECT DATE({$kolom_tanggal}) as tgl, SUM({$kolom_total}) as harian 
                                    FROM {$tabel_transaksi} 
-                                   WHERE {$kolom_tanggal} >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 DAY) 
+                                   WHERE {$kolom_tanggal} >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 DAY) {$wh_sql} 
                                    GROUP BY DATE({$kolom_tanggal})");
         
         $data_harian = [];
@@ -106,7 +114,7 @@ if ($action === 'get_dashboard_data') {
         ];
 
         // 5. CHART METODE PEMBAYARAN
-        $stmt_pay = $pdo->query("SELECT payment_method, COUNT(*) as total, SUM(total_amount) as nominal FROM sales_pos WHERE MONTH(created_at) = MONTH(CURRENT_DATE()) AND YEAR(created_at) = YEAR(CURRENT_DATE()) GROUP BY payment_method");
+        $stmt_pay = $pdo->query("SELECT payment_method, COUNT(*) as total, SUM(total_amount) as nominal FROM sales_pos WHERE MONTH(created_at) = MONTH(CURRENT_DATE()) AND YEAR(created_at) = YEAR(CURRENT_DATE()) {$wh_sql} GROUP BY payment_method");
         $pay_labels = [];
         $pay_values = [];
         while($r = $stmt_pay->fetch(PDO::FETCH_ASSOC)) {
@@ -119,7 +127,7 @@ if ($action === 'get_dashboard_data') {
         ];
 
         // 6. RIWAYAT TRANSAKSI TERAKHIR
-        $stmt_recent = $pdo->query("SELECT s.*, COALESCE(c.name, 'Pelanggan Umum') as customer_name FROM sales_pos s LEFT JOIN customers_pos c ON s.customer_id = c.id ORDER BY s.created_at DESC LIMIT 15");
+        $stmt_recent = $pdo->query("SELECT s.*, COALESCE(c.name, 'Pelanggan Umum') as customer_name FROM sales_pos s LEFT JOIN customers_pos c ON s.customer_id = c.id WHERE 1=1 {$wh_s_sql} ORDER BY s.created_at DESC LIMIT 15");
         $recent_sales = $stmt_recent->fetchAll(PDO::FETCH_ASSOC);
 
         // Output JSON untuk ditangkap oleh Alpine/Ajax

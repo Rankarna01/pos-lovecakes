@@ -51,16 +51,20 @@ $page_title = "Pengaturan Printer - Love Cakes POS";
                             <p class="text-base font-bold text-slate-700" x-text="printerName"></p>
                         </div>
 
-                        <div class="flex gap-2 mt-4">
-                            <button @click="hubungkanPrinter()" class="flex-1 bg-primary hover:bg-slate-800 text-white font-black py-3 px-4 rounded-xl shadow-lg shadow-primary/30 transition-all text-sm flex items-center justify-center gap-2">
-                                <i class="fa-brands fa-bluetooth"></i> Cari & Hubungkan
+                        <div class="flex flex-col gap-2 mt-4">
+                            <button @click="hubungkanPrinterUSB()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 px-4 rounded-xl shadow-lg shadow-emerald-600/30 transition-all text-sm flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-usb"></i> Deteksi & Hubungkan USB
                             </button>
-                            
-                            <template x-if="isConnected">
-                                <button @click="hapusPrinter()" class="bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white font-black py-3 px-4 rounded-xl text-sm border border-rose-200 transition-colors flex items-center justify-center shadow-sm shadow-rose-100">
-                                    <i class="fa-solid fa-trash"></i>
+                            <div class="flex gap-2">
+                                <button @click="hubungkanPrinter()" class="flex-1 bg-primary hover:bg-slate-800 text-white font-black py-2.5 px-4 rounded-xl shadow transition-all text-xs flex items-center justify-center gap-2">
+                                    <i class="fa-brands fa-bluetooth"></i> Cari Bluetooth
                                 </button>
-                            </template>
+                                <template x-if="isConnected">
+                                    <button @click="hapusPrinter()" class="bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white font-black py-2.5 px-4 rounded-xl text-xs border border-rose-200 transition-colors flex items-center justify-center shadow-sm">
+                                        <i class="fa-solid fa-trash"></i> Hapus
+                                    </button>
+                                </template>
+                            </div>
                         </div>
                         <p class="text-[10px] text-slate-400 mt-4 italic font-medium"><i class="fa-solid fa-circle-info text-blue-400 mr-1"></i> Gunakan Google Chrome versi terbaru agar fitur Bluetooth berfungsi maksimal.</p>
                         

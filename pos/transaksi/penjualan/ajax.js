@@ -110,7 +110,7 @@ document.addEventListener('alpine:init', () => {
 
         printReceipt(invoice) {
             if (!invoice) return;
-            const printUrl = `../../kasir/print_receipt.php?invoice=${invoice}`;
+            const printUrl = `../../kasir/print_receipt.php?invoice=${invoice}&auto_print_usb=1`;
             window.open(printUrl, '_blank', 'width=400,height=600');
         },
 

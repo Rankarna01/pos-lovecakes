@@ -75,11 +75,66 @@ if ($action === 'get_inventory') {
                 ORDER BY po.created_at DESC LIMIT 100
             ");
             $outgoing = array_merge($outgoing, $stmtOut->fetchAll(PDO::FETCH_ASSOC));
+        try {
+            $filter_mut_in = ($wh_id > 0) ? " AND (pm.to_warehouse_id = $wh_id)" : "";
+            $stmtMutIn = $pdo->query("
+                SELECT 
+                    pm.created_at AS tanggal, 
+                    pm.mutation_no AS referensi, 
+                    pr.code AS kode_produk, 
+                    pr.name AS produk, 
+                    pm.quantity AS qty, 
+                    'Masuk' AS tipe,
+                    CONCAT('Mutasi dari ', COALESCE(w.name, CONCAT('Store #', pm.from_warehouse_id))) AS sumber,
+                    COALESCE(w2.name, CONCAT('Store #', pm.to_warehouse_id)) AS store_name
+                FROM product_mutations pm
+                JOIN products pr ON pm.product_id = pr.id
+                LEFT JOIN warehouses w ON pm.from_warehouse_id = w.id
+                LEFT JOIN warehouses w2 ON pm.to_warehouse_id = w2.id
+                WHERE 1=1 $filter_mut_in
+            ");
+            $incoming = array_merge($incoming, $stmtMutIn->fetchAll(PDO::FETCH_ASSOC));
+            usort($incoming, function($a, $b) {
+                return strtotime($b['tanggal']) - strtotime($a['tanggal']);
+            });
+        } catch (Exception $e) {}
+
+        try {
+            $filter_mut_out = ($wh_id > 0) ? " AND (pm.from_warehouse_id = $wh_id)" : "";
+            $stmtMutOut = $pdo->query("
+                SELECT 
+                    pm.created_at AS tanggal, 
+                    pm.mutation_no AS referensi, 
+                    pr.code AS kode_produk, 
+                    pr.name AS produk, 
+                    pm.quantity AS qty, 
+                    'Keluar' AS tipe,
+                    CONCAT('Mutasi ke ', COALESCE(w.name, CONCAT('Store #', pm.to_warehouse_id))) AS sumber,
+                    COALESCE(w2.name, CONCAT('Store #', pm.from_warehouse_id)) AS store_name
+                FROM product_mutations pm
+                JOIN products pr ON pm.product_id = pr.id
+                LEFT JOIN warehouses w ON pm.to_warehouse_id = w.id
+                LEFT JOIN warehouses w2 ON pm.from_warehouse_id = w2.id
+                WHERE 1=1 $filter_mut_out
+            ");
+            $outgoing = array_merge($outgoing, $stmtMutOut->fetchAll(PDO::FETCH_ASSOC));
         } catch (Exception $e) {}
 
         usort($outgoing, function($a, $b) {
             return strtotime($b['tanggal']) - strtotime($a['tanggal']);
         });
+
+        foreach ($incoming as &$item) {
+            $item['store_name'] = str_ireplace('gudang', 'Store', $item['store_name']);
+            $item['sumber'] = str_ireplace('gudang', 'Store', $item['sumber']);
+        }
+        unset($item);
+
+        foreach ($outgoing as &$item) {
+            $item['store_name'] = str_ireplace('gudang', 'Store', $item['store_name']);
+            $item['sumber'] = str_ireplace('gudang', 'Store', $item['sumber']);
+        }
+        unset($item);
 
         echo json_encode([
             'status' => 'success',

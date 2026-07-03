@@ -113,8 +113,8 @@ document.addEventListener('alpine:init', () => {
                         this.lastInvoice = result.invoice;
                         
                         Swal.fire('Berhasil!', 'Pesanan Online telah dicatat dan masuk antrean dapur.', 'success').then(() => {
-                            // Buka tab struk khusus online
-                            window.open(`print_receipt.php?invoice=${this.lastInvoice}`, '_blank', 'width=400,height=600');
+                            // Buka tab struk khusus online (default thermal USB)
+                            window.open(`print_receipt.php?invoice=${this.lastInvoice}&auto_print_usb=1`, '_blank', 'width=400,height=600');
                             this.resetCart();
                         });
                     } else { window.alert(result.message); }

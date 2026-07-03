@@ -146,6 +146,28 @@ document.addEventListener('alpine:init', () => {
                 setTimeout(() => { if(this.$refs.barcodeScanner) this.$refs.barcodeScanner.focus() }, 500);
             }
 
+            // 💡 BERSIHKAN MODE BLUETOOTH LAMA JIKA TIDAK AKTIF & DETEKSI PRINTER THERMAL USB
+            if (localStorage.getItem('pos_auto_print_mode') === 'bluetooth' && localStorage.getItem('pos_bt_active') !== '1') {
+                localStorage.setItem('pos_auto_print_mode', 'usb');
+            }
+
+            if (navigator.usb) {
+                navigator.usb.addEventListener('connect', (event) => {
+                    const usbName = event.device.productName || 'Thermal Printer USB';
+                    localStorage.setItem('pos_auto_print_mode', 'usb');
+                    localStorage.setItem('pos_usb_printer_name', usbName);
+                    localStorage.removeItem('pos_bt_active');
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            toast: true, position: 'bottom-end', icon: 'success',
+                            title: '🖨️ USB Printer Terdeteksi!',
+                            text: `Perangkat "${usbName}" terhubung & siap digunakan.`,
+                            showConfirmButton: false, timer: 4500
+                        });
+                    }
+                });
+            }
+
             // 🔄 AUTO-REFRESH: Sinkronisasi produk baru setiap 60 detik secara silent (tanpa loading spinner)
             this._autoRefreshInterval = setInterval(async () => {
                 if (!navigator.onLine || this.needsShiftOpen) return;
@@ -912,22 +934,21 @@ document.addEventListener('alpine:init', () => {
         triggerSmartAutoPrint() {
             if (!this.lastInvoice) return;
             const autoMode = localStorage.getItem('pos_auto_print_mode');
-            const savedBtPrinter = localStorage.getItem('pos_printer_name');
+            const btActive = localStorage.getItem('pos_bt_active');
 
-            // Cek mode yang diinginkan atau auto-detect
-            let mode = autoMode;
-            if (!mode || mode === 'manual') {
-                // Jika belum diset atau manual, otomatis deteksi: kalau ada printer bluetooth tersimpan pakai bluetooth, kalau tidak langsung ke USB
-                mode = savedBtPrinter ? 'bluetooth' : 'usb';
-            }
+            // Cek mode: default selalu ke USB Thermal Printer kecuali bluetooth aktif secara eksplisit
+            let mode = (autoMode === 'bluetooth' && btActive === '1') ? 'bluetooth' : 'usb';
+            if (mode === 'usb') localStorage.setItem('pos_auto_print_mode', 'usb');
 
             // Tampilkan alert pintar di sudut kanan bawah (toast)
             if (typeof Swal !== 'undefined') {
+                const usbName = localStorage.getItem('pos_usb_printer_name') || 'Thermal Printer (USB)';
                 Swal.fire({
                     toast: true,
                     position: 'bottom-end',
-                    icon: 'info',
-                    title: mode === 'bluetooth' ? '📶 Otomatis mencetak ke Bluetooth...' : '🖨️ Otomatis membaca & mencetak ke USB...',
+                    icon: 'success',
+                    title: mode === 'bluetooth' ? '📶 Otomatis mencetak ke Bluetooth...' : '🖨️ Printer USB Terdeteksi & Membaca...',
+                    text: mode === 'usb' ? `Mencetak struk ke ${usbName}` : '',
                     showConfirmButton: false,
                     timer: 3500
                 });
@@ -940,7 +961,8 @@ document.addEventListener('alpine:init', () => {
             let url = `print_receipt.php?invoice=${this.lastInvoice}`;
             if (!mode) {
                 const autoMode = localStorage.getItem('pos_auto_print_mode');
-                mode = (autoMode !== 'manual' && autoMode) ? autoMode : (localStorage.getItem('pos_printer_name') ? 'bluetooth' : 'usb');
+                const btActive = localStorage.getItem('pos_bt_active');
+                mode = (autoMode === 'bluetooth' && btActive === '1') ? 'bluetooth' : 'usb';
             }
             if (mode === 'bluetooth') url += `&auto_print_bt=1`;
             else url += `&auto_print_usb=1`;
