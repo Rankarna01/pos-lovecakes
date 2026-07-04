@@ -26,8 +26,8 @@ if ($action === 'get_dashboard_data') {
         // =========================================================================
 
         $wh_id = !empty($_SESSION['pos_warehouse_id']) ? intval($_SESSION['pos_warehouse_id']) : 0;
-        $wh_sql = $wh_id > 0 ? " AND warehouse_id = $wh_id " : "";
-        $wh_s_sql = $wh_id > 0 ? " AND s.warehouse_id = $wh_id " : "";
+        $wh_sql = $wh_id > 0 ? " AND (warehouse_id = $wh_id OR (warehouse_id IS NULL AND $wh_id = 1)) " : "";
+        $wh_s_sql = $wh_id > 0 ? " AND (s.warehouse_id = $wh_id OR (s.warehouse_id IS NULL AND $wh_id = 1)) " : "";
 
         $summary = [];
 

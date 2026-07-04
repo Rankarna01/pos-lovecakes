@@ -1,23 +1,162 @@
 document.addEventListener('alpine:init', () => {
     Alpine.data('opnameApp', () => ({
+        // Scanner tunggal
         barcodeInput: '',
         scannedProduct: null,
         actualStock: 0,
         opnameNotes: '',
-        
         isSaving: false,
         isCameraOpen: false,
         html5QrcodeScanner: null,
 
+        // Riwayat & Tabel
+        historyRows: [],
+        searchHistory: '',
+        isLoadingHistory: false,
+
+        // Modal Dokumen Stok Opname
+        showModal: false,
+        searchKeyword: '',
+        searchResults: [],
+        opnameItems: [],
+        batchNotes: '',
+        isSavingBatch: false,
+
         async init() {
-            // ❌ CEK SESI dbAuth DIHAPUS TOTAL! 
-            // Keamanan sudah dijaga oleh config/auth.php di server.
-            // Halaman ini siap standby.
+            await this.loadHistory();
         },
 
-        // MENCARI PRODUK BERDASARKAN BARCODE
-        async searchBarcode(scannedCode = null) {
+        // 1. LOAD RIWAYAT PENYESUAIAN STOK
+        async loadHistory() {
+            this.isLoadingHistory = true;
+            try {
+                const response = await fetch(`logic.php?action=get_history&search=${encodeURIComponent(this.searchHistory)}`);
+                const result = await response.json();
+                if (result.status === 'success') {
+                    this.historyRows = result.data || [];
+                } else {
+                    console.error("Gagal memuat riwayat:", result.message);
+                }
+            } catch (error) {
+                console.error("Error loadHistory:", error);
+            } finally {
+                this.isLoadingHistory = false;
+            }
+        },
+
+        // 2. MODAL DOKUMEN STOK OPNAME (BATCH)
+        openModal() {
+            this.showModal = true;
+            this.opnameItems = [];
+            this.batchNotes = '';
+            this.searchKeyword = '';
+            this.searchResults = [];
+        },
+
+        closeModal() {
+            this.showModal = false;
+            this.searchKeyword = '';
+            this.searchResults = [];
+        },
+
+        async searchProductsModal() {
+            if (!this.searchKeyword || this.searchKeyword.length < 2) {
+                this.searchResults = [];
+                return;
+            }
+            try {
+                const response = await fetch(`logic.php?action=search_products&keyword=${encodeURIComponent(this.searchKeyword)}`);
+                const result = await response.json();
+                if (result.status === 'success') {
+                    this.searchResults = result.data || [];
+                }
+            } catch (error) {
+                console.error("Error searchProducts:", error);
+            }
+        },
+
+        addItemToOpname(prod) {
+            const exists = this.opnameItems.find(i => i.id === prod.id);
+            if (exists) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        toast: true, position: 'top-end', icon: 'info',
+                        title: 'Produk sudah ada di daftar!', showConfirmButton: false, timer: 1500
+                    });
+                }
+            } else {
+                this.opnameItems.push({
+                    id: prod.id,
+                    code: prod.code,
+                    name: prod.name,
+                    category: prod.category || '-',
+                    system_stock: parseInt(prod.stock || 0),
+                    actual_stock: parseInt(prod.stock || 0)
+                });
+            }
+            this.searchKeyword = '';
+            this.searchResults = [];
+        },
+
+        removeItem(index) {
+            this.opnameItems.splice(index, 1);
+        },
+
+        async saveBatchOpname() {
+            if (this.opnameItems.length === 0) {
+                if (typeof Swal !== 'undefined') Swal.fire('Peringatan', 'Daftar bahan yang diopname masih kosong!', 'warning');
+                return;
+            }
+
             // CEGAT JIKA INTERNET MATI
+            if (!navigator.onLine) {
+                if (typeof Swal !== 'undefined') Swal.fire('Offline', 'Koneksi terputus! Tidak dapat menyimpan data opname.', 'warning');
+                return;
+            }
+
+            this.isSavingBatch = true;
+            try {
+                const payload = {
+                    items: this.opnameItems.map(item => ({
+                        product_id: item.id,
+                        system_stock: item.system_stock,
+                        actual_stock: item.actual_stock
+                    })),
+                    notes: this.batchNotes
+                };
+
+                const response = await fetch('logic.php?action=save_opname_batch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil!',
+                            text: result.message,
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                    }
+                    this.closeModal();
+                    await this.loadHistory();
+                } else {
+                    if (typeof Swal !== 'undefined') Swal.fire('Gagal Menyimpan', result.message, 'error');
+                }
+            } catch (error) {
+                console.error("Error saveBatchOpname:", error);
+                if (typeof Swal !== 'undefined') Swal.fire('Error', 'Gagal menyambung ke server.', 'error');
+            } finally {
+                this.isSavingBatch = false;
+            }
+        },
+
+        // 3. MENCARI PRODUK BERDASARKAN BARCODE (SCANNER TUNGGAL)
+        async searchBarcode(scannedCode = null) {
             if (!navigator.onLine) {
                 if (typeof Swal !== 'undefined') Swal.fire('Offline', 'Pencarian barcode ke server membutuhkan koneksi internet!', 'warning');
                 return;
@@ -27,20 +166,16 @@ document.addEventListener('alpine:init', () => {
             if (!codeToSearch) return;
 
             try {
-                const response = await fetch(`logic.php?action=scan_barcode&code=${codeToSearch}`);
+                const response = await fetch(`logic.php?action=scan_barcode&code=${encodeURIComponent(codeToSearch)}`);
                 const result = await response.json();
 
                 if (result.status === 'success') {
                     this.scannedProduct = result.data;
-                    this.actualStock = parseInt(this.scannedProduct.stock);
+                    this.actualStock = parseInt(this.scannedProduct.stock || 0);
                     this.opnameNotes = '';
                     
-                    // Bunyikan Beep Sukses
                     this.playBeep();
-                    
-                    // Kalau pakai kamera, tutup kameranya biar fokus input
                     if (this.isCameraOpen) this.toggleCamera();
-                    
                 } else {
                     if (typeof Swal !== 'undefined') Swal.fire('Tidak Ditemukan', result.message, 'error');
                 }
@@ -48,21 +183,18 @@ document.addEventListener('alpine:init', () => {
                 console.error("Error Scan:", error);
                 if (typeof Swal !== 'undefined') Swal.fire('Error', 'Gagal memproses barcode. Pastikan koneksi server stabil.', 'error');
             } finally {
-                this.barcodeInput = ''; // Kosongkan form input
+                this.barcodeInput = '';
             }
         },
 
-        // MENGHITUNG SELISIH REAL-TIME
         get selisih() {
             if (!this.scannedProduct) return 0;
-            return parseInt(this.actualStock || 0) - parseInt(this.scannedProduct.stock);
+            return parseInt(this.actualStock || 0) - parseInt(this.scannedProduct.stock || 0);
         },
 
-        // MENYIMPAN DATA OPNAME
         async saveOpname() {
             if (this.selisih === 0) return;
             
-            // CEGAT JIKA INTERNET MATI
             if (!navigator.onLine) {
                 if (typeof Swal !== 'undefined') Swal.fire('Offline', 'Koneksi terputus! Tidak dapat menyimpan data opname.', 'warning');
                 return;
@@ -90,6 +222,7 @@ document.addEventListener('alpine:init', () => {
                         });
                     }
                     this.resetScan();
+                    await this.loadHistory();
                 } else {
                     if (typeof Swal !== 'undefined') Swal.fire('Gagal Menyimpan', result.message, 'error');
                 }
@@ -107,7 +240,6 @@ document.addEventListener('alpine:init', () => {
             this.opnameNotes = '';
         },
 
-        // ===== LOGIKA KAMERA HP (HTML5 QRCODE) TETAP UTUH =====
         toggleCamera() {
             if (this.isCameraOpen) {
                 this.stopCamera();
@@ -120,16 +252,12 @@ document.addEventListener('alpine:init', () => {
             this.isCameraOpen = true;
             this.resetScan();
             
-            // Konfigurasi Scanner
             this.html5QrcodeScanner = new Html5QrcodeScanner(
                 "reader", { fps: 10, qrbox: {width: 250, height: 250}, aspectRatio: 1.0 }, false);
             
             this.html5QrcodeScanner.render((decodedText, decodedResult) => {
-                // Ketika Barcode berhasil terbaca oleh kamera
                 this.searchBarcode(decodedText);
-            }, (error) => {
-                // Ignore error pembacaan frame per detik
-            });
+            }, (error) => {});
         },
 
         stopCamera() {
@@ -144,15 +272,19 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
-        // Fake Beep Sound TETAP UTUH
         playBeep() {
-            const context = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = context.createOscillator();
-            oscillator.type = 'sine';
-            oscillator.frequency.value = 800; // Nada tinggi (beep)
-            oscillator.connect(context.destination);
-            oscillator.start();
-            setTimeout(() => { oscillator.stop(); }, 150);
+            try {
+                const context = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = context.createOscillator();
+                const gain = context.createGain();
+                oscillator.connect(gain);
+                gain.connect(context.destination);
+                oscillator.type = "sine";
+                oscillator.frequency.value = 800;
+                gain.gain.value = 0.5;
+                oscillator.start();
+                setTimeout(() => { oscillator.stop(); }, 150);
+            } catch (e) {}
         }
     }));
 });

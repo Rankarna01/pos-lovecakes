@@ -5,9 +5,16 @@ require_once '../../../config/database.php';
 header('Content-Type: application/json');
 $action = $_REQUEST['action'] ?? '';
 
+$wh_id = !empty($_SESSION['pos_warehouse_id']) ? intval($_SESSION['pos_warehouse_id']) : 0;
+
 // 1. TARIK SEMUA PELANGGAN & REKAPANNYA
 if ($action === 'get_customers') {
     try {
+        $wh_join = "";
+        if ($wh_id > 0) {
+            $wh_join = " AND (s.warehouse_id = $wh_id OR (s.warehouse_id IS NULL AND $wh_id = 1)) ";
+        }
+
         // Gabungkan tabel customers dengan sales untuk mencari total belanja seumur hidup
         $stmt = $pdo->query("
             SELECT 
@@ -15,7 +22,7 @@ if ($action === 'get_customers') {
                 COUNT(s.id) as total_trx,
                 COALESCE(SUM(s.total_amount), 0) as total_spent
             FROM customers_pos c
-            LEFT JOIN sales_pos s ON c.id = s.customer_id
+            LEFT JOIN sales_pos s ON c.id = s.customer_id $wh_join
             GROUP BY c.id, c.name, c.phone, c.points, c.address
             ORDER BY total_spent DESC
         ");
@@ -32,14 +39,22 @@ if ($action === 'get_customers') {
 if ($action === 'get_history') {
     $customer_id = $_GET['id'] ?? 0;
     try {
+        $wh_filter = "";
+        $params = [$customer_id];
+        if ($wh_id > 0) {
+            $wh_filter = " AND (warehouse_id = ? OR (warehouse_id IS NULL AND ? = 1)) ";
+            $params[] = $wh_id;
+            $params[] = $wh_id;
+        }
+
         // Ambil riwayat struk
         $stmt_sales = $pdo->prepare("
             SELECT id, invoice_no, total_amount, payment_status, payment_method, created_at 
             FROM sales_pos 
-            WHERE customer_id = ? 
+            WHERE customer_id = ? $wh_filter
             ORDER BY created_at DESC
         ");
-        $stmt_sales->execute([$customer_id]);
+        $stmt_sales->execute($params);
         $sales = $stmt_sales->fetchAll(PDO::FETCH_ASSOC);
 
         // Ambil barang apa saja yang dibeli di tiap struk

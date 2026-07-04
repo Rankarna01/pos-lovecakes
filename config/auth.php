@@ -13,6 +13,36 @@ if (!defined('BASE_URL')) {
     define('BASE_URL', $protocol . $_SERVER['HTTP_HOST'] . $folder);
 }
 
+// ==========================================
+// 🔄 GLOBAL STORE SWITCHER (ADMIN FILTER)
+// ==========================================
+if (isset($_REQUEST['action']) && $_REQUEST['action'] === 'switch_store') {
+    try {
+        require_once __DIR__ . '/database.php';
+        $wh_id = intval($_REQUEST['warehouse_id'] ?? 0);
+        if ($wh_id > 0) {
+            $stmt_w = $pdo->prepare("SELECT name as store_name, code as store_code FROM warehouses WHERE id = ?");
+            $stmt_w->execute([$wh_id]);
+            $w = $stmt_w->fetch(PDO::FETCH_ASSOC);
+            if ($w) {
+                $_SESSION['pos_warehouse_id'] = $wh_id;
+                $_SESSION['pos_store_name'] = $w['store_name'];
+                $_SESSION['pos_store_code'] = $w['store_code'];
+            }
+        } else {
+            $_SESSION['pos_warehouse_id'] = 0;
+            $_SESSION['pos_store_name'] = 'Semua Outlet (Global)';
+            $_SESSION['pos_store_code'] = 'GLOBAL';
+        }
+        header('Content-Type: application/json');
+        echo json_encode(['status' => 'success', 'warehouse_id' => $_SESSION['pos_warehouse_id'], 'store_name' => $_SESSION['pos_store_name']]);
+    } catch (Exception $e) {
+        header('Content-Type: application/json');
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    }
+    exit;
+}
+
 // Cek apakah user sudah login
 if (!isset($_SESSION['pos_user_id']) || empty($_SESSION['pos_user_id'])) {
     header("Location: " . BASE_URL . "auth/");
@@ -24,6 +54,9 @@ try {
     require_once __DIR__ . '/database.php';
     try { $pdo->exec("ALTER TABLE sales_pos ADD COLUMN warehouse_id INT NULL AFTER id"); } catch (Exception $e) {}
     try { $pdo->exec("ALTER TABLE shifts_history_pos ADD COLUMN warehouse_id INT NULL AFTER id"); } catch (Exception $e) {}
+    try { $pdo->exec("ALTER TABLE petty_cash_pos ADD COLUMN warehouse_id INT NULL AFTER id"); } catch (Exception $e) {}
+    try { $pdo->exec("ALTER TABLE opname_history_pos ADD COLUMN doc_no VARCHAR(50) NULL AFTER id"); } catch (Exception $e) {}
+    try { $pdo->exec("ALTER TABLE opname_history_pos ADD COLUMN warehouse_id INT NULL AFTER doc_no"); } catch (Exception $e) {}
     try { $pdo->exec("UPDATE sales_pos SET warehouse_id = 1 WHERE warehouse_id IS NULL"); } catch (Exception $e) {}
 
     if (!isset($_SESSION['pos_warehouse_id']) || !isset($_SESSION['pos_store_name'])) {

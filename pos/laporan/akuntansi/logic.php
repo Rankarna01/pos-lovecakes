@@ -10,6 +10,7 @@ header('Content-Type: application/json');
 ob_clean();
 
 $action = $_REQUEST['action'] ?? '';
+$wh_id = !empty($_SESSION['pos_warehouse_id']) ? intval($_SESSION['pos_warehouse_id']) : 0;
 
 try {
     if ($action === 'get_master_shifts') {
@@ -23,17 +24,24 @@ try {
         $end = $_GET['end'] ?? date('Y-m-d');
         $shift_id = $_GET['shift_id'] ?? '';
 
+        $wh_s_filter = "";
+        $wh_p_filter = "";
+        if ($wh_id > 0) {
+            $wh_s_filter = " AND (s.warehouse_id = $wh_id OR (s.warehouse_id IS NULL AND $wh_id = 1)) ";
+            $wh_p_filter = " AND (p.warehouse_id = $wh_id OR (p.warehouse_id IS NULL AND $wh_id = 1)) ";
+        }
+
         // Base Query untuk filter Shift atau Non-Shift
-        $salesJoin = ""; $salesWhere = "DATE(s.created_at) BETWEEN :start AND :end";
-        $pettyJoin = ""; $pettyWhere = "DATE(p.created_at) BETWEEN :start AND :end";
+        $salesJoin = ""; $salesWhere = "DATE(s.created_at) BETWEEN :start AND :end $wh_s_filter";
+        $pettyJoin = ""; $pettyWhere = "DATE(p.created_at) BETWEEN :start AND :end $wh_p_filter";
 
         // Logic Presisi: Jika difilter per-shift, kita join ke tabel History Shift
         if (!empty($shift_id)) {
             $salesJoin = "JOIN shifts_history_pos sh ON s.created_at >= sh.start_time AND s.created_at <= COALESCE(sh.end_time, NOW())";
-            $salesWhere = "sh.shift_id = :shift_id AND DATE(sh.start_time) BETWEEN :start AND :end";
+            $salesWhere = "sh.shift_id = :shift_id AND DATE(sh.start_time) BETWEEN :start AND :end $wh_s_filter";
 
             $pettyJoin = "JOIN shifts_history_pos sh ON p.shift_history_id = sh.id";
-            $pettyWhere = "sh.shift_id = :shift_id AND DATE(sh.start_time) BETWEEN :start AND :end";
+            $pettyWhere = "sh.shift_id = :shift_id AND DATE(sh.start_time) BETWEEN :start AND :end $wh_p_filter";
         }
 
         // 1. AMBIL JURNAL PENDAPATAN (SALES)

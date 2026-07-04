@@ -7,9 +7,18 @@ require_once '../../../../config/database.php';
 $action = $_REQUEST['action'] ?? '';
 $start_date = $_GET['start_date'] ?? date('Y-m-d');
 $end_date = $_GET['end_date'] ?? date('Y-m-d');
+$wh_id = !empty($_SESSION['pos_warehouse_id']) ? intval($_SESSION['pos_warehouse_id']) : 0;
 
 if ($action === 'get_report' || $action === 'export_excel') {
     try {
+        $wh_filter = "";
+        $params = [$start_date, $end_date];
+        if ($wh_id > 0) {
+            $wh_filter = " AND (sh.warehouse_id = ? OR (sh.warehouse_id IS NULL AND ? = 1)) ";
+            $params[] = $wh_id;
+            $params[] = $wh_id;
+        }
+
         // QUERY LAPORAN SHIFT (Logic Hitung Uang Fisik Laci)
         $stmt_shift = $pdo->prepare("
             SELECT 
@@ -27,10 +36,10 @@ if ($action === 'get_report' || $action === 'export_excel') {
             FROM shifts_history_pos sh
             LEFT JOIN users_pos u ON sh.user_id = u.id
             LEFT JOIN master_shifts_pos ms ON sh.shift_id = ms.id
-            WHERE DATE(sh.start_time) BETWEEN ? AND ?
+            WHERE DATE(sh.start_time) BETWEEN ? AND ? $wh_filter
             ORDER BY sh.start_time DESC
         ");
-        $stmt_shift->execute([$start_date, $end_date]);
+        $stmt_shift->execute($params);
         $shifts = $stmt_shift->fetchAll(PDO::FETCH_ASSOC);
 
         // Kalkulasi matematika untuk tabel

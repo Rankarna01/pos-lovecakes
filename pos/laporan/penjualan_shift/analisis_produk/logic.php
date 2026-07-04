@@ -7,20 +7,29 @@ require_once '../../../../config/database.php';
 $action = $_REQUEST['action'] ?? '';
 $start_date = $_GET['start_date'] ?? date('Y-m-d');
 $end_date = $_GET['end_date'] ?? date('Y-m-d');
+$wh_id = !empty($_SESSION['pos_warehouse_id']) ? intval($_SESSION['pos_warehouse_id']) : 0;
 
 if ($action === 'get_report' || $action === 'export_excel') {
     try {
+        $wh_filter = "";
+        $params = [$start_date, $end_date];
+        if ($wh_id > 0) {
+            $wh_filter = " AND (s.warehouse_id = ? OR (s.warehouse_id IS NULL AND ? = 1)) ";
+            $params[] = $wh_id;
+            $params[] = $wh_id;
+        }
+
         // 1. Penjualan per Kategori
         $stmt_cat = $pdo->prepare("
             SELECT COALESCE(p.category, 'Uncategorized') as category_name, SUM(sd.qty) as total_qty, SUM(sd.subtotal) as total_amount
             FROM sale_details_pos sd
             JOIN sales_pos s ON sd.sale_id = s.id
             LEFT JOIN products p ON sd.product_id = p.id
-            WHERE DATE(s.created_at) BETWEEN ? AND ?
+            WHERE DATE(s.created_at) BETWEEN ? AND ? $wh_filter
             GROUP BY p.category
             ORDER BY total_amount DESC
         ");
-        $stmt_cat->execute([$start_date, $end_date]);
+        $stmt_cat->execute($params);
         $sales_by_category = $stmt_cat->fetchAll(PDO::FETCH_ASSOC);
 
         // 2. Penjualan per Barang (Terlaris)
@@ -29,12 +38,12 @@ if ($action === 'get_report' || $action === 'export_excel') {
             FROM sale_details_pos sd
             JOIN sales_pos s ON sd.sale_id = s.id
             LEFT JOIN products p ON sd.product_id = p.id
-            WHERE DATE(s.created_at) BETWEEN ? AND ?
+            WHERE DATE(s.created_at) BETWEEN ? AND ? $wh_filter
             GROUP BY COALESCE(p.name, sd.custom_name)
             ORDER BY total_amount DESC
             LIMIT 50
         ");
-        $stmt_item->execute([$start_date, $end_date]);
+        $stmt_item->execute($params);
         $sales_by_item = $stmt_item->fetchAll(PDO::FETCH_ASSOC);
 
         // --- RESPONSE JSON UNTUK AJAX ---

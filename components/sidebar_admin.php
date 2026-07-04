@@ -39,19 +39,68 @@ function isDropdownActive($paths, $current_uri) {
         </button>
     </div>
 
-    <?php if (!empty($_SESSION['pos_store_name'])): ?>
+    <?php
+    if (!isset($pdo)) {
+        try { require_once __DIR__ . '/../config/database.php'; } catch (Exception $e) {}
+    }
+    $warehouses_list = [];
+    try {
+        if (isset($pdo)) {
+            $stmt_whs = $pdo->query("SELECT id, name, code FROM warehouses ORDER BY id ASC");
+            $warehouses_list = $stmt_whs->fetchAll(PDO::FETCH_ASSOC);
+        }
+    } catch (Exception $e) {}
+    $active_wh_id = isset($_SESSION['pos_warehouse_id']) ? intval($_SESSION['pos_warehouse_id']) : 0;
+    ?>
     <div class="px-4 pt-4 pb-1 shrink-0 bg-white">
-        <div class="bg-gradient-to-r from-blue-500/15 to-indigo-500/15 border border-blue-500/30 rounded-xl p-2.5 flex items-center gap-3 text-blue-800 shadow-sm">
-            <div class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 font-bold text-sm shadow">
-                <i class="fa-solid fa-building-user"></i>
+        <div class="bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-blue-500/30 rounded-2xl p-3 shadow-sm relative">
+            <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[10px] font-black uppercase tracking-wider text-blue-600 flex items-center gap-1.5">
+                    <i class="fa-solid fa-store text-blue-500"></i> Filter Laporan & Dasbor
+                </span>
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Live Filter Aktif"></span>
             </div>
-            <div class="overflow-hidden">
-                <div class="text-[9px] font-black uppercase tracking-wider text-blue-600 leading-tight">Akses Outlet / Store</div>
-                <div class="text-xs font-black truncate text-blue-900"><?= htmlspecialchars($_SESSION['pos_store_name']) ?></div>
+            <div class="relative">
+                <select id="globalStoreSwitcher" onchange="switchGlobalStore(this.value)" class="w-full bg-white/90 border border-blue-300 rounded-xl px-3 py-2 text-xs font-black text-blue-900 outline-none focus:ring-2 focus:ring-blue-500 shadow-xs cursor-pointer transition-all">
+                    <option value="0" <?= $active_wh_id === 0 ? 'selected' : '' ?>>🌐 Semua Outlet (Global)</option>
+                    <?php foreach ($warehouses_list as $wh): ?>
+                        <option value="<?= $wh['id'] ?>" <?= $active_wh_id === intval($wh['id']) ? 'selected' : '' ?>>
+                            🏬 <?= htmlspecialchars($wh['name']) ?> (<?= htmlspecialchars($wh['code']) ?>)
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="text-[9px] text-slate-400 font-bold mt-1.5 flex items-center gap-1">
+                <i class="fa-solid fa-circle-info text-blue-500"></i>
+                <span>Otomatis filter 9 Laporan & Dasbor</span>
             </div>
         </div>
     </div>
-    <?php endif; ?>
+    <script>
+    function switchGlobalStore(whId) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Mengganti Filter Outlet...',
+                text: 'Harap tunggu, memuat ulang laporan...',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+        }
+        fetch('<?= BASE_URL ?>config/auth.php?action=switch_store&warehouse_id=' + whId)
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    window.location.reload();
+                } else {
+                    if (typeof Swal !== 'undefined') Swal.fire('Error', 'Gagal mengganti outlet', 'error');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                window.location.reload();
+            });
+    }
+    </script>
 
     <nav class="flex-1 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar bg-white">
 

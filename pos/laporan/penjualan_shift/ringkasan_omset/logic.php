@@ -7,18 +7,28 @@ require_once '../../../../config/database.php';
 $action = $_REQUEST['action'] ?? '';
 $start_date = $_GET['start_date'] ?? date('Y-m-d');
 $end_date = $_GET['end_date'] ?? date('Y-m-d');
+$wh_id = !empty($_SESSION['pos_warehouse_id']) ? intval($_SESSION['pos_warehouse_id']) : 0;
 
 if ($action === 'get_report' || $action === 'export_excel') {
     try {
+        $wh_filter = "";
+        $params = [$start_date, $end_date];
+        if ($wh_id > 0) {
+            $wh_filter = " AND (s.warehouse_id = ? OR (s.warehouse_id IS NULL AND ? = 1)) ";
+            $params[] = $wh_id;
+            $params[] = $wh_id;
+        }
+
         // 1. QUERY KOMPOSISI PEMBAYARAN GLOBAL (Untuk Omset Sistem)
         $stmt_pay = $pdo->prepare("
             SELECT sp.payment_method, pm.type, SUM(sp.amount) as total 
             FROM sale_payments_pos sp
+            JOIN sales_pos s ON sp.sale_id = s.id
             LEFT JOIN payment_methods pm ON sp.payment_method = pm.name
-            WHERE DATE(sp.created_at) BETWEEN ? AND ? 
+            WHERE DATE(sp.created_at) BETWEEN ? AND ? $wh_filter
             GROUP BY sp.payment_method, pm.type
         ");
-        $stmt_pay->execute([$start_date, $end_date]);
+        $stmt_pay->execute($params);
         $pay_results = $stmt_pay->fetchAll(PDO::FETCH_ASSOC);
         
         $paymentData = ['cash' => 0, 'qris' => 0, 'total' => 0];
@@ -33,23 +43,25 @@ if ($action === 'get_report' || $action === 'export_excel') {
 
         // 2. Rincian Metode Pembayaran
         $stmt_pay_breakdown = $pdo->prepare("
-            SELECT payment_method, SUM(amount) as total_amount
-            FROM sale_payments_pos 
-            WHERE DATE(created_at) BETWEEN ? AND ? 
-            GROUP BY payment_method
+            SELECT sp.payment_method, SUM(sp.amount) as total_amount
+            FROM sale_payments_pos sp
+            JOIN sales_pos s ON sp.sale_id = s.id
+            WHERE DATE(sp.created_at) BETWEEN ? AND ? $wh_filter
+            GROUP BY sp.payment_method
             ORDER BY total_amount DESC
         ");
-        $stmt_pay_breakdown->execute([$start_date, $end_date]);
+        $stmt_pay_breakdown->execute($params);
         $payment_breakdown = $stmt_pay_breakdown->fetchAll(PDO::FETCH_ASSOC);
 
         // 3. Pembayaran DP dan Pelunasan
         $stmt_dp = $pdo->prepare("
-            SELECT payment_type, SUM(amount) as total_amount, COUNT(id) as total_transactions
-            FROM sale_payments_pos
-            WHERE payment_type IN ('dp', 'pelunasan') AND DATE(created_at) BETWEEN ? AND ?
-            GROUP BY payment_type
+            SELECT sp.payment_type, SUM(sp.amount) as total_amount, COUNT(sp.id) as total_transactions
+            FROM sale_payments_pos sp
+            JOIN sales_pos s ON sp.sale_id = s.id
+            WHERE sp.payment_type IN ('dp', 'pelunasan') AND DATE(sp.created_at) BETWEEN ? AND ? $wh_filter
+            GROUP BY sp.payment_type
         ");
-        $stmt_dp->execute([$start_date, $end_date]);
+        $stmt_dp->execute($params);
         $dp_pelunasan = $stmt_dp->fetchAll(PDO::FETCH_ASSOC);
 
         // --- RESPONSE JSON UNTUK AJAX ---
