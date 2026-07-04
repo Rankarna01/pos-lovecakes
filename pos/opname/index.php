@@ -155,6 +155,24 @@ $page_title = "Stok Opname Bahan & Produk - Love Cakes POS";
                     </div>
                     
                     <div class="p-6 flex flex-col items-center">
+                        <!-- Pilih Outlet untuk Scan -->
+                        <div class="w-full max-w-xl mb-4 bg-blue-50/70 border border-blue-200 p-3 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-2">
+                            <span class="text-xs font-black text-blue-800 flex items-center gap-1.5 shrink-0">
+                                <i class="fa-solid fa-store text-blue-600"></i> Pilih Outlet / Store:
+                            </span>
+                            <select x-model="selectedWarehouse" @change="onWarehouseChange()" class="w-full sm:w-auto flex-1 bg-white border border-blue-300 focus:border-blue-600 rounded-lg px-3 py-1.5 text-xs font-black text-blue-900 outline-none cursor-pointer">
+                                <?php
+                                try {
+                                    if (!isset($pdo)) require_once '../../config/database.php';
+                                    $stmt_wh = $pdo->query("SELECT id, name, code FROM warehouses ORDER BY id ASC");
+                                    while ($wh_row = $stmt_wh->fetch(PDO::FETCH_ASSOC)) {
+                                        echo '<option value="' . $wh_row['id'] . '">🏬 ' . htmlspecialchars($wh_row['name']) . ' (' . htmlspecialchars($wh_row['code']) . ')</option>';
+                                    }
+                                } catch (Exception $e) {}
+                                ?>
+                            </select>
+                        </div>
+
                         <div id="reader" class="w-full max-w-sm mb-4 rounded-xl overflow-hidden border-2 border-primary/20" x-show="isCameraOpen"></div>
                         
                         <div class="flex flex-col sm:flex-row gap-3 w-full max-w-xl">
@@ -237,6 +255,27 @@ $page_title = "Stok Opname Bahan & Produk - Love Cakes POS";
             <!-- Modal Body -->
             <div class="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
                 
+                <!-- PILIH OUTLET / STORE YANG DIOPNAME -->
+                <div class="space-y-2 bg-emerald-50/70 border-2 border-emerald-300 p-4 rounded-2xl">
+                    <label class="block text-xs font-black uppercase tracking-widest text-emerald-800 flex items-center gap-1.5">
+                        <i class="fa-solid fa-store text-emerald-600"></i> PILIH OUTLET / STORE YANG DIOPNAME <span class="text-rose-500">*</span>
+                    </label>
+                    <select x-model="selectedWarehouse" @change="onWarehouseChange()" class="w-full bg-white border-2 border-emerald-400 focus:border-emerald-600 rounded-xl px-4 py-3 text-sm font-black text-emerald-900 outline-none transition-all shadow-xs cursor-pointer">
+                        <?php
+                        try {
+                            if (!isset($pdo)) require_once '../../config/database.php';
+                            $stmt_wh = $pdo->query("SELECT id, name, code FROM warehouses ORDER BY id ASC");
+                            while ($wh_row = $stmt_wh->fetch(PDO::FETCH_ASSOC)) {
+                                echo '<option value="' . $wh_row['id'] . '">🏬 ' . htmlspecialchars($wh_row['name']) . ' (' . htmlspecialchars($wh_row['code']) . ')</option>';
+                            }
+                        } catch (Exception $e) {}
+                        ?>
+                    </select>
+                    <p class="text-[11px] font-bold text-emerald-700/90 flex items-center gap-1 mt-1">
+                        <i class="fa-solid fa-circle-info"></i> Daftar produk dan stok sistem yang dicari di bawah hanya untuk outlet terpilih ini.
+                    </p>
+                </div>
+
                 <!-- Cari & Tambah Bahan / Produk -->
                 <div class="space-y-2 relative">
                     <label class="block text-xs font-black uppercase tracking-widest text-emerald-600">
@@ -359,6 +398,9 @@ $page_title = "Stok Opname Bahan & Produk - Love Cakes POS";
         </div>
     </div>
 
+    <script>
+        window.CURRENT_WAREHOUSE_ID = <?= !empty($_SESSION['pos_warehouse_id']) ? intval($_SESSION['pos_warehouse_id']) : 1 ?>;
+    </script>
     <script src="ajax.js?v=<?= time() ?>"></script>
 </body>
 </html>

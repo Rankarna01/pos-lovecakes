@@ -9,6 +9,9 @@ document.addEventListener('alpine:init', () => {
         isCameraOpen: false,
         html5QrcodeScanner: null,
 
+        // Pilihan Outlet / Store untuk Opname
+        selectedWarehouse: window.CURRENT_WAREHOUSE_ID || '1',
+
         // Riwayat & Tabel
         historyRows: [],
         searchHistory: '',
@@ -26,11 +29,42 @@ document.addEventListener('alpine:init', () => {
             await this.loadHistory();
         },
 
+        onWarehouseChange() {
+            if (this.opnameItems.length > 0) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        title: 'Ganti Outlet / Store?',
+                        text: 'Daftar produk yang belum diposting akan dikosongkan agar sesuai dengan stok outlet baru.',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Ya, Ganti & Kosongkan',
+                        cancelButtonText: 'Batal'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            this.opnameItems = [];
+                            this.scannedProduct = null;
+                            this.searchResults = [];
+                            this.loadHistory();
+                        }
+                    });
+                } else {
+                    this.opnameItems = [];
+                    this.scannedProduct = null;
+                    this.searchResults = [];
+                    this.loadHistory();
+                }
+            } else {
+                this.scannedProduct = null;
+                this.searchResults = [];
+                this.loadHistory();
+            }
+        },
+
         // 1. LOAD RIWAYAT PENYESUAIAN STOK
         async loadHistory() {
             this.isLoadingHistory = true;
             try {
-                const response = await fetch(`logic.php?action=get_history&search=${encodeURIComponent(this.searchHistory)}`);
+                const response = await fetch(`logic.php?action=get_history&warehouse_id=${encodeURIComponent(this.selectedWarehouse)}&search=${encodeURIComponent(this.searchHistory)}`);
                 const result = await response.json();
                 if (result.status === 'success') {
                     this.historyRows = result.data || [];
@@ -65,7 +99,7 @@ document.addEventListener('alpine:init', () => {
                 return;
             }
             try {
-                const response = await fetch(`logic.php?action=search_products&keyword=${encodeURIComponent(this.searchKeyword)}`);
+                const response = await fetch(`logic.php?action=search_products&warehouse_id=${encodeURIComponent(this.selectedWarehouse)}&keyword=${encodeURIComponent(this.searchKeyword)}`);
                 const result = await response.json();
                 if (result.status === 'success') {
                     this.searchResults = result.data || [];
@@ -117,6 +151,7 @@ document.addEventListener('alpine:init', () => {
             this.isSavingBatch = true;
             try {
                 const payload = {
+                    warehouse_id: this.selectedWarehouse,
                     items: this.opnameItems.map(item => ({
                         product_id: item.id,
                         system_stock: item.system_stock,
@@ -166,7 +201,7 @@ document.addEventListener('alpine:init', () => {
             if (!codeToSearch) return;
 
             try {
-                const response = await fetch(`logic.php?action=scan_barcode&code=${encodeURIComponent(codeToSearch)}`);
+                const response = await fetch(`logic.php?action=scan_barcode&warehouse_id=${encodeURIComponent(this.selectedWarehouse)}&code=${encodeURIComponent(codeToSearch)}`);
                 const result = await response.json();
 
                 if (result.status === 'success') {
@@ -204,6 +239,7 @@ document.addEventListener('alpine:init', () => {
 
             try {
                 const fd = new FormData();
+                fd.append('warehouse_id', this.selectedWarehouse);
                 fd.append('product_id', this.scannedProduct.id);
                 fd.append('system_stock', this.scannedProduct.stock);
                 fd.append('actual_stock', this.actualStock);

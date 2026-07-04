@@ -9,7 +9,8 @@ require_once '../../config/database.php';
 header('Content-Type: application/json');
 $action = $_REQUEST['action'] ?? '';
 
-$wh_id = !empty($_SESSION['pos_warehouse_id']) ? intval($_SESSION['pos_warehouse_id']) : 0;
+$wh_id = isset($_REQUEST['warehouse_id']) && $_REQUEST['warehouse_id'] !== '' ? intval($_REQUEST['warehouse_id']) : (!empty($_SESSION['pos_warehouse_id']) ? intval($_SESSION['pos_warehouse_id']) : 0);
+if ($wh_id <= 0) $wh_id = 1; // Default ke store 1 jika 0 atau global agar opname selalu spesifik ke suatu store
 $user_id = !empty($_SESSION['pos_user_id']) ? intval($_SESSION['pos_user_id']) : 1;
 
 // 1. GET HISTORY OPNAME (Multi tenant / store handler)
