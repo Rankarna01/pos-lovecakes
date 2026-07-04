@@ -1,13 +1,14 @@
 <?php
-// Tampilkan error saat development (matikan saat rilis)
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
+ini_set('display_errors', 0);
+error_reporting(0);
 
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 require_once '../../config/database.php'; // Pastikan path ini benar!
 
 header('Content-Type: application/json');
-$action = $_POST['action'] ?? '';
+$action = $_REQUEST['action'] ?? '';
 
 if ($action === 'get_dashboard_data') {
     

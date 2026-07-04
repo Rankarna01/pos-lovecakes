@@ -65,7 +65,7 @@ function dashboardApp() {
         },
 
         printInvoice(invoice) {
-            window.open(`../kasir/print_receipt.php?invoice=${invoice}&auto_print_usb=1`, '_blank', 'width=400,height=600');
+            window.open(`../laporan/penjualan_shift/riwayat_transaksi/print_pdf.php?invoice=${invoice}`, '_blank', 'width=800,height=900');
         },
 
         renderChart(chartData) {
@@ -130,6 +130,7 @@ function dashboardApp() {
                             beginAtZero: true
                         }
                     }
+                }
             });
         },
 
