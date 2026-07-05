@@ -6,7 +6,8 @@ document.addEventListener('alpine:init', () => {
         isRestricted: false,
         filters: {
             start_date: new Date().toISOString().split('T')[0],
-            end_date: new Date().toISOString().split('T')[0]
+            end_date: new Date().toISOString().split('T')[0],
+            payment_method: ''
         },
         activeTab: 'ringkasan',
         sales: [],
@@ -43,6 +44,7 @@ document.addEventListener('alpine:init', () => {
             this.checkRestriction();
             this.$watch('filters.start_date', () => { this.fetchSales(); });
             this.$watch('filters.end_date', () => { this.fetchSales(); });
+            this.$watch('filters.payment_method', () => { this.fetchSales(); });
             this.$watch('searchQuery', () => { this.salePage = 1; });
             this.fetchSales();
         },
@@ -79,6 +81,7 @@ document.addEventListener('alpine:init', () => {
                 formData.append('action', 'get_sales');
                 formData.append('start_date', this.filters.start_date);
                 formData.append('end_date', this.filters.end_date);
+                formData.append('payment_method', this.filters.payment_method || '');
 
                 const response = await fetch('logic.php', {
                     method: 'POST',
@@ -109,12 +112,33 @@ document.addEventListener('alpine:init', () => {
         },
 
         get filteredSales() {
-            if (!this.searchQuery) return this.sales;
-            const query = this.searchQuery.toLowerCase();
-            return this.sales.filter(s => 
-                s.invoice_no.toLowerCase().includes(query) ||
-                (s.customer_name && s.customer_name.toLowerCase().includes(query))
-            );
+            if (!this.searchQuery && !this.filters.payment_method) return this.sales;
+            const query = (this.searchQuery || '').toLowerCase();
+            const pay = (this.filters.payment_method || '').toLowerCase();
+            
+            return this.sales.filter(s => {
+                const matchSearch = !query || 
+                    (s.invoice_no && s.invoice_no.toLowerCase().includes(query)) ||
+                    (s.customer_name && s.customer_name.toLowerCase().includes(query));
+                
+                let matchPay = true;
+                if (pay) {
+                    const sPay = (s.payment_method || '').toLowerCase();
+                    if (pay === 'cash') {
+                        matchPay = sPay === 'cash' || sPay === 'tunai';
+                    } else if (pay === 'qris') {
+                        matchPay = sPay.includes('qris');
+                    } else if (pay === 'transfer') {
+                        matchPay = sPay.includes('transfer') || sPay.includes('bank');
+                    } else if (pay === 'split') {
+                        matchPay = sPay.includes('split');
+                    } else {
+                        matchPay = sPay === pay;
+                    }
+                }
+                
+                return matchSearch && matchPay;
+            });
         },
 
         // Pagination computed properties

@@ -63,6 +63,26 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                         <option value="gojek">GoFood</option>
                         <option value="wa_delivery">WA / Delivery</option>
                     </select>
+
+                    <select x-model="filters.payment" @change="applyFilter()" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary font-bold text-sm text-slate-600">
+                        <option value="">Semua Metode Bayar</option>
+                        <option value="cash">💵 Cash / Tunai</option>
+                        <option value="qris">📱 QRIS / Digital</option>
+                        <option value="transfer">🏦 Transfer Bank</option>
+                        <option value="split">🔄 Split Payment</option>
+                        <?php
+                        try {
+                            if (!isset($pdo)) require_once '../../../config/database.php';
+                            $stmt_pm = $pdo->query("SELECT name FROM payment_methods WHERE is_active = 1 ORDER BY name ASC");
+                            while ($pm_row = $stmt_pm->fetch(PDO::FETCH_ASSOC)) {
+                                $pm_name = htmlspecialchars($pm_row['name']);
+                                if (!in_array(strtolower($pm_name), ['cash', 'qris', 'transfer bank', 'split'])) {
+                                    echo '<option value="' . strtolower($pm_name) . '">💳 ' . $pm_name . '</option>';
+                                }
+                            }
+                        } catch (Exception $e) {}
+                        ?>
+                    </select>
                     
                     <button @click="applyFilter()" class="bg-primary hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-sm flex items-center justify-center gap-2">
                         <i class="fa-solid fa-filter"></i> Filter

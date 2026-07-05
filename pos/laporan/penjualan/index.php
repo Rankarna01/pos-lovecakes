@@ -33,17 +33,38 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
         <main class="flex-1 overflow-x-hidden overflow-y-auto custom-scrollbar p-4 md:p-6 bg-[#f8fafc]">
             <div class="max-w-[1400px] mx-auto space-y-6">
                 
-                <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-3 items-center sticky top-0 z-10">
+                <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-3 items-center sticky top-0 z-10 flex-wrap">
                     <div class="flex items-center gap-2 w-full md:w-auto">
                         <input type="date" x-model="filters.start_date" :disabled="isRestricted" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20 transition-all text-slate-700 disabled:opacity-50">
                         <span class="text-slate-400 font-bold text-sm">s/d</span>
                         <input type="date" x-model="filters.end_date" :disabled="isRestricted" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20 transition-all text-slate-700 disabled:opacity-50">
                     </div>
-                    <div class="relative w-full md:flex-1">
+                    <div class="relative w-full md:flex-1 min-w-[200px]">
                         <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
                         <input type="text" x-model="searchQuery" placeholder="Cari No. Invoice / Pelanggan..." class="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 font-bold text-sm">
                     </div>
-                    <button @click="fetchSales()" class="w-full md:w-auto bg-primary text-white px-6 py-2.5 rounded-xl text-sm font-black transition-all">Filter</button>
+                    <select x-model="filters.payment_method" @change="fetchSales()" class="w-full md:w-auto bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary font-bold text-sm text-slate-600 cursor-pointer">
+                        <option value="">💳 Semua Metode Bayar</option>
+                        <option value="cash">💵 Cash / Tunai</option>
+                        <option value="qris">📱 QRIS / Digital</option>
+                        <option value="transfer">🏦 Transfer Bank</option>
+                        <option value="split">🔄 Split Payment</option>
+                        <?php
+                        try {
+                            if (!isset($pdo)) require_once '../../../config/database.php';
+                            $stmt_pm = $pdo->query("SELECT name FROM payment_methods WHERE is_active = 1 ORDER BY name ASC");
+                            while ($pm_row = $stmt_pm->fetch(PDO::FETCH_ASSOC)) {
+                                $pm_name = htmlspecialchars($pm_row['name']);
+                                if (!in_array(strtolower($pm_name), ['cash', 'qris', 'transfer bank', 'split'])) {
+                                    echo '<option value="' . strtolower($pm_name) . '">💳 ' . $pm_name . '</option>';
+                                }
+                            }
+                        } catch (Exception $e) {}
+                        ?>
+                    </select>
+                    <button @click="fetchSales()" class="w-full md:w-auto bg-primary text-white px-6 py-2.5 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-filter"></i> Filter
+                    </button>
                 </div>
 
                 <div x-show="isRestricted" class="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center gap-3 text-amber-700">
@@ -281,7 +302,26 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                                 <h3 class="font-black text-slate-800 text-base">Rincian Detail Penjualan</h3>
                                 <p class="text-xs text-slate-400 font-medium mt-0.5">Daftar seluruh nota penjualan sesuai rentang tanggal filter</p>
                             </div>
-                            <div class="flex items-center gap-2">
+                            <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                                <select x-model="filters.payment_method" @change="fetchSales()" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-black text-slate-700 outline-none focus:border-primary shadow-xs cursor-pointer">
+                                    <option value="">💳 Semua Metode Bayar</option>
+                                    <option value="cash">💵 Cash / Tunai</option>
+                                    <option value="qris">📱 QRIS / Digital</option>
+                                    <option value="transfer">🏦 Transfer Bank</option>
+                                    <option value="split">🔄 Split Payment</option>
+                                    <?php
+                                    try {
+                                        if (!isset($pdo)) require_once '../../../config/database.php';
+                                        $stmt_pm = $pdo->query("SELECT name FROM payment_methods WHERE is_active = 1 ORDER BY name ASC");
+                                        while ($pm_row = $stmt_pm->fetch(PDO::FETCH_ASSOC)) {
+                                            $pm_name = htmlspecialchars($pm_row['name']);
+                                            if (!in_array(strtolower($pm_name), ['cash', 'qris', 'transfer bank', 'split'])) {
+                                                echo '<option value="' . strtolower($pm_name) . '">💳 ' . $pm_name . '</option>';
+                                            }
+                                        }
+                                    } catch (Exception $e) {}
+                                    ?>
+                                </select>
                                 <button @click="printPDF('rincian', 'Laporan Rincian Transaksi Penjualan')" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl transition-colors text-xs font-black flex items-center gap-1.5 shadow-sm" title="Cetak PDF">
                                     <i class="fa-solid fa-print text-rose-400"></i> Cetak PDF
                                 </button>

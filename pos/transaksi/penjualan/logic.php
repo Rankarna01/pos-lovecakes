@@ -26,9 +26,11 @@ if ($action === 'get_sales') {
         ";
         $params = [];
 
-        if (!empty($_SESSION['pos_warehouse_id'])) {
-            $query .= " AND s.warehouse_id = ?";
-            $params[] = intval($_SESSION['pos_warehouse_id']);
+        $wh_id = !empty($_SESSION['pos_warehouse_id']) ? intval($_SESSION['pos_warehouse_id']) : 0;
+        if ($wh_id > 0) {
+            $query .= " AND (s.warehouse_id = ? OR (s.warehouse_id IS NULL AND ? = 1))";
+            $params[] = $wh_id;
+            $params[] = $wh_id;
         }
 
         if (!empty($search)) {
@@ -41,8 +43,18 @@ if ($action === 'get_sales') {
             $params[] = $channel;
         }
         if (!empty($payment)) {
-            $query .= " AND s.payment_method = ?";
-            $params[] = $payment;
+            if (strtolower($payment) === 'cash') {
+                $query .= " AND (LOWER(s.payment_method) = 'cash' OR LOWER(s.payment_method) = 'tunai')";
+            } elseif (strtolower($payment) === 'qris') {
+                $query .= " AND LOWER(s.payment_method) LIKE '%qris%'";
+            } elseif (strtolower($payment) === 'transfer') {
+                $query .= " AND (LOWER(s.payment_method) LIKE '%transfer%' OR LOWER(s.payment_method) LIKE '%bank%')";
+            } elseif (strtolower($payment) === 'split') {
+                $query .= " AND LOWER(s.payment_method) LIKE '%split%'";
+            } else {
+                $query .= " AND LOWER(s.payment_method) = ?";
+                $params[] = strtolower($payment);
+            }
         }
         if (!empty($status)) {
             if ($status === 'lunas_langsung') {
