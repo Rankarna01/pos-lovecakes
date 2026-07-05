@@ -69,19 +69,22 @@ self.addEventListener('fetch', event => {
         // HANYA CACHE FILE STATIS MURNI (CSS, JS, GAMBAR, FONT) - TIDAK PERNAH CACHE FILE PHP!
         const isStaticAsset = url.pathname.match(/\.(css|js|png|jpg|jpeg|gif|svg|woff|woff2)$/i);
 
-        if (event.request.method === 'GET' && fetchRes.status === 200 && isStaticAsset) {
+        // WAJIB: Pastikan protokol dimulai dengan http/https (mencegah eror chrome-extension://)
+        if (event.request.method === 'GET' && fetchRes.status === 200 && isStaticAsset && url.protocol.startsWith('http')) {
           const responseClone = fetchRes.clone();
           caches.open(CACHE_NAME).then(cache => {
             cache.put(event.request, responseClone);
           });
         }
         return fetchRes;
-      }).catch(() => {
+      }).catch(async () => {
         // Jika internet mati dan file tidak ada di cache sama sekali
-        // Paksa kembalikan ke halaman kasir utama jika ini navigasi halaman
         if (event.request.mode === 'navigate') {
-          return caches.match('./pos/kasir/index.php');
+          const cachedPage = await caches.match('./pos/kasir/index.php') || await caches.match('/pos-lovecakes/pos/kasir/index.php');
+          if (cachedPage) return cachedPage;
         }
+        // Selalu kembalikan Response valid agar event.respondWith tidak menerima undefined (mencegah TypeError)
+        return new Response('Offline / Resource Not Found', { status: 503, statusText: 'Service Unavailable' });
       });
     })
   );

@@ -14,7 +14,7 @@ if (!defined('BASE_URL')) {
 <link rel="manifest" href="<?= BASE_URL ?>manifest.json">
 
 <meta name="theme-color" content="#1e293b">
-<link rel="apple-touch-icon" href="<?= BASE_URL ?>assets/img/icon-192.png">
+<link rel="apple-touch-icon" href="<?= BASE_URL ?>pos/assets/img/icon-92.png">
 
 <script src="https://cdn.tailwindcss.com"></script>
 <script>

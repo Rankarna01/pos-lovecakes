@@ -154,10 +154,27 @@ try {
 
     <div class="barcode-container"><svg id="barcode"></svg></div>
 
-    <div class="text-center no-print" style="margin-top: 20px;" id="action-buttons">
-        <button onclick="window.print()" class="btn btn-usb" style="background:#10b981; color:white;">🖨️ Print Thermal (USB)</button>
-        <button onclick="printBluetooth()" class="btn btn-bt" id="btn-bt">📶 Print Bluetooth</button>
-        <button onclick="window.close()" class="btn btn-close">❌ Tutup</button>
+    <!-- PANDUAN & AKSI PRINT (TIDAK IKUT TERCETAK) -->
+    <div class="no-print" style="margin-top: 25px; border-top: 2px dashed #cbd5e1; padding-top: 15px;" id="action-buttons">
+        
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 10px; line-height: 1.4; color: #334155;">
+            <div style="font-weight: bold; color: #2563eb; margin-bottom: 4px;">❓ Kenapa Masih Muncul Popup Pilihan Cetak?</div>
+            <div>Browser standar (Chrome/Edge) memiliki keamanan yang selalu menampilkan layar konfirmasi cetak ini. Agar struk <b>langsung keluar otomatis dalam 1 detik tanpa klik apapun</b>:</div>
+            <div style="margin-top: 5px;">
+                <b>🚀 Solusi 1 (Rekomendasi POS Kasir):</b><br>
+                Tambahkan kode <code>--kiosk-printing</code> pada shortcut Chrome / Microsoft Edge Anda di Desktop. Saat kasir klik Cetak, struk akan langsung tercetak ke printer TM-T82X tanpa melewati popup ini!
+            </div>
+            <div style="margin-top: 5px;">
+                <b>⚡ Solusi 2 (Print ESC/POS Langsung):</b><br>
+                Klik tombol <b>Print WebUSB</b> atau <b>Print WebSerial</b> di bawah untuk mengirim data langsung ke printer tanpa melalui dialog browser!
+            </div>
+        </div>
+
+        <button onclick="window.print()" class="btn btn-usb" style="background:#2563eb; color:white; font-size:12px; padding:12px;">🖨️ Cetak Struk (Browser / Default)</button>
+        <button onclick="printWebUSB()" class="btn btn-usb" id="btn-usb" style="background:#10b981; color:white; font-size:12px;">⚡ Print Langsung WebUSB (ESC/POS)</button>
+        <button onclick="printSerial()" class="btn btn-usb" id="btn-serial" style="background:#059669; color:white; font-size:12px;">🔌 Print Langsung WebSerial (COM/RS232)</button>
+        <button onclick="printBluetooth()" class="btn btn-bt" id="btn-bt" style="background:#3b82f6; color:white; font-size:12px;">📶 Print Bluetooth (GATT)</button>
+        <button onclick="window.close()" class="btn btn-close" style="margin-top:10px;">❌ Tutup Jendela</button>
     </div>
 
     <script>
@@ -172,6 +189,32 @@ try {
             footer: <?= json_encode($toko['receipt_footer']) ?>
         };
 
+        // Fungsi merakit teks ESC/POS mentah
+        function buildEscPosText() {
+            let printText = "\x1B\x61\x01\x1B\x45\x01" + receiptData.storeName + "\n\x1B\x45\x00\x1B\x61\x00";
+            printText += "--------------------------------\n";
+            printText += "Tgl : " + receiptData.date + "\nInv : " + receiptData.invoice + "\n";
+            printText += "--------------------------------\n";
+            
+            receiptData.items.forEach(i => {
+                let pFormat = parseInt(i.price).toLocaleString('id-ID');
+                let sFormat = parseInt(i.subtotal).toLocaleString('id-ID');
+                printText += i.product_name + "\n";
+                let row = i.qty + " x " + pFormat;
+                let space = 32 - row.length - sFormat.length;
+                printText += row + " ".repeat(space > 0 ? space : 1) + sFormat + "\n";
+            });
+            
+            printText += "--------------------------------\n";
+            printText += " ".repeat(Math.max(0, 32 - ("TOTAL: Rp "+receiptData.total).length)) + "TOTAL: Rp " + receiptData.total + "\n";
+            printText += " ".repeat(Math.max(0, 32 - ("BAYAR: Rp "+receiptData.paid).length)) + "BAYAR: Rp " + receiptData.paid + "\n";
+            printText += " ".repeat(Math.max(0, 32 - ("KEMBALI: Rp "+receiptData.change).length)) + "KEMBALI: Rp " + receiptData.change + "\n";
+            printText += "--------------------------------\n";
+            printText += "\x1B\x61\x01" + receiptData.footer + "\n\n\n\n";
+            printText += "\x1D\x56\x42\x00"; // Potong kertas otomatis (Cut Paper command)
+            return printText;
+        }
+
         document.addEventListener("DOMContentLoaded", function() {
             JsBarcode("#barcode", "<?= htmlspecialchars($invoice) ?>", { format: "CODE128", displayValue: true, fontSize: 12, height: 40, width: 1.2 });
             
@@ -180,32 +223,158 @@ try {
             const isAutoUsb = params.get('auto_print_usb');
             const actionBtns = document.getElementById('action-buttons');
 
-            // Sembunyikan tombol pilihan saat auto-print berjalan
-            if ((isAutoBt || isAutoUsb) && actionBtns) {
-                actionBtns.style.display = 'none';
-            }
-
-            // Cek Bluetooth Auto Print (hanya jika eksplisit diminta)
+            // Cek Bluetooth Auto Print
             if (isAutoBt) {
                 const savedPrinter = localStorage.getItem('pos_printer_name');
                 if(savedPrinter && navigator.bluetooth) {
+                    if (actionBtns) actionBtns.style.display = 'none';
                     setTimeout(() => { printBluetooth(true); }, 500);
                 } else {
                     if (actionBtns) actionBtns.style.display = 'block';
                 }
             } 
-            // Default ke USB / Thermal Printer
+            // Default ke USB / Thermal Printer (Cek WebUSB / WebSerial Otomatis dulu!)
             else {
-                setTimeout(() => { 
-                    window.print(); 
-                    if (isAutoUsb) {
-                        window.onafterprint = function() { window.close(); };
-                        setTimeout(() => { window.close(); }, 4000);
+                setTimeout(async () => {
+                    let autoPrinted = false;
+                    
+                    // 1. Cek apakah ada printer WebUSB yang sudah diizinkan sebelumnya
+                    if (isAutoUsb && navigator.usb && navigator.usb.getDevices) {
+                        try {
+                            const usbDevices = await navigator.usb.getDevices();
+                            if (usbDevices && usbDevices.length > 0) {
+                                if (actionBtns) actionBtns.style.display = 'none';
+                                await printWebUSB(true, usbDevices[0]);
+                                autoPrinted = true;
+                            }
+                        } catch(e) { console.warn("Auto WebUSB bypass", e); }
+                    }
+
+                    // 2. Cek apakah ada printer WebSerial yang sudah diizinkan sebelumnya
+                    if (!autoPrinted && isAutoUsb && navigator.serial && navigator.serial.getPorts) {
+                        try {
+                            const serialPorts = await navigator.serial.getPorts();
+                            if (serialPorts && serialPorts.length > 0) {
+                                if (actionBtns) actionBtns.style.display = 'none';
+                                await printSerial(true, serialPorts[0]);
+                                autoPrinted = true;
+                            }
+                        } catch(e) { console.warn("Auto WebSerial bypass", e); }
+                    }
+
+                    // 3. Jika belum diizinkan WebUSB/Serial, gunakan Print Browser (window.print)
+                    if (!autoPrinted) {
+                        window.print(); 
+                        if (isAutoUsb) {
+                            window.onafterprint = function() { 
+                                setTimeout(() => { window.close(); }, 500); 
+                            };
+                        }
                     }
                 }, 500);
             }
         });
 
+        // 1. PRINT LANGSUNG VIA WEBUSB (ESC/POS RAW)
+        async function printWebUSB(isAutoPrint = false, existingDevice = null) {
+            const btn = document.getElementById('btn-usb');
+            if (!navigator.usb) {
+                if(!isAutoPrint) alert('Browser Anda tidak mendukung WebUSB. Silakan gunakan Google Chrome atau Microsoft Edge.');
+                return;
+            }
+            if (btn) { btn.innerHTML = 'Mencari Printer USB...'; btn.disabled = true; }
+
+            try {
+                let device = existingDevice;
+                if (!device && navigator.usb.getDevices) {
+                    const devList = await navigator.usb.getDevices();
+                    if (devList && devList.length > 0) device = devList[0];
+                }
+                if (!device) {
+                    if (isAutoPrint) return;
+                    device = await navigator.usb.requestDevice({ filters: [] });
+                }
+
+                await device.open();
+                if (device.configuration === null) await device.selectConfiguration(1);
+                
+                let interfaceNumber = 0;
+                let endpointNumber = 1;
+                for (let config of device.configurations) {
+                    for (let iface of config.interfaces) {
+                        for (let alt of iface.alternates) {
+                            for (let ep of alt.endpoints) {
+                                if (ep.direction === "out") {
+                                    interfaceNumber = iface.interfaceNumber;
+                                    endpointNumber = ep.endpointNumber;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                await device.claimInterface(interfaceNumber);
+                const encoder = new TextEncoder();
+                const printText = buildEscPosText();
+                await device.transferOut(endpointNumber, encoder.encode(printText));
+                await device.close();
+
+                if (btn) { btn.innerHTML = 'Berhasil Dicetak WebUSB! ✅'; }
+                setTimeout(() => { 
+                    if (btn) { btn.innerHTML = '⚡ Print Langsung WebUSB (ESC/POS)'; btn.disabled = false; }
+                    if(isAutoPrint) window.close(); 
+                }, 1500);
+            } catch (err) {
+                console.error("WebUSB Error:", err);
+                if (!isAutoPrint) {
+                    alert("Gagal mencetak via WebUSB: " + err.message + "\n\nTips: Jika printer sedang dipakai oleh driver Windows, silakan gunakan tombol 'Cetak Struk (Browser / Default)' di atas.");
+                }
+                if (btn) { btn.innerHTML = '⚡ Print Langsung WebUSB (ESC/POS)'; btn.disabled = false; }
+            }
+        }
+
+        // 2. PRINT LANGSUNG VIA WEBSERIAL (COM PORT / RS232 / USB SERIAL)
+        async function printSerial(isAutoPrint = false, existingPort = null) {
+            const btn = document.getElementById('btn-serial');
+            if (!navigator.serial) {
+                if(!isAutoPrint) alert('Browser Anda tidak mendukung WebSerial. Silakan gunakan Google Chrome atau Microsoft Edge.');
+                return;
+            }
+            if (btn) { btn.innerHTML = 'Membuka Port Serial...'; btn.disabled = true; }
+
+            try {
+                let port = existingPort;
+                if (!port && navigator.serial.getPorts) {
+                    const portList = await navigator.serial.getPorts();
+                    if (portList && portList.length > 0) port = portList[0];
+                }
+                if (!port) {
+                    if (isAutoPrint) return;
+                    port = await navigator.serial.requestPort();
+                }
+
+                await port.open({ baudRate: 9600 });
+                const writer = port.writable.getWriter();
+                const encoder = new TextEncoder();
+                const printText = buildEscPosText();
+                await writer.write(encoder.encode(printText));
+                writer.releaseLock();
+                await port.close();
+
+                if (btn) { btn.innerHTML = 'Berhasil Dicetak WebSerial! ✅'; }
+                setTimeout(() => { 
+                    if (btn) { btn.innerHTML = '🔌 Print Langsung WebSerial (COM/RS232)'; btn.disabled = false; }
+                    if(isAutoPrint) window.close(); 
+                }, 1500);
+            } catch (err) {
+                console.error("WebSerial Error:", err);
+                if (!isAutoPrint) alert("Gagal mencetak via WebSerial: " + err.message);
+                if (btn) { btn.innerHTML = '🔌 Print Langsung WebSerial (COM/RS232)'; btn.disabled = false; }
+            }
+        }
+
+        // 3. PRINT VIA BLUETOOTH (GATT)
         async function printBluetooth(isAutoPrint = false) {
             const btn = document.getElementById('btn-bt');
             const savedPrinter = localStorage.getItem('pos_printer_name');
@@ -215,20 +384,18 @@ try {
             btn.disabled = true;
 
             try {
-                // JIKA BROWSER MENDUKUNG GET DEVICES (Auto-connect ke printer yang sudah diizinkan)
                 if (savedPrinter && navigator.bluetooth.getDevices) {
                     const devices = await navigator.bluetooth.getDevices();
                     device = devices.find(d => d.name === savedPrinter);
                 }
 
-                // JIKA BELUM ADA IZIN ATAU KASIR KLIK MANUAL
                 if (!device) {
                     if (isAutoPrint) {
                         const actionBtns = document.getElementById('action-buttons');
                         if (actionBtns) actionBtns.style.display = 'block';
-                        btn.innerHTML = '📶 Print Bluetooth';
+                        btn.innerHTML = '📶 Print Bluetooth (GATT)';
                         btn.disabled = false;
-                        return; // Jangan paksa muncul popup kalau mode auto
+                        return;
                     }
                     device = await navigator.bluetooth.requestDevice({
                         filters: [{ services: ['000018f0-0000-1000-8000-00805f9b34fb'] }],
@@ -237,40 +404,17 @@ try {
                     localStorage.setItem('pos_printer_name', device.name);
                 }
 
-                // 2. Konek ke server Bluetooth GATT
                 const server = await device.gatt.connect();
                 const service = await server.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb');
                 const characteristic = await service.getCharacteristic('00002af1-0000-1000-8000-00805f9b34fb');
 
-                // 3. Merakit Struk ESC/POS
                 const encoder = new TextEncoder();
-                let printText = "\x1B\x61\x01\x1B\x45\x01" + receiptData.storeName + "\n\x1B\x45\x00\x1B\x61\x00";
-                printText += "--------------------------------\n";
-                printText += "Tgl : " + receiptData.date + "\nInv : " + receiptData.invoice + "\n";
-                printText += "--------------------------------\n";
-                
-                receiptData.items.forEach(i => {
-                    let pFormat = parseInt(i.price).toLocaleString('id-ID');
-                    let sFormat = parseInt(i.subtotal).toLocaleString('id-ID');
-                    printText += i.product_name + "\n";
-                    let row = i.qty + " x " + pFormat;
-                    let space = 32 - row.length - sFormat.length;
-                    printText += row + " ".repeat(space > 0 ? space : 1) + sFormat + "\n";
-                });
-                
-                printText += "--------------------------------\n";
-                printText += " ".repeat(Math.max(0, 32 - ("TOTAL: Rp "+receiptData.total).length)) + "TOTAL: Rp " + receiptData.total + "\n";
-                printText += " ".repeat(Math.max(0, 32 - ("BAYAR: Rp "+receiptData.paid).length)) + "BAYAR: Rp " + receiptData.paid + "\n";
-                printText += " ".repeat(Math.max(0, 32 - ("KEMBALI: Rp "+receiptData.change).length)) + "KEMBALI: Rp " + receiptData.change + "\n";
-                printText += "--------------------------------\n";
-                printText += "\x1B\x61\x01" + receiptData.footer + "\n\n\n\n"; 
-
-                // 4. Tembak ke Printer!
+                const printText = buildEscPosText();
                 await characteristic.writeValue(encoder.encode(printText));
                 
                 btn.innerHTML = 'Berhasil Dicetak! ✅';
                 setTimeout(() => { 
-                    btn.innerHTML = '📶 Print Bluetooth'; 
+                    btn.innerHTML = '📶 Print Bluetooth (GATT)'; 
                     btn.disabled = false; 
                     if (isAutoPrint) window.close();
                 }, 2000);
@@ -280,7 +424,7 @@ try {
                 const actionBtns = document.getElementById('action-buttons');
                 if (actionBtns) actionBtns.style.display = 'block';
                 if (!isAutoPrint) alert('Gagal menghubungkan ke Printer Bluetooth. Pastikan printer menyala.');
-                btn.innerHTML = '📶 Print Bluetooth';
+                btn.innerHTML = '📶 Print Bluetooth (GATT)';
                 btn.disabled = false;
             }
         }
