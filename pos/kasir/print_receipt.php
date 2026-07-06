@@ -244,8 +244,7 @@ try {
                             const usbDevices = await navigator.usb.getDevices();
                             if (usbDevices && usbDevices.length > 0) {
                                 if (actionBtns) actionBtns.style.display = 'none';
-                                await printWebUSB(true, usbDevices[0]);
-                                autoPrinted = true;
+                                autoPrinted = await printWebUSB(true, usbDevices[0]);
                             }
                         } catch(e) { console.warn("Auto WebUSB bypass", e); }
                     }
@@ -256,14 +255,14 @@ try {
                             const serialPorts = await navigator.serial.getPorts();
                             if (serialPorts && serialPorts.length > 0) {
                                 if (actionBtns) actionBtns.style.display = 'none';
-                                await printSerial(true, serialPorts[0]);
-                                autoPrinted = true;
+                                autoPrinted = await printSerial(true, serialPorts[0]);
                             }
                         } catch(e) { console.warn("Auto WebSerial bypass", e); }
                     }
 
-                    // 3. Jika belum diizinkan WebUSB/Serial, gunakan Print Browser (window.print)
+                    // 3. 🛡️ FALLBACK OTOMATIS: Jika WebUSB/Serial gagal (karena SecurityError/Access Denied), LANGSUNG gunakan Print Browser (window.print)!
                     if (!autoPrinted) {
+                        if (actionBtns) actionBtns.style.display = 'block';
                         window.print(); 
                         if (isAutoUsb) {
                             window.onafterprint = function() { 
@@ -280,7 +279,7 @@ try {
             const btn = document.getElementById('btn-usb');
             if (!navigator.usb) {
                 if(!isAutoPrint) alert('Browser Anda tidak mendukung WebUSB. Silakan gunakan Google Chrome atau Microsoft Edge.');
-                return;
+                return false;
             }
             if (btn) { btn.innerHTML = 'Mencari Printer USB...'; btn.disabled = true; }
 
@@ -291,7 +290,7 @@ try {
                     if (devList && devList.length > 0) device = devList[0];
                 }
                 if (!device) {
-                    if (isAutoPrint) return;
+                    if (isAutoPrint) return false;
                     device = await navigator.usb.requestDevice({ filters: [] });
                 }
 
@@ -325,12 +324,24 @@ try {
                     if (btn) { btn.innerHTML = '⚡ Print Langsung WebUSB (ESC/POS)'; btn.disabled = false; }
                     if(isAutoPrint) window.close(); 
                 }, 1500);
+                return true;
             } catch (err) {
                 console.error("WebUSB Error:", err);
-                if (!isAutoPrint) {
-                    alert("Gagal mencetak via WebUSB: " + err.message + "\n\nTips: Jika printer sedang dipakai oleh driver Windows, silakan gunakan tombol 'Cetak Struk (Browser / Default)' di atas.");
-                }
                 if (btn) { btn.innerHTML = '⚡ Print Langsung WebUSB (ESC/POS)'; btn.disabled = false; }
+                
+                // 🛡️ PENJELASAN ERROR KHUSUS WINDOWS (SecurityError / Access Denied)
+                if (!isAutoPrint) {
+                    let msg = "Gagal mencetak via WebUSB: " + err.message;
+                    if (err.name === 'SecurityError' || err.message.includes('Access denied') || err.message.includes('claimed')) {
+                        msg = "⚠️ AKSES WEBUSB DITOLAK (SecurityError)\n\n" +
+                              "💡 PENJELASAN:\n" +
+                              "Printer Epson TM-T82X Anda sedang dikunci oleh Driver Windows (Spooler). Pada Windows, jika printer sudah terinstal di 'Printers & Scanners', browser tidak diizinkan mengakses port USB secara langsung.\n\n" +
+                              "🚀 SOLUSI MUDAH:\n" +
+                              "Silakan gunakan tombol biru '🖨️ Cetak Struk (Browser / Default)' di atas!";
+                    }
+                    alert(msg);
+                }
+                return false;
             }
         }
 
@@ -339,7 +350,7 @@ try {
             const btn = document.getElementById('btn-serial');
             if (!navigator.serial) {
                 if(!isAutoPrint) alert('Browser Anda tidak mendukung WebSerial. Silakan gunakan Google Chrome atau Microsoft Edge.');
-                return;
+                return false;
             }
             if (btn) { btn.innerHTML = 'Membuka Port Serial...'; btn.disabled = true; }
 
@@ -350,7 +361,7 @@ try {
                     if (portList && portList.length > 0) port = portList[0];
                 }
                 if (!port) {
-                    if (isAutoPrint) return;
+                    if (isAutoPrint) return false;
                     port = await navigator.serial.requestPort();
                 }
 
@@ -367,10 +378,12 @@ try {
                     if (btn) { btn.innerHTML = '🔌 Print Langsung WebSerial (COM/RS232)'; btn.disabled = false; }
                     if(isAutoPrint) window.close(); 
                 }, 1500);
+                return true;
             } catch (err) {
                 console.error("WebSerial Error:", err);
-                if (!isAutoPrint) alert("Gagal mencetak via WebSerial: " + err.message);
                 if (btn) { btn.innerHTML = '🔌 Print Langsung WebSerial (COM/RS232)'; btn.disabled = false; }
+                if (!isAutoPrint) alert("Gagal mencetak via WebSerial: " + err.message);
+                return false;
             }
         }
 
