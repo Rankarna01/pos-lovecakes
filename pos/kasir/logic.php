@@ -29,7 +29,8 @@ try {
     if ($action === 'open_shift') {
         $shift_id = $_POST['shift_id'] ?? '';
         $start_cash = $_POST['start_cash'] ?? 0;
-        $pdo->prepare("INSERT INTO shifts_history_pos (user_id, shift_id, start_time, start_cash, status) VALUES (?, ?, NOW(), ?, 'open')")->execute([$user_id, $shift_id, $start_cash]);
+        $warehouse_id = !empty($_SESSION['pos_warehouse_id']) ? intval($_SESSION['pos_warehouse_id']) : 1;
+        $pdo->prepare("INSERT INTO shifts_history_pos (user_id, shift_id, start_time, start_cash, status, warehouse_id) VALUES (?, ?, NOW(), ?, 'open', ?)")->execute([$user_id, $shift_id, $start_cash, $warehouse_id]);
         echo json_encode(['status' => 'success', 'message' => 'Shift berhasil dibuka!']);
         exit;
     }

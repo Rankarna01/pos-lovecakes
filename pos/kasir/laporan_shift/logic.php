@@ -13,16 +13,27 @@ try {
     }
 } catch (Exception $e) {}
 
+// MULTI-TENANT FILTER SETUP
+$wh_id = !empty($_SESSION['pos_warehouse_id']) ? intval($_SESSION['pos_warehouse_id']) : 0;
+$wh_filter_shift = "";
+$wh_params_shift = [];
+$wh_filter_sales = "";
+$wh_params_sales = [];
+
+if ($wh_id > 0) {
+    // Jika Store 1 (Default), tampilkan juga yang warehouse_id-nya NULL atau 0 (data lama sebelum fitur multi-tenant)
+    $wh_filter_shift = " AND (sh.warehouse_id = ? OR (sh.warehouse_id IS NULL AND ? = 1) OR sh.warehouse_id = 0)";
+    $wh_params_shift = [$wh_id, $wh_id];
+
+    $wh_filter_sales = " AND (warehouse_id = ? OR (warehouse_id IS NULL AND ? = 1) OR warehouse_id = 0)";
+    $wh_params_sales = [$wh_id, $wh_id];
+}
+
 if ($action === 'get_shifts') {
     $search = $_GET['search'] ?? '';
     try {
-        $query = "SELECT sh.*, COALESCE(u.name, 'Kasir') as cashier_name FROM shifts_history_pos sh LEFT JOIN users_pos u ON sh.user_id = u.id WHERE 1=1";
-        $params = [];
-
-        if (!empty($_SESSION['pos_warehouse_id'])) {
-            $query .= " AND sh.warehouse_id = ?";
-            $params[] = intval($_SESSION['pos_warehouse_id']);
-        }
+        $query = "SELECT sh.*, COALESCE(u.name, 'Kasir') as cashier_name FROM shifts_history_pos sh LEFT JOIN users_pos u ON sh.user_id = u.id WHERE 1=1" . $wh_filter_shift;
+        $params = $wh_params_shift;
 
         if (!empty($search)) { $query .= " AND u.name LIKE ?"; $params[] = "%$search%"; }
 
@@ -53,14 +64,14 @@ if ($action === 'get_shifts') {
             $startTime = $shift['start_time'];
             $endTime = $shift['end_time'] ?: date('Y-m-d H:i:s');
             
-            // 1. Penjualan Tunai Baru
-            $stmtSales = $pdo->prepare("SELECT SUM(CASE WHEN payment_method = 'cash' AND payment_status != 'dp' THEN amount_paid - change_amount ELSE 0 END) as cash_baru, SUM(CASE WHEN payment_method = 'cash' AND payment_status = 'dp' THEN dp_amount ELSE 0 END) as dp_baru FROM sales_pos WHERE created_at BETWEEN ? AND ?");
-            $stmtSales->execute([$startTime, $endTime]);
+            // 1. Penjualan Tunai Baru (Sesuai Store Multi-Tenant)
+            $stmtSales = $pdo->prepare("SELECT SUM(CASE WHEN payment_method = 'cash' AND payment_status != 'dp' THEN amount_paid - change_amount ELSE 0 END) as cash_baru, SUM(CASE WHEN payment_method = 'cash' AND payment_status = 'dp' THEN dp_amount ELSE 0 END) as dp_baru FROM sales_pos WHERE created_at BETWEEN ? AND ?" . $wh_filter_sales);
+            $stmtSales->execute(array_merge([$startTime, $endTime], $wh_params_sales));
             $sales = $stmtSales->fetch(PDO::FETCH_ASSOC);
 
-            // 2. Pelunasan Tunai
-            $stmtSettled = $pdo->prepare("SELECT SUM(CASE WHEN payment_method = 'cash' THEN (total_amount - dp_amount) ELSE 0 END) as cash_pelunasan FROM sales_pos WHERE settled_at BETWEEN ? AND ? AND payment_status = 'lunas' AND dp_amount > 0");
-            $stmtSettled->execute([$startTime, $endTime]);
+            // 2. Pelunasan Tunai (Sesuai Store Multi-Tenant)
+            $stmtSettled = $pdo->prepare("SELECT SUM(CASE WHEN payment_method = 'cash' THEN (total_amount - dp_amount) ELSE 0 END) as cash_pelunasan FROM sales_pos WHERE settled_at BETWEEN ? AND ? AND payment_status = 'lunas' AND dp_amount > 0" . $wh_filter_sales);
+            $stmtSettled->execute(array_merge([$startTime, $endTime], $wh_params_sales));
             $settled = $stmtSettled->fetch(PDO::FETCH_ASSOC);
 
             // 3. Kas Keluar
@@ -95,13 +106,13 @@ if ($action === 'get_detail') {
         $startTime = $shift['start_time'];
         $endTime = $shift['end_time'] ?: date('Y-m-d H:i:s');
 
-        // RE-KALKULASI UNTUK DETAIL MODAL
-        $stmtSalesSum = $pdo->prepare("SELECT SUM(CASE WHEN payment_method = 'cash' AND payment_status != 'dp' THEN amount_paid - change_amount ELSE 0 END) as cash_baru, SUM(CASE WHEN payment_method = 'cash' AND payment_status = 'dp' THEN dp_amount ELSE 0 END) as dp_baru FROM sales_pos WHERE created_at BETWEEN ? AND ?");
-        $stmtSalesSum->execute([$startTime, $endTime]);
+        // RE-KALKULASI UNTUK DETAIL MODAL (Sesuai Store Multi-Tenant)
+        $stmtSalesSum = $pdo->prepare("SELECT SUM(CASE WHEN payment_method = 'cash' AND payment_status != 'dp' THEN amount_paid - change_amount ELSE 0 END) as cash_baru, SUM(CASE WHEN payment_method = 'cash' AND payment_status = 'dp' THEN dp_amount ELSE 0 END) as dp_baru FROM sales_pos WHERE created_at BETWEEN ? AND ?" . $wh_filter_sales);
+        $stmtSalesSum->execute(array_merge([$startTime, $endTime], $wh_params_sales));
         $salesSum = $stmtSalesSum->fetch(PDO::FETCH_ASSOC);
 
-        $stmtSettledSum = $pdo->prepare("SELECT SUM(CASE WHEN payment_method = 'cash' THEN (total_amount - dp_amount) ELSE 0 END) as cash_pelunasan FROM sales_pos WHERE settled_at BETWEEN ? AND ? AND payment_status = 'lunas' AND dp_amount > 0");
-        $stmtSettledSum->execute([$startTime, $endTime]);
+        $stmtSettledSum = $pdo->prepare("SELECT SUM(CASE WHEN payment_method = 'cash' THEN (total_amount - dp_amount) ELSE 0 END) as cash_pelunasan FROM sales_pos WHERE settled_at BETWEEN ? AND ? AND payment_status = 'lunas' AND dp_amount > 0" . $wh_filter_sales);
+        $stmtSettledSum->execute(array_merge([$startTime, $endTime], $wh_params_sales));
         $settledSum = $stmtSettledSum->fetch(PDO::FETCH_ASSOC);
 
         $stmtKasSum = $pdo->prepare("SELECT SUM(nominal) as kas_keluar FROM petty_cash_pos WHERE shift_history_id = ? AND jenis = 'keluar'");
@@ -115,8 +126,8 @@ if ($action === 'get_detail') {
         $shift['difference'] = ($shift['status'] === 'closed') ? ($shift['end_cash'] - $shift['system_balance']) : 0;
 
         // Ambil Row Transaksi Baru
-        $stmtSales = $pdo->prepare("SELECT s.*, COALESCE(c.name, 'Pelanggan Umum') as customer_name FROM sales_pos s LEFT JOIN customers_pos c ON s.customer_id = c.id WHERE s.created_at BETWEEN ? AND ? ORDER BY s.created_at DESC");
-        $stmtSales->execute([$startTime, $endTime]);
+        $stmtSales = $pdo->prepare("SELECT s.*, COALESCE(c.name, 'Pelanggan Umum') as customer_name FROM sales_pos s LEFT JOIN customers_pos c ON s.customer_id = c.id WHERE s.created_at BETWEEN ? AND ? " . $wh_filter_sales . " ORDER BY s.created_at DESC");
+        $stmtSales->execute(array_merge([$startTime, $endTime], $wh_params_sales));
         $transactions = $stmtSales->fetchAll(PDO::FETCH_ASSOC);
 
         foreach ($transactions as &$trx) {
@@ -124,8 +135,8 @@ if ($action === 'get_detail') {
         }
 
         // Ambil Row Pelunasan
-        $stmtSettled = $pdo->prepare("SELECT s.*, COALESCE(c.name, 'Pelanggan Umum') as customer_name FROM sales_pos s LEFT JOIN customers_pos c ON s.customer_id = c.id WHERE s.settled_at BETWEEN ? AND ? AND s.payment_status = 'lunas' AND s.dp_amount > 0 ORDER BY s.settled_at DESC");
-        $stmtSettled->execute([$startTime, $endTime]);
+        $stmtSettled = $pdo->prepare("SELECT s.*, COALESCE(c.name, 'Pelanggan Umum') as customer_name FROM sales_pos s LEFT JOIN customers_pos c ON s.customer_id = c.id WHERE s.settled_at BETWEEN ? AND ? AND s.payment_status = 'lunas' AND s.dp_amount > 0 " . $wh_filter_sales . " ORDER BY s.settled_at DESC");
+        $stmtSettled->execute(array_merge([$startTime, $endTime], $wh_params_sales));
         $settlements = $stmtSettled->fetchAll(PDO::FETCH_ASSOC);
 
         foreach ($settlements as &$s) {

@@ -30,10 +30,11 @@ if ($action === 'open_shift') {
     $stmt_set->execute();
     $setting = $stmt_set->fetch(PDO::FETCH_ASSOC);
     $start_cash = $setting ? (float)$setting['setting_value'] : 0;
+    $warehouse_id = !empty($_SESSION['pos_warehouse_id']) ? intval($_SESSION['pos_warehouse_id']) : 1;
 
     // Gunakan shift_id 0 karena sudah tidak relasi ke master shift
-    $stmt = $pdo->prepare("INSERT INTO shifts_history_pos (user_id, shift_id, start_time, start_cash, status) VALUES (?, 0, NOW(), ?, 'open')");
-    $stmt->execute([$user_id, $start_cash]);
+    $stmt = $pdo->prepare("INSERT INTO shifts_history_pos (user_id, shift_id, start_time, start_cash, status, warehouse_id) VALUES (?, 0, NOW(), ?, 'open', ?)");
+    $stmt->execute([$user_id, $start_cash, $warehouse_id]);
     echo json_encode(['status' => 'success', 'message' => 'Shift berhasil dibuka!']);
     exit;
 }
