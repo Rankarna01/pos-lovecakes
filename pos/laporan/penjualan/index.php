@@ -62,6 +62,11 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                         } catch (Exception $e) {}
                         ?>
                     </select>
+                    <select x-model="filters.payment_status" @change="fetchSales()" class="w-full md:w-auto bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary font-bold text-sm text-slate-600 cursor-pointer">
+                        <option value="">📌 Semua Status Bayar</option>
+                        <option value="lunas">✅ Lunas</option>
+                        <option value="dp">⏳ DP (Belum Lunas)</option>
+                    </select>
                     <button @click="fetchSales()" class="w-full md:w-auto bg-primary text-white px-6 py-2.5 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2">
                         <i class="fa-solid fa-filter"></i> Filter
                     </button>
@@ -270,17 +275,20 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             <template x-for="cust in paginatedCustomers" :key="cust.customer_name">
-                                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 flex items-center justify-between hover:shadow-md transition-all">
+                                <div @click="openCustomerDetail(cust)" class="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 flex items-center justify-between hover:shadow-lg hover:border-primary/50 cursor-pointer transition-all active:scale-[0.99] group">
                                     <div class="flex items-center gap-3">
-                                        <div class="w-10 h-10 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center font-black text-sm shrink-0">
+                                        <div class="w-10 h-10 rounded-full bg-rose-50 text-rose-500 group-hover:bg-primary group-hover:text-white transition-colors flex items-center justify-center font-black text-sm shrink-0">
                                             <i class="fa-solid fa-user"></i>
                                         </div>
                                         <div>
-                                            <div class="font-black text-sm text-slate-800" x-text="cust.customer_name"></div>
-                                            <div class="text-xs text-slate-500 font-bold mt-0.5" x-text="cust.total_transactions + ' transaksi'"></div>
+                                            <div class="font-black text-sm text-slate-800 group-hover:text-primary transition-colors" x-text="cust.customer_name"></div>
+                                            <div class="text-xs text-slate-500 font-bold mt-0.5 flex items-center gap-1.5">
+                                                <span x-text="cust.total_transactions + ' transaksi'"></span>
+                                                <span class="text-[10px] text-primary/80 font-black flex items-center gap-0.5"><i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i> Lihat Detail</span>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div class="text-right font-black text-rose-600 text-base" x-text="'Rp ' + formatRupiah(cust.total_spent)"></div>
+                                    <div class="text-right font-black text-rose-600 text-base group-hover:text-primary transition-colors" x-text="'Rp ' + formatRupiah(cust.total_spent)"></div>
                                 </div>
                             </template>
                         </div>
@@ -321,6 +329,11 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                                         }
                                     } catch (Exception $e) {}
                                     ?>
+                                </select>
+                                <select x-model="filters.payment_status" @change="fetchSales()" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-black text-slate-700 outline-none focus:border-primary shadow-xs cursor-pointer">
+                                    <option value="">📌 Semua Status Bayar</option>
+                                    <option value="lunas">✅ Lunas</option>
+                                    <option value="dp">⏳ DP (Belum Lunas)</option>
                                 </select>
                                 <button @click="printPDF('rincian', 'Laporan Rincian Transaksi Penjualan')" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl transition-colors text-xs font-black flex items-center gap-1.5 shadow-sm" title="Cetak PDF">
                                     <i class="fa-solid fa-print text-rose-400"></i> Cetak PDF
@@ -384,7 +397,7 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                 </div>
             </main>
 
-        <div x-show="showModal" class="fixed inset-0 z-50 flex items-center justify-center" style="display: none;" x-cloak>
+        <div x-show="showModal" class="fixed inset-0 z-[60] flex items-center justify-center" style="display: none;" x-cloak>
             <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="showModal = false"></div>
             <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl relative z-10 flex flex-col max-h-[85vh] m-4 overflow-hidden border border-slate-200">
                 <div class="p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
@@ -409,6 +422,156 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                         <div class="flex justify-between text-xs font-bold text-rose-500"><span>Diskon</span> <span x-text="'- Rp ' + formatRupiah(parseFloat(activeSale?.discount_voucher) + parseFloat(activeSale?.discount_points) + parseFloat(activeSale?.discount_manual))"></span></div>
                         <div class="flex justify-between text-lg font-black text-primary border-t border-slate-100 pt-2"><span>Total</span> <span x-text="'Rp ' + formatRupiah(activeSale?.total_amount)"></span></div>
                     </div>
+
+                    <!-- KHUSUS RIWAYAT PEMBAYARAN DP & PELUNASAN -->
+                    <template x-if="activeSale && (activeSale.payment_status === 'dp' || parseFloat(activeSale.dp_amount || 0) > 0 || parseFloat(activeSaleInfo?.dp_amount || 0) > 0 || (activePayments && activePayments.some(p => p.payment_type === 'dp' || p.payment_type === 'pelunasan')))">
+                        <div class="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 mt-4 space-y-3">
+                            <div class="flex items-center justify-between border-b border-amber-200/60 pb-2">
+                                <span class="text-xs font-black text-amber-800 flex items-center gap-1.5 uppercase tracking-wide">
+                                    <i class="fa-solid fa-clock-rotate-left text-amber-600"></i> Riwayat Pembayaran (DP & Pelunasan)
+                                </span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase"
+                                      :class="activeSale.payment_status === 'lunas' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-amber-200 text-amber-900 border border-amber-400'">
+                                    <span x-text="activeSale.payment_status === 'lunas' ? '✅ SUDAH LUNAS' : '⏳ STATUS DP'"></span>
+                                </span>
+                            </div>
+
+                            <!-- Cek jika ada data riwayat spesifik dari tabel sale_payments_pos -->
+                            <template x-if="activePayments && activePayments.filter(p => p.payment_type === 'dp' || p.payment_type === 'pelunasan').length > 0">
+                                <div class="space-y-2.5">
+                                    <template x-for="(pay, idx) in activePayments.filter(p => p.payment_type === 'dp' || p.payment_type === 'pelunasan')" :key="idx">
+                                        <div class="flex items-center justify-between bg-white/80 p-2.5 rounded-xl shadow-2xs border"
+                                             :class="pay.payment_type === 'pelunasan' ? 'border-emerald-200 bg-emerald-50/30' : 'border-amber-200'">
+                                            <div>
+                                                <div class="text-xs font-black" :class="pay.payment_type === 'pelunasan' ? 'text-emerald-700' : 'text-amber-700'">
+                                                    <i :class="pay.payment_type === 'pelunasan' ? 'fa-solid fa-check-circle mr-1' : 'fa-solid fa-hourglass-half mr-1'"></i>
+                                                    <span x-text="pay.payment_type === 'pelunasan' ? 'PELUNASAN' : 'BAYAR DP (AWAL)'"></span>
+                                                </div>
+                                                <div class="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1">
+                                                    <i class="fa-regular fa-calendar-days text-slate-400"></i>
+                                                    <span x-text="formatDate(pay.created_at)"></span>
+                                                    <span class="text-slate-300">•</span>
+                                                    <span class="uppercase font-bold text-slate-600" x-text="pay.payment_method || 'Cash'"></span>
+                                                </div>
+                                            </div>
+                                            <div class="text-right">
+                                                <div class="text-xs font-black text-slate-800" x-text="'Rp ' + formatRupiah(pay.amount)"></div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <!-- Fallback jika data riwayat pembayaran di sale_payments_pos kosong (untuk data lama yang hanya ada di sales_pos) -->
+                            <template x-if="!activePayments || activePayments.filter(p => p.payment_type === 'dp' || p.payment_type === 'pelunasan').length === 0">
+                                <div class="space-y-2.5">
+                                    <div class="flex items-center justify-between bg-white/80 p-2.5 rounded-xl border border-amber-200 shadow-2xs">
+                                        <div>
+                                            <div class="text-xs font-black text-amber-700">
+                                                <i class="fa-solid fa-hourglass-half mr-1"></i> BAYAR DP (AWAL)
+                                            </div>
+                                            <div class="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1">
+                                                <i class="fa-regular fa-calendar-days text-slate-400"></i>
+                                                <span x-text="formatDate(activeSale.created_at)"></span>
+                                                <span class="text-slate-300">•</span>
+                                                <span class="uppercase font-bold text-slate-600" x-text="activeSale.payment_method || 'Cash'"></span>
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            <div class="text-xs font-black text-slate-800" x-text="'Rp ' + formatRupiah(activeSale.dp_amount || activeSaleInfo?.dp_amount || 0)"></div>
+                                        </div>
+                                    </div>
+
+                                    <template x-if="activeSale.payment_status === 'lunas'">
+                                        <div class="flex items-center justify-between bg-white/80 p-2.5 rounded-xl border border-emerald-200 bg-emerald-50/30 shadow-2xs">
+                                            <div>
+                                                <div class="text-xs font-black text-emerald-700">
+                                                    <i class="fa-solid fa-check-circle mr-1"></i> PELUNASAN
+                                                </div>
+                                                <div class="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1">
+                                                    <i class="fa-regular fa-calendar-days text-slate-400"></i>
+                                                    <span x-text="formatDate(activeSaleInfo?.settled_at || activeSale.settled_at || activeSale.created_at)"></span>
+                                                </div>
+                                            </div>
+                                            <div class="text-right">
+                                                <div class="text-xs font-black text-slate-800" x-text="'Rp ' + formatRupiah((activeSale.total_amount || 0) - (activeSale.dp_amount || activeSaleInfo?.dp_amount || 0))"></div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <!-- Ringkasan Sisa Tagihan -->
+                            <div class="border-t border-amber-200/60 pt-2 flex justify-between items-center text-xs">
+                                <span class="font-bold text-slate-600">Sisa Tagihan / Status:</span>
+                                <span class="font-black" :class="activeSale.payment_status === 'lunas' ? 'text-emerald-600' : 'text-rose-600'"
+                                      x-text="activeSale.payment_status === 'lunas' ? 'Rp 0 (LUNAS)' : ('Rp ' + formatRupiah((activeSale.total_amount || 0) - (activeSale.dp_amount || activeSaleInfo?.dp_amount || activeSale.amount_paid || 0)))">
+                                </span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL RIWAYAT TRANSAKSI PER KONSUMEN -->
+        <div x-show="showCustomerModal" class="fixed inset-0 z-50 flex items-center justify-center" style="display: none;" x-cloak>
+            <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" @click="showCustomerModal = false"></div>
+            <div class="bg-white w-full max-w-3xl rounded-3xl shadow-2xl relative z-10 flex flex-col max-h-[85vh] m-4 overflow-hidden border border-slate-200">
+                <div class="p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-black text-base">
+                            <i class="fa-solid fa-user-check"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-black text-slate-800 text-base" x-text="'Riwayat Transaksi • ' + (activeCustomer?.customer_name || 'Pelanggan')"></h3>
+                            <p class="text-xs text-slate-400 font-medium mt-0.5" x-text="'Total ' + (activeCustomer?.total_transactions || 0) + ' transaksi dengan total belanja Rp ' + formatRupiah(activeCustomer?.total_spent || 0)"></p>
+                        </div>
+                    </div>
+                    <button @click="showCustomerModal = false" class="text-slate-400 hover:text-rose-500 w-8 h-8 rounded-full flex items-center justify-center hover:bg-rose-50 transition-colors"><i class="fa-solid fa-xmark text-xl"></i></button>
+                </div>
+                
+                <div class="flex-1 overflow-y-auto p-6 space-y-3">
+                    <template x-if="activeCustomerSales.length === 0">
+                        <div class="text-center py-12 text-sm font-bold text-slate-400">Tidak ada rincian transaksi yang ditemukan pada filter periode ini.</div>
+                    </template>
+                    <template x-for="sale in activeCustomerSales" :key="sale.id">
+                        <div class="bg-slate-50 hover:bg-white p-4 rounded-2xl border border-slate-200/80 hover:border-primary/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs hover:shadow-md transition-all">
+                            <div class="flex items-center gap-3.5">
+                                <div class="w-11 h-11 rounded-xl flex items-center justify-center font-black text-base shrink-0"
+                                     :class="sale.payment_status === 'lunas' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'">
+                                    <i :class="sale.payment_status === 'lunas' ? 'fa-solid fa-file-invoice-dollar' : 'fa-solid fa-file-invoice'"></i>
+                                </div>
+                                <div>
+                                    <div class="font-black text-sm text-slate-800 flex items-center gap-2">
+                                        <span x-text="sale.invoice_no"></span>
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase"
+                                              :class="sale.payment_status === 'lunas' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'"
+                                              x-text="sale.payment_status === 'lunas' ? '✅ Lunas' : '⏳ DP / Belum Lunas'"></span>
+                                    </div>
+                                    <div class="text-xs text-slate-400 font-medium mt-1 flex items-center gap-2">
+                                        <span><i class="fa-regular fa-calendar mr-1"></i><span x-text="formatDate(sale.created_at)"></span></span>
+                                        <span>•</span>
+                                        <span class="uppercase font-bold text-slate-600"><i class="fa-solid fa-credit-card mr-1"></i><span x-text="sale.payment_method || 'Cash'"></span></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-4 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-200/60">
+                                <div class="text-left sm:text-right">
+                                    <div class="text-[10px] text-slate-400 font-bold uppercase">Total Tagihan</div>
+                                    <div class="text-sm font-black text-primary" x-text="'Rp ' + formatRupiah(sale.total_amount)"></div>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <button @click="openDetail(sale)" class="w-9 h-9 bg-white border border-slate-200 hover:border-primary text-slate-600 hover:text-primary rounded-xl transition-all flex items-center justify-center shadow-2xs hover:shadow-sm" title="Lihat Detail Rincian Barang">
+                                        <i class="fa-solid fa-eye text-sm"></i>
+                                    </button>
+                                    <button @click="printReceipt(sale.invoice_no)" class="w-9 h-9 bg-white border border-slate-200 hover:border-rose-500 text-slate-600 hover:text-rose-500 rounded-xl transition-all flex items-center justify-center shadow-2xs hover:shadow-sm" title="Cetak Struk">
+                                        <i class="fa-solid fa-print text-sm"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
                 </div>
             </div>
         </div>

@@ -128,7 +128,33 @@ if ($action === 'get_detail') {
         $stmt->execute([$id]);
         $details = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        echo json_encode(['status' => 'success', 'data' => $details]);
+        // Ambil riwayat pembayaran (DP & Pelunasan) dari sale_payments_pos
+        $payments = [];
+        try {
+            $stmt_pay = $pdo->prepare("
+                SELECT payment_type, amount, payment_method, created_at
+                FROM sale_payments_pos
+                WHERE sale_id = ?
+                ORDER BY created_at ASC
+            ");
+            $stmt_pay->execute([$id]);
+            $payments = $stmt_pay->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {}
+
+        // Ambil info pokok sale
+        $sale_info = null;
+        try {
+            $stmt_sale = $pdo->prepare("SELECT payment_status, dp_amount, amount_paid, total_amount, created_at, settled_at FROM sales_pos WHERE id = ?");
+            $stmt_sale->execute([$id]);
+            $sale_info = $stmt_sale->fetch(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {}
+
+        echo json_encode([
+            'status' => 'success', 
+            'data' => $details,
+            'payments' => $payments,
+            'sale_info' => $sale_info
+        ]);
     } catch (PDOException $e) {
         echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
     }

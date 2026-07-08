@@ -208,6 +208,94 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                             <span>TOTAL</span> <span x-text="'Rp ' + formatRupiah(activeSale?.total_amount)"></span>
                         </div>
                     </div>
+
+                    <!-- KHUSUS RIWAYAT PEMBAYARAN DP & PELUNASAN -->
+                    <template x-if="activeSale && (activeSale.payment_status === 'dp' || parseFloat(activeSale.dp_amount || 0) > 0 || parseFloat(activeSaleInfo?.dp_amount || 0) > 0 || (activePayments && activePayments.some(p => p.payment_type === 'dp' || p.payment_type === 'pelunasan')))">
+                        <div class="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 mt-5 space-y-3">
+                            <div class="flex items-center justify-between border-b border-amber-200/60 pb-2">
+                                <span class="text-xs font-black text-amber-800 flex items-center gap-1.5 uppercase tracking-wide">
+                                    <i class="fa-solid fa-clock-rotate-left text-amber-600"></i> Riwayat Pembayaran (DP & Pelunasan)
+                                </span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase"
+                                      :class="activeSale.payment_status === 'lunas' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-amber-200 text-amber-900 border border-amber-400'">
+                                    <span x-text="activeSale.payment_status === 'lunas' ? '✅ SUDAH LUNAS' : '⏳ STATUS DP'"></span>
+                                </span>
+                            </div>
+
+                            <!-- Cek jika ada data riwayat spesifik dari tabel sale_payments_pos -->
+                            <template x-if="activePayments && activePayments.filter(p => p.payment_type === 'dp' || p.payment_type === 'pelunasan').length > 0">
+                                <div class="space-y-2.5">
+                                    <template x-for="(pay, idx) in activePayments.filter(p => p.payment_type === 'dp' || p.payment_type === 'pelunasan')" :key="idx">
+                                        <div class="flex items-center justify-between bg-white/80 p-2.5 rounded-xl shadow-2xs border"
+                                             :class="pay.payment_type === 'pelunasan' ? 'border-emerald-200 bg-emerald-50/30' : 'border-amber-200'">
+                                            <div>
+                                                <div class="text-xs font-black" :class="pay.payment_type === 'pelunasan' ? 'text-emerald-700' : 'text-amber-700'">
+                                                    <i :class="pay.payment_type === 'pelunasan' ? 'fa-solid fa-check-circle mr-1' : 'fa-solid fa-hourglass-half mr-1'"></i>
+                                                    <span x-text="pay.payment_type === 'pelunasan' ? 'PELUNASAN' : 'BAYAR DP (AWAL)'"></span>
+                                                </div>
+                                                <div class="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1">
+                                                    <i class="fa-regular fa-calendar-days text-slate-400"></i>
+                                                    <span x-text="formatDate(pay.created_at)"></span>
+                                                    <span class="text-slate-300">•</span>
+                                                    <span class="uppercase font-bold text-slate-600" x-text="pay.payment_method || 'Cash'"></span>
+                                                </div>
+                                            </div>
+                                            <div class="text-right">
+                                                <div class="text-xs font-black text-slate-800" x-text="'Rp ' + formatRupiah(pay.amount)"></div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <!-- Fallback jika data riwayat pembayaran di sale_payments_pos kosong -->
+                            <template x-if="!activePayments || activePayments.filter(p => p.payment_type === 'dp' || p.payment_type === 'pelunasan').length === 0">
+                                <div class="space-y-2.5">
+                                    <div class="flex items-center justify-between bg-white/80 p-2.5 rounded-xl border border-amber-200 shadow-2xs">
+                                        <div>
+                                            <div class="text-xs font-black text-amber-700">
+                                                <i class="fa-solid fa-hourglass-half mr-1"></i> BAYAR DP (AWAL)
+                                            </div>
+                                            <div class="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1">
+                                                <i class="fa-regular fa-calendar-days text-slate-400"></i>
+                                                <span x-text="formatDate(activeSale.created_at)"></span>
+                                                <span class="text-slate-300">•</span>
+                                                <span class="uppercase font-bold text-slate-600" x-text="activeSale.payment_method || 'Cash'"></span>
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            <div class="text-xs font-black text-slate-800" x-text="'Rp ' + formatRupiah(activeSale.dp_amount || activeSaleInfo?.dp_amount || 0)"></div>
+                                        </div>
+                                    </div>
+
+                                    <template x-if="activeSale.payment_status === 'lunas'">
+                                        <div class="flex items-center justify-between bg-white/80 p-2.5 rounded-xl border border-emerald-200 bg-emerald-50/30 shadow-2xs">
+                                            <div>
+                                                <div class="text-xs font-black text-emerald-700">
+                                                    <i class="fa-solid fa-check-circle mr-1"></i> PELUNASAN
+                                                </div>
+                                                <div class="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1">
+                                                    <i class="fa-regular fa-calendar-days text-slate-400"></i>
+                                                    <span x-text="formatDate(activeSaleInfo?.settled_at || activeSale.settled_at || activeSale.created_at)"></span>
+                                                </div>
+                                            </div>
+                                            <div class="text-right">
+                                                <div class="text-xs font-black text-slate-800" x-text="'Rp ' + formatRupiah((activeSale.total_amount || 0) - (activeSale.dp_amount || activeSaleInfo?.dp_amount || 0))"></div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <!-- Ringkasan Sisa Tagihan -->
+                            <div class="border-t border-amber-200/60 pt-2 flex justify-between items-center text-xs">
+                                <span class="font-bold text-slate-600">Sisa Tagihan / Status:</span>
+                                <span class="font-black" :class="activeSale.payment_status === 'lunas' ? 'text-emerald-600' : 'text-rose-600'"
+                                      x-text="activeSale.payment_status === 'lunas' ? 'Rp 0 (LUNAS)' : ('Rp ' + formatRupiah((activeSale.total_amount || 0) - (activeSale.dp_amount || activeSaleInfo?.dp_amount || activeSale.amount_paid || 0)))">
+                                </span>
+                            </div>
+                        </div>
+                    </template>
                 </div>
 
                 <div class="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">

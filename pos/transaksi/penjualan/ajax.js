@@ -13,9 +13,11 @@ document.addEventListener('alpine:init', () => {
         totalPages: 1,
 
         // State Modal Detail
-        showModal: false,
         activeSale: null,
         activeDetails: [],
+        activePayments: [],
+        activeSaleInfo: null,
+        showModal: false,
         isDetailLoading: false,
 
         async init() {
@@ -88,6 +90,8 @@ document.addEventListener('alpine:init', () => {
 
             this.activeSale = sale;
             this.activeDetails = [];
+            this.activePayments = [];
+            this.activeSaleInfo = null;
             this.showModal = true;
             this.isDetailLoading = true;
 
@@ -96,7 +100,9 @@ document.addEventListener('alpine:init', () => {
                 const result = await response.json();
                 
                 if (result.status === 'success') {
-                    this.activeDetails = result.data;
+                    this.activeDetails = result.data || [];
+                    this.activePayments = result.payments || [];
+                    this.activeSaleInfo = result.sale_info || null;
                 } else {
                     if (typeof Swal !== 'undefined') Swal.fire('Gagal', result.message, 'error');
                 }

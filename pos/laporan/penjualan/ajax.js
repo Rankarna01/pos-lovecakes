@@ -7,13 +7,18 @@ document.addEventListener('alpine:init', () => {
         filters: {
             start_date: new Date().toISOString().split('T')[0],
             end_date: new Date().toISOString().split('T')[0],
-            payment_method: ''
+            payment_method: '',
+            payment_status: ''
         },
         activeTab: 'ringkasan',
         sales: [],
         showModal: false,
         activeSale: null,
         activeDetails: [],
+        activePayments: [],
+        activeSaleInfo: null,
+        showCustomerModal: false,
+        activeCustomer: null,
         
         // Detailed Stats
         paymentData: { cash: 0, qris: 0, total: 0 },
@@ -45,6 +50,7 @@ document.addEventListener('alpine:init', () => {
             this.$watch('filters.start_date', () => { this.fetchSales(); });
             this.$watch('filters.end_date', () => { this.fetchSales(); });
             this.$watch('filters.payment_method', () => { this.fetchSales(); });
+            this.$watch('filters.payment_status', () => { this.fetchSales(); });
             this.$watch('searchQuery', () => { this.salePage = 1; });
             this.fetchSales();
         },
@@ -82,6 +88,7 @@ document.addEventListener('alpine:init', () => {
                 formData.append('start_date', this.filters.start_date);
                 formData.append('end_date', this.filters.end_date);
                 formData.append('payment_method', this.filters.payment_method || '');
+                formData.append('payment_status', this.filters.payment_status || '');
 
                 const response = await fetch('logic.php', {
                     method: 'POST',
@@ -112,9 +119,10 @@ document.addEventListener('alpine:init', () => {
         },
 
         get filteredSales() {
-            if (!this.searchQuery && !this.filters.payment_method) return this.sales;
+            if (!this.searchQuery && !this.filters.payment_method && !this.filters.payment_status) return this.sales;
             const query = (this.searchQuery || '').toLowerCase();
             const pay = (this.filters.payment_method || '').toLowerCase();
+            const status = (this.filters.payment_status || '').toLowerCase();
             
             return this.sales.filter(s => {
                 const matchSearch = !query || 
@@ -136,8 +144,14 @@ document.addEventListener('alpine:init', () => {
                         matchPay = sPay === pay;
                     }
                 }
+
+                let matchStatus = true;
+                if (status) {
+                    const sStatus = (s.payment_status || '').toLowerCase();
+                    matchStatus = sStatus === status;
+                }
                 
-                return matchSearch && matchPay;
+                return matchSearch && matchPay && matchStatus;
             });
         },
 
@@ -174,9 +188,32 @@ document.addEventListener('alpine:init', () => {
             return Math.ceil(this.filteredSales.length / this.perPage) || 1;
         },
 
+        openCustomerDetail(cust) {
+            this.activeCustomer = cust;
+            this.showCustomerModal = true;
+        },
+
+        get activeCustomerSales() {
+            if (!this.activeCustomer) return [];
+            const cId = parseInt(this.activeCustomer.customer_id || 0);
+            const cName = (this.activeCustomer.customer_name || 'Pelanggan Umum').toLowerCase();
+            
+            return this.sales.filter(s => {
+                const sId = parseInt(s.customer_id || 0);
+                const sName = (s.customer_name || 'Pelanggan Umum').toLowerCase();
+                
+                if (cId > 0 && sId > 0) {
+                    return cId === sId;
+                }
+                return cName === sName;
+            });
+        },
+
         async openDetail(sale) {
             this.activeSale = sale;
             this.activeDetails = [];
+            this.activePayments = [];
+            this.activeSaleInfo = null;
             this.showModal = true;
 
             try {
@@ -192,6 +229,8 @@ document.addEventListener('alpine:init', () => {
                 const result = await response.json();
                 if (result.status === 'success') {
                     this.activeDetails = result.data || [];
+                    this.activePayments = result.payments || [];
+                    this.activeSaleInfo = result.sale_info || null;
                 }
             } catch (error) {
                 console.error('Error fetching sale details:', error);
