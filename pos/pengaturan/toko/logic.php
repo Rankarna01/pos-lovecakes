@@ -76,4 +76,67 @@ if ($action === 'save_settings') {
     }
     exit;
 }
+
+// --- LIST PIN SUPERVISOR OTP ---
+if ($action === 'get_supervisor_pins') {
+    try {
+        $pins = $pdo->query("SELECT id, pin, is_used, used_at, created_at FROM supervisor_pins_pos ORDER BY created_at DESC")->fetchAll(PDO::FETCH_ASSOC);
+        echo json_encode(['status' => 'success', 'pins' => $pins]);
+    } catch (Exception $e) {
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    }
+    exit;
+}
+
+// --- GENERATE PIN SUPERVISOR OTP BARU ---
+if ($action === 'generate_supervisor_pins') {
+    $qty = min((int)($_POST['qty'] ?? 5), 20); // max 20 sekaligus
+    $generated = [];
+    $attempts = 0;
+    try {
+        $stmt_ins = $pdo->prepare("INSERT IGNORE INTO supervisor_pins_pos (pin) VALUES (?)");
+        while (count($generated) < $qty && $attempts < 100) {
+            $attempts++;
+            $pin = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+            // Cek dulu tidak duplikat
+            $stmt_chk = $pdo->prepare("SELECT id FROM supervisor_pins_pos WHERE pin = ?");
+            $stmt_chk->execute([$pin]);
+            if ($stmt_chk->fetch()) continue;
+            
+            $stmt_ins->execute([$pin]);
+            $generated[] = $pin;
+        }
+        $pins = $pdo->query("SELECT id, pin, is_used, used_at, created_at FROM supervisor_pins_pos ORDER BY created_at DESC")->fetchAll(PDO::FETCH_ASSOC);
+        echo json_encode(['status' => 'success', 'message' => count($generated) . ' PIN baru berhasil dibuat!', 'pins' => $pins, 'generated' => $generated]);
+    } catch (Exception $e) {
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    }
+    exit;
+}
+
+// --- HAPUS PIN SUPERVISOR OTP ---
+if ($action === 'delete_supervisor_pin') {
+    $id = (int)($_POST['id'] ?? 0);
+    if (!$id) { echo json_encode(['status' => 'error', 'message' => 'ID tidak valid']); exit; }
+    try {
+        $pdo->prepare("DELETE FROM supervisor_pins_pos WHERE id = ?")->execute([$id]);
+        $pins = $pdo->query("SELECT id, pin, is_used, used_at, created_at FROM supervisor_pins_pos ORDER BY created_at DESC")->fetchAll(PDO::FETCH_ASSOC);
+        echo json_encode(['status' => 'success', 'message' => 'PIN berhasil dihapus!', 'pins' => $pins]);
+    } catch (Exception $e) {
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    }
+    exit;
+}
+
+// --- HAPUS SEMUA PIN YANG SUDAH DIPAKAI ---
+if ($action === 'delete_used_pins') {
+    try {
+        $pdo->query("DELETE FROM supervisor_pins_pos WHERE is_used = 1");
+        $pins = $pdo->query("SELECT id, pin, is_used, used_at, created_at FROM supervisor_pins_pos ORDER BY created_at DESC")->fetchAll(PDO::FETCH_ASSOC);
+        echo json_encode(['status' => 'success', 'message' => 'Semua PIN yang sudah dipakai berhasil dibersihkan!', 'pins' => $pins]);
+    } catch (Exception $e) {
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    }
+    exit;
+}
 ?>

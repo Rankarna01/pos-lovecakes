@@ -197,9 +197,12 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                             </div>
                             <div class="overflow-y-auto max-h-[450px] custom-scrollbar pr-2 space-y-3">
                                 <template x-for="cat in paginatedCategories" :key="cat.category_name">
-                                    <div class="flex justify-between items-center border-b border-slate-100 pb-3 last:border-0 last:pb-0">
+                                    <div @click="openItemDetail('category', cat)" class="flex justify-between items-center border-b border-slate-100 pb-3 last:border-0 last:pb-0 hover:bg-slate-50 p-2 -mx-2 rounded-xl cursor-pointer transition-colors group">
                                         <div>
-                                            <div class="font-bold text-sm text-slate-700" x-text="cat.category_name"></div>
+                                            <div class="font-bold text-sm text-slate-700 group-hover:text-primary transition-colors flex items-center gap-2">
+                                                <span x-text="cat.category_name"></span>
+                                                <span class="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">Lihat Detail</span>
+                                            </div>
                                             <div class="text-xs text-slate-500 font-medium mt-0.5" x-text="cat.total_qty + ' items terjual'"></div>
                                         </div>
                                         <div class="font-black text-primary text-base" x-text="'Rp ' + formatRupiah(cat.total_amount)"></div>
@@ -233,16 +236,19 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                                 </div>
                                 <div class="overflow-y-auto max-h-[450px] custom-scrollbar pr-2 space-y-3">
                                     <template x-for="(item, index) in paginatedItems" :key="item.item_name">
-                                        <div class="flex justify-between items-center border-b border-slate-100 pb-3 last:border-0 last:pb-0">
+                                        <div @click="openItemDetail('product', {product_name: item.item_name, total_revenue: item.total_amount})" class="flex justify-between items-center border-b border-slate-100 pb-3 last:border-0 last:pb-0 hover:bg-slate-50 p-2 -mx-2 rounded-xl cursor-pointer transition-colors group">
                                             <div class="flex items-center gap-3">
-                                                <span class="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-black shrink-0" x-text="(itemPage - 1) * perPage + index + 1"></span>
+                                                <span class="w-7 h-7 rounded-full bg-slate-100 group-hover:bg-primary group-hover:text-white text-slate-600 flex items-center justify-center text-xs font-black shrink-0 transition-colors" x-text="(itemPage - 1) * perPage + index + 1"></span>
                                                 <div>
-                                                    <div class="font-bold text-sm text-slate-700" x-text="item.item_name"></div>
+                                                    <div class="font-bold text-sm text-slate-700 group-hover:text-primary transition-colors flex items-center gap-2">
+                                                        <span x-text="item.item_name"></span>
+                                                        <span class="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">Lihat Detail</span>
+                                                    </div>
                                                     <div class="text-xs text-slate-500 font-medium mt-0.5" x-text="item.total_qty + ' pcs terjual'"></div>
                                                 </div>
                                             </div>
                                             <div class="font-black text-primary text-base" x-text="'Rp ' + formatRupiah(item.total_amount)"></div>
-                                        </div>
+                                        </div>                   </div>
                                     </template>
                                     <div x-show="salesByItem.length === 0" class="text-center py-8 text-sm font-bold text-slate-400">Belum ada data</div>
                                 </div>
@@ -330,10 +336,19 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                                     } catch (Exception $e) {}
                                     ?>
                                 </select>
-                                <select x-model="filters.payment_status" @change="fetchSales()" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-black text-slate-700 outline-none focus:border-primary shadow-xs cursor-pointer">
+                                <select x-model="filters.payment_status" @change="salePage = 1" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-black text-slate-700 outline-none focus:border-primary shadow-xs cursor-pointer">
                                     <option value="">📌 Semua Status Bayar</option>
                                     <option value="lunas">✅ Lunas</option>
                                     <option value="dp">⏳ DP (Belum Lunas)</option>
+                                </select>
+                                <select x-model="filters.discount_filter" @change="salePage = 1" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-black text-slate-700 outline-none focus:border-primary shadow-xs cursor-pointer">
+                                    <option value="">🏷️ Semua (+ Diskon)</option>
+                                    <option value="has_discount">✂️ Ada Diskon</option>
+                                    <option value="no_discount">💯 Tanpa Diskon</option>
+                                    <option value="voucher">🎟️ Diskon Voucher</option>
+                                    <option value="manual">🔐 Diskon Manual SPV</option>
+                                    <option value="auto">⚡ Diskon Otomatis</option>
+                                    <option value="points">⭐ Diskon Poin</option>
                                 </select>
                                 <button @click="printPDF('rincian', 'Laporan Rincian Transaksi Penjualan')" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl transition-colors text-xs font-black flex items-center gap-1.5 shadow-sm" title="Cetak PDF">
                                     <i class="fa-solid fa-print text-rose-400"></i> Cetak PDF
@@ -350,6 +365,8 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                                         <th class="p-4 font-black">Invoice & Waktu</th>
                                         <th class="p-4 font-black">Pelanggan</th>
                                         <th class="p-4 font-black text-center">Status</th>
+                                        <th class="p-4 font-black text-right">Subtotal</th>
+                                        <th class="p-4 font-black text-right text-rose-500">Diskon</th>
                                         <th class="p-4 font-black text-right">Total Bayar</th>
                                         <th class="p-4 font-black text-center">Metode</th>
                                         <th class="p-4 font-black text-center">Aksi</th>
@@ -357,12 +374,18 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                                 </thead>
                                 <tbody class="text-sm divide-y divide-slate-100">
                                     <tr x-show="filteredSales.length === 0">
-                                        <td colspan="6" class="p-8 text-center text-slate-400 font-bold">Belum ada transaksi penjualan pada periode ini.</td>
+                                        <td colspan="8" class="p-8 text-center text-slate-400 font-bold">Belum ada transaksi penjualan pada periode ini.</td>
                                     </tr>
                                     <template x-for="sale in paginatedSales" :key="sale.id">
                                         <tr class="hover:bg-slate-50 transition-colors">
                                             <td class="p-4">
-                                                <div class="font-black text-slate-800" x-text="sale.invoice_no"></div>
+                                                <div class="font-black text-slate-800 flex items-center gap-2">
+                                                    <span x-text="sale.invoice_no"></span>
+                                                    <!-- Badge diskon jika ada -->
+                                                    <template x-if="(parseFloat(sale.discount_voucher)||0)+(parseFloat(sale.discount_manual)||0)+(parseFloat(sale.discount_auto)||0)+(parseFloat(sale.discount_points)||0) > 0">
+                                                        <span class="text-[9px] bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded font-black tracking-wide">✂️ DISC</span>
+                                                    </template>
+                                                </div>
                                                 <div class="text-[10px] font-bold text-slate-400 mt-1" x-text="formatDate(sale.created_at)"></div>
                                             </td>
                                             <td class="p-4">
@@ -371,6 +394,30 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                                             </td>
                                             <td class="p-4 text-center">
                                                 <span :class="sale.payment_status === 'lunas' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'" class="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider" x-text="sale.payment_status"></span>
+                                            </td>
+                                            <td class="p-4 text-right">
+                                                <div class="font-bold text-slate-400 text-xs line-through" x-show="(parseFloat(sale.discount_voucher)||0)+(parseFloat(sale.discount_manual)||0)+(parseFloat(sale.discount_auto)||0)+(parseFloat(sale.discount_points)||0) > 0" x-text="'Rp ' + formatRupiah(parseFloat(sale.subtotal) + parseFloat(sale.shipping_cost||0))"></div>
+                                            </td>
+                                            <td class="p-4 text-right">
+                                                <template x-if="(parseFloat(sale.discount_voucher)||0)+(parseFloat(sale.discount_manual)||0)+(parseFloat(sale.discount_auto)||0)+(parseFloat(sale.discount_points)||0) > 0">
+                                                    <div class="space-y-0.5">
+                                                        <template x-if="parseFloat(sale.discount_voucher) > 0">
+                                                            <div class="text-[10px] font-bold text-rose-500">🎟️ -Rp <span x-text="formatRupiah(sale.discount_voucher)"></span></div>
+                                                        </template>
+                                                        <template x-if="parseFloat(sale.discount_manual) > 0">
+                                                            <div class="text-[10px] font-bold text-rose-500">🔐 -Rp <span x-text="formatRupiah(sale.discount_manual)"></span></div>
+                                                        </template>
+                                                        <template x-if="parseFloat(sale.discount_auto) > 0">
+                                                            <div class="text-[10px] font-bold text-rose-500">⚡ -Rp <span x-text="formatRupiah(sale.discount_auto)"></span></div>
+                                                        </template>
+                                                        <template x-if="parseFloat(sale.discount_points) > 0">
+                                                            <div class="text-[10px] font-bold text-rose-500">⭐ -Rp <span x-text="formatRupiah(sale.discount_points)"></span></div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                                <template x-if="(parseFloat(sale.discount_voucher)||0)+(parseFloat(sale.discount_manual)||0)+(parseFloat(sale.discount_auto)||0)+(parseFloat(sale.discount_points)||0) === 0">
+                                                    <span class="text-[10px] font-bold text-slate-300">—</span>
+                                                </template>
                                             </td>
                                             <td class="p-4 text-right font-black text-primary" x-text="'Rp ' + formatRupiah(sale.total_amount)"></td>
                                             <td class="p-4 text-center"><span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-black uppercase border border-slate-200" x-text="sale.payment_method"></span></td>
@@ -507,6 +554,79 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                                 <span class="font-black" :class="activeSale.payment_status === 'lunas' ? 'text-emerald-600' : 'text-rose-600'"
                                       x-text="activeSale.payment_status === 'lunas' ? 'Rp 0 (LUNAS)' : ('Rp ' + formatRupiah((activeSale.total_amount || 0) - (activeSale.dp_amount || activeSaleInfo?.dp_amount || activeSale.amount_paid || 0)))">
                                 </span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL RIWAYAT TRANSAKSI PER KATEGORI/BARANG -->
+        <div x-show="showItemModal" class="fixed inset-0 z-50 flex items-center justify-center" style="display: none;" x-cloak>
+            <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" @click="showItemModal = false"></div>
+            <div class="bg-white w-full max-w-3xl rounded-3xl shadow-2xl relative z-10 flex flex-col max-h-[85vh] m-4 overflow-hidden border border-slate-200">
+                <div class="p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center font-black text-base">
+                            <i :class="activeItemType === 'category' ? 'fa-solid fa-layer-group' : 'fa-solid fa-box'"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-black text-slate-800 text-base flex items-center gap-2">
+                                <span x-text="activeItemType === 'category' ? 'Penjualan Kategori' : 'Penjualan Produk'"></span>
+                                <i class="fa-solid fa-chevron-right text-[10px] text-slate-400"></i>
+                                <span class="text-primary" x-text="activeItemName"></span>
+                            </h3>
+                            <p class="text-xs text-slate-400 font-medium mt-0.5" x-text="'Total ada ' + activeItemSales.length + ' transaksi dengan omset Rp ' + formatRupiah(activeItemTotal)"></p>
+                        </div>
+                    </div>
+                    <button @click="showItemModal = false" class="text-slate-400 hover:text-rose-500 w-8 h-8 rounded-full flex items-center justify-center hover:bg-rose-50 transition-colors"><i class="fa-solid fa-xmark text-xl"></i></button>
+                </div>
+                
+                <div class="flex-1 overflow-y-auto p-6 space-y-3 relative">
+                    <div x-show="isItemLoading" class="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
+                        <i class="fa-solid fa-circle-notch fa-spin text-3xl text-primary mb-3"></i>
+                        <span class="font-bold text-slate-600 text-sm">Menarik data transaksi...</span>
+                    </div>
+
+                    <template x-if="!isItemLoading && activeItemSales.length === 0">
+                        <div class="text-center py-12 text-sm font-bold text-slate-400">Tidak ada rincian transaksi yang ditemukan.</div>
+                    </template>
+                    <template x-for="sale in activeItemSales" :key="sale.id">
+                        <div class="bg-slate-50 hover:bg-white p-4 rounded-2xl border border-slate-200/80 hover:border-primary/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs hover:shadow-md transition-all">
+                            <div class="flex items-center gap-3.5">
+                                <div class="w-11 h-11 rounded-xl flex items-center justify-center font-black text-base shrink-0"
+                                     :class="sale.payment_status === 'lunas' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'">
+                                    <i :class="sale.payment_status === 'lunas' ? 'fa-solid fa-file-invoice-dollar' : 'fa-solid fa-file-invoice'"></i>
+                                </div>
+                                <div>
+                                    <div class="font-black text-sm text-slate-800 flex items-center gap-2">
+                                        <span x-text="sale.invoice_no"></span>
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase"
+                                              :class="sale.payment_status === 'lunas' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'"
+                                              x-text="sale.payment_status === 'lunas' ? '✅ Lunas' : '⏳ DP / Belum Lunas'"></span>
+                                    </div>
+                                    <div class="text-xs text-slate-400 font-medium mt-1 flex items-center gap-2">
+                                        <span><i class="fa-regular fa-calendar mr-1"></i><span x-text="formatDate(sale.created_at)"></span></span>
+                                        <span>•</span>
+                                        <span class="uppercase font-bold text-slate-600"><i class="fa-solid fa-credit-card mr-1"></i><span x-text="sale.payment_method || 'Cash'"></span></span>
+                                    </div>
+                                    <div class="mt-1.5" x-show="sale.customer_name && sale.customer_name !== 'Pelanggan Umum'">
+                                        <span class="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 w-max">
+                                            <i class="fa-solid fa-user"></i> <span x-text="sale.customer_name"></span>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-4 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-200/60">
+                                <div class="text-left sm:text-right">
+                                    <div class="text-[10px] text-slate-400 font-bold uppercase">Total Tagihan</div>
+                                    <div class="text-sm font-black text-primary" x-text="'Rp ' + formatRupiah(sale.total_amount)"></div>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <button @click="openDetail(sale)" class="w-9 h-9 bg-white border border-slate-200 hover:border-primary text-slate-600 hover:text-primary rounded-xl transition-all flex items-center justify-center shadow-2xs hover:shadow-sm" title="Lihat Detail Rincian Barang">
+                                        <i class="fa-solid fa-eye text-sm"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </template>

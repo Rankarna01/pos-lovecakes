@@ -223,4 +223,58 @@ if ($action === 'get_detail') {
     }
     exit;
 }
+
+// AMBIL DAFTAR TRANSAKSI BERDASARKAN KATEGORI ATAU PRODUK
+if ($action === 'get_sales_by_item') {
+    $start_date = $_REQUEST['start_date'] ?? date('Y-m-d');
+    $end_date = $_REQUEST['end_date'] ?? date('Y-m-d');
+    $filter_type = $_REQUEST['filter_type'] ?? 'category'; // 'category' atau 'product'
+    $filter_value = $_REQUEST['filter_value'] ?? '';
+    
+    // Base parameters
+    $params = [$start_date, $end_date];
+    
+    // Warehouse Filter
+    $wh_filter = "";
+    if ($wh_id > 0) {
+        $wh_filter = " AND (s.warehouse_id = ? OR (s.warehouse_id IS NULL AND ? = 1)) ";
+        $params[] = $wh_id;
+        $params[] = $wh_id;
+    }
+
+    try {
+        $sql = "
+            SELECT DISTINCT s.*, c.name as customer_name 
+            FROM sales_pos s 
+            LEFT JOIN customers_pos c ON s.customer_id = c.id 
+            JOIN sale_details_pos sd ON s.id = sd.sale_id
+            LEFT JOIN products p ON sd.product_id = p.id
+            WHERE DATE(s.created_at) BETWEEN ? AND ? $wh_filter
+        ";
+
+        if ($filter_type === 'category') {
+            if ($filter_value === 'Uncategorized' || $filter_value === 'Item Custom') {
+                $sql .= " AND (p.category IS NULL OR p.category = '' OR p.category = 'Item Custom' OR p.id IS NULL) ";
+            } else {
+                $sql .= " AND p.category = ? ";
+                $params[] = $filter_value;
+            }
+        } else {
+            // product
+            $sql .= " AND COALESCE(p.name, sd.custom_name) = ? ";
+            $params[] = $filter_value;
+        }
+
+        $sql .= " ORDER BY s.created_at DESC";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $sales = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        echo json_encode(['status' => 'success', 'data' => $sales]);
+    } catch (Exception $e) {
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    }
+    exit;
+}
 ?>

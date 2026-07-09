@@ -53,7 +53,22 @@ if ($action === 'get_analysis') {
         ";
         $stmt_worst = $pdo->prepare($sql2);
         $stmt_worst->execute(array_merge([$start_date_full, $end_date_full], $wh_params));
-        $worst_sellers = $stmt_worst->fetchAll(PDO::FETCH_ASSOC);
+        $worst_sellers_raw = $stmt_worst->fetchAll(PDO::FETCH_ASSOC);
+
+        // Filter agar produk "Paling Laku" (Top 50%) tidak muncul di daftar "Kurang Laku"
+        // Ini berguna jika total jenis produk yang terjual sedikit (misal cuma 3 macam)
+        $half_count = max(1, (int)ceil(count($best_sellers) / 2));
+        $top_half_names = array_map(function($b) { return $b['product_name']; }, array_slice($best_sellers, 0, $half_count));
+        
+        $worst_sellers_filtered = [];
+        foreach ($worst_sellers_raw as $w) {
+            // Kecualikan dari Kurang Laku jika produk ini masuk top half Paling Laku, KECUALI total produknya cuma <= 1
+            if (count($best_sellers) > 1 && in_array($w['product_name'], $top_half_names)) {
+                continue;
+            }
+            $worst_sellers_filtered[] = $w;
+        }
+        $worst_sellers = array_values($worst_sellers_filtered);
 
         // 3. ANALISA BERDASARKAN KATEGORI
         $sql3 = "

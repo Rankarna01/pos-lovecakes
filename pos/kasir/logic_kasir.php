@@ -89,11 +89,31 @@ if ($action === 'get_master_data') {
         $promos_auto_disc = $pdo->query("SELECT * FROM promo_auto_discounts WHERE is_active = 1 AND CURDATE() BETWEEN start_date AND end_date ORDER BY min_purchase DESC")->fetchAll(PDO::FETCH_ASSOC);
     } catch (Exception $e) {}
 
-    $stmt_set = $pdo->prepare("SELECT setting_value FROM pos_settings WHERE setting_key = 'default_start_cash'");
+    $stmt_set = $pdo->prepare("SELECT setting_key, setting_value FROM pos_settings");
     $stmt_set->execute();
-    $setting = $stmt_set->fetch(PDO::FETCH_ASSOC);
-    $default_start_cash = $setting ? (float)$setting['setting_value'] : 0;
+    $settings_rows = $stmt_set->fetchAll(PDO::FETCH_ASSOC);
     
+    $settings = [];
+    foreach ($settings_rows as $row) {
+        $settings[$row['setting_key']] = $row['setting_value'];
+    }
+    $default_start_cash = isset($settings['default_start_cash']) ? (float)$settings['default_start_cash'] : 0;
+    
+    // Pastikan pin_supervisor ada di db, jika tidak buat default
+    if (!isset($settings['pin_supervisor'])) {
+        try {
+            $pdo->query("INSERT IGNORE INTO pos_settings (setting_key, setting_value) VALUES ('pin_supervisor', '123456')");
+            $settings['pin_supervisor'] = '123456';
+        } catch (Exception $e) {}
+    }
+
+    // Ambil daftar PIN OTP supervisor yang aktif (belum dipakai)
+    $valid_pins = [];
+    try {
+        $stmt_pins = $pdo->query("SELECT pin FROM supervisor_pins_pos WHERE is_used = 0 ORDER BY created_at ASC");
+        $valid_pins = $stmt_pins->fetchAll(PDO::FETCH_COLUMN);
+    } catch (Exception $e) {}
+
     echo json_encode([
         'status' => 'success',
         'products' => $products,
@@ -104,9 +124,34 @@ if ($action === 'get_master_data') {
         'loyalty' => $loyalty,
         'promos_buy_get' => $promos_buy_get,
         'promos_auto_disc' => $promos_auto_disc,
-        'default_start_cash' => $default_start_cash
+        'default_start_cash' => $default_start_cash,
+        'settings' => $settings,
+        'valid_supervisor_pins' => $valid_pins
     ]);
     exit;
+}
+
+// --- GUNAKAN (HANGUSKAN) PIN SUPERVISOR ---
+if ($action === 'use_supervisor_pin') {
+    $pin = trim($_POST['pin'] ?? '');
+    if (empty($pin)) {
+        echo json_encode(['status' => 'error', 'message' => 'PIN tidak boleh kosong']); exit;
+    }
+    try {
+        // Cek apakah PIN valid dan belum dipakai
+        $stmt = $pdo->prepare("SELECT id FROM supervisor_pins_pos WHERE pin = ? AND is_used = 0");
+        $stmt->execute([$pin]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$row) {
+            echo json_encode(['status' => 'error', 'message' => 'PIN tidak valid atau sudah dipakai!']); exit;
+        }
+        // Tandai PIN sebagai sudah dipakai
+        $stmt_use = $pdo->prepare("UPDATE supervisor_pins_pos SET is_used = 1, used_at = NOW() WHERE id = ?");
+        $stmt_use->execute([$row['id']]);
+        echo json_encode(['status' => 'success', 'message' => 'PIN valid dan berhasil dipakai!']); exit;
+    } catch (Exception $e) {
+        echo json_encode(['status' => 'error', 'message' => 'Error: ' . $e->getMessage()]); exit;
+    }
 }
 
 // --- FUNGSI PELANGGAN BARU ---

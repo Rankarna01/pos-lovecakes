@@ -91,14 +91,7 @@ $page_title = "Pengaturan Toko - Love Cakes POS";
                     </div>
                     <div class="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         
-                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                            <label class="block text-[10px] font-black text-slate-400 mb-1.5 uppercase">Otorisasi Kasir</label>
-                            <h4 class="font-bold text-slate-700 mb-2">PIN Supervisor (Diskon Manual)</h4>
-                            <div class="relative">
-                                <i class="fa-solid fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                                <input type="password" x-model="system.pin_supervisor" class="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 outline-none focus:border-rose-400 font-black text-rose-600 tracking-[0.3em]">
-                            </div>
-                        </div>
+
 
                         <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                             <label class="block text-[10px] font-black text-slate-400 mb-1.5 uppercase">Penyesuaian Harga Online</label>
@@ -118,6 +111,93 @@ $page_title = "Pengaturan Toko - Love Cakes POS";
                             </div>
                         </div>
 
+                    </div>
+                </div>
+
+                <!-- ==========================================
+                     KARTU MANAJEMEN PIN SUPERVISOR OTP
+                =========================================== -->
+                <div class="bg-white rounded-[1.5rem] shadow-sm border border-slate-200 overflow-hidden" x-data="pinOTPApp()" x-init="loadPins()">
+                    <div class="p-5 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                        <div>
+                            <h3 class="font-black text-slate-700 uppercase tracking-widest text-sm flex items-center gap-2">
+                                <i class="fa-solid fa-shield-halved text-violet-500"></i> Manajemen PIN Otorisasi Supervisor
+                            </h3>
+                            <p class="text-xs text-slate-400 font-medium mt-1">PIN sekali pakai untuk otorisasi diskon manual di kasir. Setiap PIN hanya bisa digunakan satu kali.</p>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <select x-model="genQty" class="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-600 outline-none focus:border-violet-400">
+                                <option value="1">1 PIN</option>
+                                <option value="3">3 PIN</option>
+                                <option value="5" selected>5 PIN</option>
+                                <option value="10">10 PIN</option>
+                            </select>
+                            <button @click="generatePins()" :disabled="isGenerating" class="bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm font-black flex items-center gap-2 transition-all shadow-md shadow-violet-500/20">
+                                <i class="fa-solid fa-wand-magic-sparkles" :class="isGenerating ? 'fa-spin' : ''"></i>
+                                <span x-text="isGenerating ? 'Generating...' : 'Generate PIN'"></span>
+                            </button>
+                            <button @click="deleteUsedPins()" class="bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 px-3 py-2 rounded-xl text-sm font-bold flex items-center gap-1.5 transition-all border border-slate-200 hover:border-rose-200" title="Hapus semua PIN yang sudah dipakai">
+                                <i class="fa-solid fa-broom"></i> Bersihkan
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="p-5">
+                        <!-- Loading state -->
+                        <div x-show="isLoading" class="flex flex-col items-center justify-center py-10 text-slate-400">
+                            <i class="fa-solid fa-circle-notch fa-spin text-3xl text-violet-400 mb-3"></i>
+                            <span class="text-sm font-bold">Memuat daftar PIN...</span>
+                        </div>
+
+                        <!-- Empty state -->
+                        <template x-if="!isLoading && pins.length === 0">
+                            <div class="text-center py-10">
+                                <i class="fa-solid fa-key text-4xl text-slate-200 mb-3"></i>
+                                <p class="font-bold text-slate-400 text-sm">Belum ada PIN yang dibuat.</p>
+                                <p class="text-xs text-slate-300 mt-1">Klik tombol "Generate PIN" untuk membuat PIN baru.</p>
+                            </div>
+                        </template>
+
+                        <!-- PIN List -->
+                        <div x-show="!isLoading && pins.length > 0" class="space-y-2">
+                            <!-- Stats bar -->
+                            <div class="flex items-center gap-3 mb-4 text-xs font-bold">
+                                <span class="bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-lg flex items-center gap-1.5">
+                                    <i class="fa-solid fa-circle text-[8px]"></i> 
+                                    <span x-text="pins.filter(p => p.is_used == 0).length + ' Aktif'"></span>
+                                </span>
+                                <span class="bg-slate-100 text-slate-500 px-2.5 py-1 rounded-lg flex items-center gap-1.5">
+                                    <i class="fa-solid fa-circle text-[8px]"></i> 
+                                    <span x-text="pins.filter(p => p.is_used == 1).length + ' Sudah Dipakai'"></span>
+                                </span>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                <template x-for="p in pins" :key="p.id">
+                                    <div class="rounded-2xl border p-3.5 flex items-center justify-between gap-3 transition-all"
+                                         :class="p.is_used == 1 ? 'bg-slate-50 border-slate-100 opacity-60' : 'bg-gradient-to-br from-violet-50 to-indigo-50 border-violet-100 shadow-sm'">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-sm"
+                                                 :class="p.is_used == 1 ? 'bg-slate-200 text-slate-400' : 'bg-violet-100 text-violet-600'">
+                                                <i :class="p.is_used == 1 ? 'fa-solid fa-ban' : 'fa-solid fa-key'"></i>
+                                            </div>
+                                            <div>
+                                                <div class="font-black text-lg tracking-widest leading-none" 
+                                                     :class="p.is_used == 1 ? 'text-slate-400 line-through' : 'text-violet-700'"
+                                                     x-text="p.pin"></div>
+                                                <div class="text-[10px] font-bold mt-0.5"
+                                                     :class="p.is_used == 1 ? 'text-slate-400' : 'text-violet-400'"
+                                                     x-text="p.is_used == 1 ? '✓ Dipakai ' + formatDateShort(p.used_at) : 'Siap digunakan'"></div>
+                                            </div>
+                                        </div>
+                                        <button @click="deletePin(p.id)" class="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all"
+                                                title="Hapus PIN ini">
+                                            <i class="fa-solid fa-trash-can text-sm"></i>
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

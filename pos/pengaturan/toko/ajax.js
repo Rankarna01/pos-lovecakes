@@ -136,4 +136,98 @@ document.addEventListener('alpine:init', () => {
             }
         }
     }));
+
+    // ============================================================
+    // PIN OTP APP - Manajemen PIN Otorisasi Supervisor
+    // ============================================================
+    Alpine.data('pinOTPApp', () => ({
+        pins: [],
+        isLoading: true,
+        isGenerating: false,
+        genQty: '5',
+
+        async loadPins() {
+            this.isLoading = true;
+            try {
+                const res = await fetch('logic.php?action=get_supervisor_pins&nocache=' + Date.now());
+                const data = await res.json();
+                if (data.status === 'success') this.pins = data.pins;
+            } catch(e) { console.error(e); }
+            finally { this.isLoading = false; }
+        },
+
+        async generatePins() {
+            this.isGenerating = true;
+            try {
+                const fd = new FormData();
+                fd.append('action', 'generate_supervisor_pins');
+                fd.append('qty', this.genQty);
+                const res = await fetch('logic.php', { method: 'POST', body: fd });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    this.pins = data.pins;
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: data.message, showConfirmButton: false, timer: 2500 });
+                    }
+                } else {
+                    if (typeof Swal !== 'undefined') Swal.fire('Error', data.message, 'error');
+                }
+            } catch(e) {
+                console.error(e);
+                if (typeof Swal !== 'undefined') Swal.fire('Error', 'Gagal generate PIN.', 'error');
+            } finally { this.isGenerating = false; }
+        },
+
+        async deletePin(id) {
+            const conf = await Swal.fire({
+                title: 'Hapus PIN ini?', text: 'PIN ini akan dihapus permanen.',
+                icon: 'warning', showCancelButton: true,
+                confirmButtonColor: '#e11d48', confirmButtonText: 'Ya, Hapus!', cancelButtonText: 'Batal'
+            });
+            if (!conf.isConfirmed) return;
+            try {
+                const fd = new FormData();
+                fd.append('action', 'delete_supervisor_pin');
+                fd.append('id', id);
+                const res = await fetch('logic.php', { method: 'POST', body: fd });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    this.pins = data.pins;
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: data.message, showConfirmButton: false, timer: 2000 });
+                }
+            } catch(e) { console.error(e); }
+        },
+
+        async deleteUsedPins() {
+            const usedCount = this.pins.filter(p => p.is_used == 1).length;
+            if (usedCount === 0) {
+                Swal.fire({ toast: true, position: 'top-end', icon: 'info', title: 'Tidak ada PIN yang sudah dipakai.', showConfirmButton: false, timer: 2000 });
+                return;
+            }
+            const conf = await Swal.fire({
+                title: `Hapus ${usedCount} PIN yang sudah dipakai?`, text: 'Tindakan ini tidak bisa dibatalkan.',
+                icon: 'warning', showCancelButton: true,
+                confirmButtonColor: '#e11d48', confirmButtonText: 'Ya, Bersihkan!', cancelButtonText: 'Batal'
+            });
+            if (!conf.isConfirmed) return;
+            try {
+                const fd = new FormData();
+                fd.append('action', 'delete_used_pins');
+                const res = await fetch('logic.php', { method: 'POST', body: fd });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    this.pins = data.pins;
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: data.message, showConfirmButton: false, timer: 2000 });
+                }
+            } catch(e) { console.error(e); }
+        },
+
+        formatDateShort(dateStr) {
+            if (!dateStr) return '';
+            try {
+                const d = new Date(dateStr);
+                return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+            } catch(e) { return dateStr; }
+        }
+    }));
 });

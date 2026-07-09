@@ -8,7 +8,8 @@ document.addEventListener('alpine:init', () => {
             start_date: new Date().toISOString().split('T')[0],
             end_date: new Date().toISOString().split('T')[0],
             payment_method: '',
-            payment_status: ''
+            payment_status: '',
+            discount_filter: ''
         },
         activeTab: 'ringkasan',
         sales: [],
@@ -19,6 +20,13 @@ document.addEventListener('alpine:init', () => {
         activeSaleInfo: null,
         showCustomerModal: false,
         activeCustomer: null,
+        
+        showItemModal: false,
+        activeItemType: '', // 'category' or 'product'
+        activeItemName: '',
+        activeItemTotal: 0,
+        activeItemSales: [],
+        isItemLoading: false,
         
         // Detailed Stats
         paymentData: { cash: 0, qris: 0, total: 0 },
@@ -119,10 +127,11 @@ document.addEventListener('alpine:init', () => {
         },
 
         get filteredSales() {
-            if (!this.searchQuery && !this.filters.payment_method && !this.filters.payment_status) return this.sales;
+            if (!this.searchQuery && !this.filters.payment_method && !this.filters.payment_status && !this.filters.discount_filter) return this.sales;
             const query = (this.searchQuery || '').toLowerCase();
             const pay = (this.filters.payment_method || '').toLowerCase();
             const status = (this.filters.payment_status || '').toLowerCase();
+            const discFilter = this.filters.discount_filter || '';
             
             return this.sales.filter(s => {
                 const matchSearch = !query || 
@@ -150,8 +159,21 @@ document.addEventListener('alpine:init', () => {
                     const sStatus = (s.payment_status || '').toLowerCase();
                     matchStatus = sStatus === status;
                 }
+
+                // Filter Diskon
+                let matchDiscount = true;
+                if (discFilter) {
+                    const totalDiscount = (parseFloat(s.discount_voucher) || 0) + (parseFloat(s.discount_manual) || 0) + (parseFloat(s.discount_auto) || 0) + (parseFloat(s.discount_points) || 0);
+                    const hasDiscount = totalDiscount > 0;
+                    if (discFilter === 'has_discount') matchDiscount = hasDiscount;
+                    else if (discFilter === 'no_discount') matchDiscount = !hasDiscount;
+                    else if (discFilter === 'voucher') matchDiscount = (parseFloat(s.discount_voucher) || 0) > 0;
+                    else if (discFilter === 'manual') matchDiscount = (parseFloat(s.discount_manual) || 0) > 0;
+                    else if (discFilter === 'auto') matchDiscount = (parseFloat(s.discount_auto) || 0) > 0;
+                    else if (discFilter === 'points') matchDiscount = (parseFloat(s.discount_points) || 0) > 0;
+                }
                 
-                return matchSearch && matchPay && matchStatus;
+                return matchSearch && matchPay && matchStatus && matchDiscount;
             });
         },
 
@@ -207,6 +229,29 @@ document.addEventListener('alpine:init', () => {
                 }
                 return cName === sName;
             });
+        },
+
+        async openItemDetail(type, itemObj) {
+            this.activeItemType = type;
+            this.activeItemName = type === 'category' ? itemObj.category_name : itemObj.product_name;
+            this.activeItemTotal = type === 'category' ? itemObj.total_revenue : itemObj.total_revenue;
+            this.activeItemSales = [];
+            this.showItemModal = true;
+            this.isItemLoading = true;
+            
+            try {
+                let url = `logic.php?action=get_sales_by_item&start_date=${this.filters.start_date}&end_date=${this.filters.end_date}&filter_type=${type}&filter_value=${encodeURIComponent(this.activeItemName)}`;
+                const response = await fetch(url);
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    this.activeItemSales = result.data || [];
+                }
+            } catch (error) {
+                console.error("Gagal menarik data transaksi item:", error);
+            } finally {
+                this.isItemLoading = false;
+            }
         },
 
         async openDetail(sale) {

@@ -79,6 +79,7 @@ document.addEventListener('alpine:init', () => {
         searchCustomer: '',
         isCustomerDropdownOpen: false,
         posSettings: {}, 
+        validSupervisorPins: [],
         loyaltyRules: { is_active: 0, earn_point_ratio: 0, points_required: 0, discount_amount: 0, discount_type: 'IDR' },
         paymentMethods: [],
         
@@ -183,9 +184,14 @@ document.addEventListener('alpine:init', () => {
                         this.paymentMethods = result.payment_methods || [];
                         this.promosBuyGet = result.promos_buy_get || [];
                         this.promosAutoDisc = result.promos_auto_disc || [];
+                        this.posSettings = result.settings || {};
+                        this.validSupervisorPins = result.valid_supervisor_pins || [];
+                        
                         // Update IndexedDB cache juga
                         await idbPos.setMasterData('products', this.products);
                         await idbPos.setMasterData('customers', this.customers);
+                        await idbPos.setMasterData('settings', this.posSettings);
+                        await idbPos.setMasterData('valid_supervisor_pins', this.validSupervisorPins);
                     }
                 } catch(e) { /* Silent fail - jangan ganggu kasir */ }
             }, 60000); // 60 detik
@@ -312,6 +318,9 @@ document.addEventListener('alpine:init', () => {
                     this.loyaltyRules = result.loyalty_rules;
                     this.promosBuyGet = result.promos_buy_get || [];
                     this.promosAutoDisc = result.promos_auto_disc || [];
+                    this.posSettings = result.settings || {};
+                    this.validSupervisorPins = result.valid_supervisor_pins || [];
+                    
                     if(result.default_start_cash && !this.shiftForm.start_cash) {
                         this.shiftForm.start_cash = result.default_start_cash;
                     }
@@ -325,6 +334,7 @@ document.addEventListener('alpine:init', () => {
                     await idbPos.setMasterData('promos_buy_get', this.promosBuyGet);
                     await idbPos.setMasterData('promos_auto_disc', this.promosAutoDisc);
                     await idbPos.setMasterData('default_start_cash', result.default_start_cash);
+                    await idbPos.setMasterData('settings', this.posSettings);
                     
                     if(isManualSync) Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `Database Tersinkronisasi!`, showConfirmButton: false, timer: 1500 });
                 }
@@ -338,6 +348,8 @@ document.addEventListener('alpine:init', () => {
                 this.paymentMethods = (await idbPos.getMasterData('payment_methods')) || [];
                 this.promosBuyGet = (await idbPos.getMasterData('promos_buy_get')) || [];
                 this.promosAutoDisc = (await idbPos.getMasterData('promos_auto_disc')) || [];
+                this.posSettings = (await idbPos.getMasterData('settings')) || {};
+                this.validSupervisorPins = (await idbPos.getMasterData('valid_supervisor_pins')) || [];
                 const defCash = await idbPos.getMasterData('default_start_cash');
                 if (defCash && !this.shiftForm.start_cash) this.shiftForm.start_cash = defCash;
 
@@ -668,17 +680,36 @@ document.addEventListener('alpine:init', () => {
                     this.applyVoucher();
                 }
             } else if (result.isDenied) {
-                // Diskon Manual SPV
-                const realPin = this.posSettings.pin_supervisor || '123456';
+                // Diskon Manual SPV — OTP PIN System
+                const validPins = this.validSupervisorPins || [];
                 const { value: inputPin } = await Swal.fire({ 
-                    title: 'Otorisasi Supervisor', 
+                    title: '🔐 Otorisasi Supervisor', 
                     input: 'password', 
-                    inputPlaceholder: 'Masukkan PIN', 
+                    inputPlaceholder: 'Masukkan PIN 6 Digit',
+                    inputAttributes: { maxlength: 6, autocomplete: 'one-time-code' },
                     showCancelButton: true, 
-                    confirmButtonText: 'Validasi' 
+                    confirmButtonText: 'Validasi',
+                    cancelButtonText: 'Batal',
+                    footer: '<span class="text-xs text-slate-400">Gunakan PIN yang telah digenerate oleh Admin</span>'
                 });
                 
-                if (inputPin === realPin) {
+                if (!inputPin) return; // user cancel
+
+                // Validasi dari daftar PIN OTP
+                if (validPins.includes(inputPin)) {
+                    // Hapus PIN dari state lokal supaya tidak bisa dipakai dua kali (langsung)
+                    this.validSupervisorPins = validPins.filter(p => p !== inputPin);
+                    await idbPos.setMasterData('settings', { ...this.posSettings, _pins: this.validSupervisorPins });
+
+                    // Kirim ke server untuk di-mark as used
+                    try {
+                        const fd = new FormData();
+                        fd.append('action', 'use_supervisor_pin');
+                        fd.append('pin', inputPin);
+                        fetch('logic_kasir.php', { method: 'POST', body: fd });
+                    } catch(e) { /* silent fail - PIN tetap hangus di lokal */ }
+
+                    // Lanjutkan ke form diskon
                     const { value: formValues } = await Swal.fire({ 
                         title: 'Diskon Manual Kasir', 
                         html: `
@@ -711,8 +742,14 @@ document.addEventListener('alpine:init', () => {
                         this.discountManualType = formValues.type;
                         this.discountManualInput = formValues.val;
                     }
-                } else if (inputPin) { 
-                    Swal.fire('Akses Ditolak', 'PIN Supervisor Salah!', 'error'); 
+                } else { 
+                    Swal.fire({
+                        title: 'Akses Ditolak',
+                        html: validPins.length === 0 
+                            ? '<p>Belum ada PIN aktif.<br><span class="text-xs text-slate-500">Minta Admin untuk generate PIN terlebih dahulu di menu Pengaturan Toko.</span></p>'
+                            : 'PIN tidak valid atau sudah pernah digunakan!',
+                        icon: 'error'
+                    }); 
                 }
             }
         },
