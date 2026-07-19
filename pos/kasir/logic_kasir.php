@@ -331,7 +331,8 @@ if ($action === 'checkout') {
     foreach ($data['items'] as $item) {
         $prod_id   = $item['is_custom'] ? 0 : $item['id'];
         $is_custom = $item['is_custom'] ? 1 : 0;
-        $custom_name = $item['is_custom'] ? $item['name'] : null;
+        // SELALU SIMPAN NAMA PRODUK UNTUK HISTORI JAGA-JAGA JIKA MASTER PRODUK DIHAPUS
+        $custom_name = $item['name']; 
         // Simpan created_by_user hanya untuk item custom (produk reguler NULL)
         $item_created_by = $is_custom ? $user_id : null;
         $disc_type = !empty($item['discount_type']) ? $item['discount_type'] : 'none';

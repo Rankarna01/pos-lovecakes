@@ -28,7 +28,7 @@ if ($action === 'checkout') {
         foreach ($data['items'] as $item) {
             $prod_id = $item['is_custom'] ? 0 : $item['id'];
             $is_custom = $item['is_custom'] ? 1 : 0;
-            $custom_name = $item['is_custom'] ? $item['name'] : null;
+            $custom_name = $item['name']; // Always save name for history
             $stmt_detail->execute([$sale_id, $prod_id, $is_custom, $custom_name, $item['price'], $item['qty'], $item['subtotal']]);
         }
 
