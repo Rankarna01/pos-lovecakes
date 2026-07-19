@@ -141,6 +141,39 @@ document.addEventListener('alpine:init', () => {
                     this.isLoading = false; 
                 }
             });
+        },
+
+        async handleImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            if (!navigator.onLine) {
+                window.alert('Koneksi terputus! Tidak dapat melakukan import.');
+                event.target.value = '';
+                return;
+            }
+
+            this.isLoading = true;
+            try {
+                const fd = new FormData();
+                fd.append('file', file);
+                
+                const response = await fetch('logic.php?action=import_csv', { method: 'POST', body: fd });
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    window.alert(result.message);
+                    await this.fetchData();
+                } else {
+                    window.alert(result.message);
+                }
+            } catch (error) {
+                console.error("Error importing data:", error);
+                window.alert('Gagal mengimport data pelanggan.');
+            } finally {
+                this.isLoading = false;
+                event.target.value = ''; // Reset input file
+            }
         }
     }));
 });

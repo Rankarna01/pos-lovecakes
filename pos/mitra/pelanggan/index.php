@@ -42,18 +42,61 @@ $page_title = "Data Pelanggan - Love Cakes POS";
         <main class="flex-1 overflow-x-hidden overflow-y-auto custom-scrollbar p-4 md:p-6 bg-[#f8fafc] relative">
             <div class="max-w-[1400px] mx-auto space-y-6">
                 
-                <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row gap-4 justify-between items-center sticky top-0 z-10">
-                    <div class="relative w-full sm:w-80">
-                        <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                        <input type="text" x-model="searchQuery" placeholder="Cari nama atau telepon..." class="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 font-bold text-sm text-slate-700">
+                <!-- Page Header (Title & Actions) -->
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-800">Data Pelanggan</h2>
+                        <p class="text-sm text-slate-500 font-medium mt-1">Kelola daftar pelanggan & point loyalitas POS.</p>
                     </div>
                     
-                    <button @click="openModal()" class="w-full sm:w-auto bg-primary hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2 shadow-sm shadow-primary/30">
-                        <i class="fa-solid fa-plus"></i> Tambah Pelanggan
-                    </button>
+                    <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                        <input type="file" x-ref="importFile" @change="handleImport($event)" accept=".csv" class="hidden">
+                        
+                        <div class="relative w-full sm:w-auto" x-data="{ openOptions: false }">
+                            <button @click="openOptions = !openOptions" @click.outside="openOptions = false" class="w-full sm:w-auto bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 px-4 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 shadow-sm">
+                                <i class="fa-solid fa-file-excel text-emerald-600"></i>
+                                <span>Excel CSV</span>
+                                <i class="fa-solid fa-chevron-down text-[10px] ml-1 opacity-60" :class="openOptions ? 'rotate-180' : ''" style="transition: transform 0.2s;"></i>
+                            </button>
+                            
+                            <div x-show="openOptions" x-transition.opacity.duration.200ms class="absolute right-0 sm:right-0 left-0 sm:left-auto mt-2 w-full sm:w-56 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-20" style="display: none;">
+                                <div class="p-2 space-y-1">
+                                    <a href="logic.php?action=export_csv" class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-emerald-50 hover:text-emerald-700 transition-colors text-sm font-bold text-slate-700 group">
+                                        <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
+                                            <i class="fa-solid fa-file-export"></i>
+                                        </div>
+                                        Export Data
+                                    </a>
+                                    <button @click="$refs.importFile.click(); openOptions = false" class="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-blue-50 hover:text-blue-700 transition-colors text-sm font-bold text-slate-700 group">
+                                        <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                                            <i class="fa-solid fa-file-import"></i>
+                                        </div>
+                                        Import Data
+                                    </button>
+                                </div>
+                                <div class="border-t border-slate-100 bg-slate-50 p-2">
+                                    <a href="logic.php?action=download_template" class="flex items-center gap-2 px-3 py-2.5 rounded-xl hover:bg-slate-200 transition-colors text-[11px] font-bold text-slate-500 justify-center">
+                                        <i class="fa-solid fa-download"></i> Unduh Template CSV
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button @click="openModal()" class="w-full sm:w-auto bg-primary hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2 shadow-sm shadow-primary/30">
+                            <i class="fa-solid fa-plus"></i> Tambah Pelanggan
+                        </button>
+                    </div>
                 </div>
 
                 <div class="bg-white rounded-[1.5rem] shadow-sm border border-slate-200 overflow-hidden relative">
+                    <!-- Search Bar Toolbar -->
+                    <div class="p-4 sm:p-5 border-b border-slate-100 bg-white flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <div class="relative w-full">
+                            <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                            <input type="text" x-model="searchQuery" placeholder="Cari nama pelanggan atau nomor telepon..." class="w-full pl-11 pr-4 py-2.5 bg-slate-50 hover:bg-slate-100 focus:bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 font-bold text-sm text-slate-700 transition-colors">
+                        </div>
+                    </div>
+
                     <div x-show="isLoading" class="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-sm">
                         <i class="fa-solid fa-circle-notch fa-spin text-4xl text-primary"></i>
                     </div>

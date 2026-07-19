@@ -1,326 +1,310 @@
 document.addEventListener('alpine:init', () => {
     Alpine.data('opnameApp', () => ({
-        // Scanner tunggal
-        barcodeInput: '',
-        scannedProduct: null,
-        actualStock: 0,
-        opnameNotes: '',
-        isSaving: false,
-        isCameraOpen: false,
-        html5QrcodeScanner: null,
-
-        // Pilihan Outlet / Store untuk Opname
+        // State history (main table)
         selectedWarehouse: window.CURRENT_WAREHOUSE_ID || '1',
-
-        // Riwayat & Tabel
         historyRows: [],
         searchHistory: '',
         isLoadingHistory: false,
 
-        // Modal Dokumen Stok Opname
+        // Modal state
         showModal: false,
-        searchKeyword: '',
-        searchResults: [],
-        opnameItems: [],
-        batchNotes: '',
+        modalProducts: [],
+        modalPage: 1,
+        modalTotalPages: 1,
+        modalTotalProducts: 0,
+        modalSearch: '',
+        modalCategoryFilter: '',
+        modalCategories: [],
+        isModalLoading: false,
         isSavingBatch: false,
 
+        // Selected items with actual stock values
+        opnameItems: [], // [{id, code, name, category, system_stock, actual_stock, price, checked}]
+
+        // Clock
+        currentTime: '',
+
         async init() {
+            this._updateClock();
+            setInterval(() => this._updateClock(), 1000);
             await this.loadHistory();
         },
 
-        onWarehouseChange() {
-            if (this.opnameItems.length > 0) {
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({
-                        title: 'Ganti Outlet / Store?',
-                        text: 'Daftar produk yang belum diposting akan dikosongkan agar sesuai dengan stok outlet baru.',
-                        icon: 'warning',
-                        showCancelButton: true,
-                        confirmButtonText: 'Ya, Ganti & Kosongkan',
-                        cancelButtonText: 'Batal'
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            this.opnameItems = [];
-                            this.scannedProduct = null;
-                            this.searchResults = [];
-                            this.loadHistory();
-                        }
-                    });
-                } else {
-                    this.opnameItems = [];
-                    this.scannedProduct = null;
-                    this.searchResults = [];
-                    this.loadHistory();
-                }
-            } else {
-                this.scannedProduct = null;
-                this.searchResults = [];
-                this.loadHistory();
-            }
+        _updateClock() {
+            const now = new Date();
+            this.currentTime = now.toTimeString().substring(0, 5);
         },
 
-        // 1. LOAD RIWAYAT PENYESUAIAN STOK
+        // ---- Computed ----
+        get allOnPageChecked() {
+            if (!this.modalProducts.length) return false;
+            return this.modalProducts.every(p => {
+                const item = this.opnameItems.find(i => i.id == p.id);
+                return item && item.checked;
+            });
+        },
+
+        get modalPageRange() {
+            const total = this.modalTotalPages;
+            const cur = this.modalPage;
+            const pages = [];
+            const max = Math.min(total, 10);
+            let start = Math.max(1, cur - 4);
+            let end = Math.min(total, start + max - 1);
+            if (end - start < max - 1) start = Math.max(1, end - max + 1);
+            for (let i = start; i <= end; i++) pages.push(i);
+            return pages;
+        },
+
+        // ---- History ----
+        onWarehouseChange() {
+            this.loadHistory();
+        },
+
+        // Saat ganti store di dalam modal - reset pilihan & reload produk
+        onModalWarehouseChange() {
+            this.opnameItems = [];
+            this.modalCategoryFilter = '';
+            this.modalSearch = '';
+            this.modalCategories = [];
+            this.loadAllProducts(true);
+        },
+
         async loadHistory() {
             this.isLoadingHistory = true;
             try {
-                const response = await fetch(`logic.php?action=get_history&warehouse_id=${encodeURIComponent(this.selectedWarehouse)}&search=${encodeURIComponent(this.searchHistory)}`);
-                const result = await response.json();
-                if (result.status === 'success') {
-                    this.historyRows = result.data || [];
-                } else {
-                    console.error("Gagal memuat riwayat:", result.message);
-                }
-            } catch (error) {
-                console.error("Error loadHistory:", error);
-            } finally {
-                this.isLoadingHistory = false;
-            }
+                const res = await fetch(`logic.php?action=get_history&warehouse_id=${encodeURIComponent(this.selectedWarehouse)}&search=${encodeURIComponent(this.searchHistory)}`);
+                const data = await res.json();
+                if (data.status === 'success') this.historyRows = data.data || [];
+            } catch(e) { console.error(e); }
+            finally { this.isLoadingHistory = false; }
         },
 
-        // 2. MODAL DOKUMEN STOK OPNAME (BATCH)
-        openModal() {
+        async deleteRow(row) {
+            if (typeof Swal === 'undefined') return;
+            const conf = await Swal.fire({
+                title: 'Hapus data ini?',
+                text: 'Data opname "' + (row.product_name || '') + '" akan dihapus.',
+                icon: 'warning', showCancelButton: true,
+                confirmButtonColor: '#e11d48', confirmButtonText: 'Hapus!', cancelButtonText: 'Batal'
+            });
+            if (!conf.isConfirmed) return;
+            try {
+                const fd = new FormData();
+                fd.append('action', 'delete_opname');
+                fd.append('id', row.id);
+                const res = await fetch('logic.php', { method: 'POST', body: fd });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    Swal.fire({ toast:true, position:'top-end', icon:'success', title:'Data dihapus!', showConfirmButton:false, timer:1500 });
+                    this.loadHistory();
+                } else {
+                    Swal.fire('Error', data.message || 'Gagal menghapus.', 'error');
+                }
+            } catch(e) { console.error(e); }
+        },
+
+        async editRow(row) {
+            if (typeof Swal === 'undefined') return;
+            const { value: newStock } = await Swal.fire({
+                title: 'Edit Stok Aktual',
+                html: `<div class="text-sm text-slate-600 mb-3"><strong>${row.product_name}</strong></div>
+                       <input id="swal-edit-stock" type="number" value="${row.actual_stock}" class="swal2-input" style="width:120px;text-align:center;font-weight:900;" min="0">`,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'Simpan',
+                preConfirm: () => parseInt(document.getElementById('swal-edit-stock').value || 0)
+            });
+            if (newStock === undefined) return;
+            try {
+                const fd = new FormData();
+                fd.append('action', 'edit_opname');
+                fd.append('id', row.id);
+                fd.append('actual_stock', newStock);
+                const res = await fetch('logic.php', { method: 'POST', body: fd });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    Swal.fire({ toast:true, position:'top-end', icon:'success', title:'Berhasil diperbarui!', showConfirmButton:false, timer:1500 });
+                    this.loadHistory();
+                } else {
+                    Swal.fire('Error', data.message || 'Gagal update.', 'error');
+                }
+            } catch(e) { console.error(e); }
+        },
+
+        formatRupiah(val) {
+            const num = parseInt(val || 0);
+            if (num === 0) return '0';
+            return 'Rp ' + num.toLocaleString('id-ID');
+        },
+
+        // ---- Modal ----
+        async openModal() {
             this.showModal = true;
+            this.modalPage = 1;
+            this.modalSearch = '';
+            this.modalCategoryFilter = '';
             this.opnameItems = [];
-            this.batchNotes = '';
-            this.searchKeyword = '';
-            this.searchResults = [];
+            await this.loadAllProducts();
         },
 
         closeModal() {
             this.showModal = false;
-            this.searchKeyword = '';
-            this.searchResults = [];
+            this.modalProducts = [];
+            this.opnameItems = [];
         },
 
-        async searchProductsModal() {
-            if (!this.searchKeyword || this.searchKeyword.length < 2) {
-                this.searchResults = [];
-                return;
-            }
+        async loadAllProducts(resetPage = false) {
+            if (resetPage) this.modalPage = 1;
+            this.isModalLoading = true;
             try {
-                const response = await fetch(`logic.php?action=search_products&warehouse_id=${encodeURIComponent(this.selectedWarehouse)}&keyword=${encodeURIComponent(this.searchKeyword)}`);
-                const result = await response.json();
-                if (result.status === 'success') {
-                    this.searchResults = result.data || [];
+                const url = `logic.php?action=get_all_products&warehouse_id=${encodeURIComponent(this.selectedWarehouse)}&page=${this.modalPage}&keyword=${encodeURIComponent(this.modalSearch)}&category=${encodeURIComponent(this.modalCategoryFilter)}`;
+                const res = await fetch(url);
+                const data = await res.json();
+                if (data.status === 'success') {
+                    this.modalProducts = data.data || [];
+                    this.modalTotalPages = parseInt(data.total_pages) || 1;
+                    this.modalTotalProducts = parseInt(data.total) || 0;
+                    if (data.categories && data.categories.length && !this.modalCategories.length) {
+                        this.modalCategories = data.categories;
+                    }
                 }
-            } catch (error) {
-                console.error("Error searchProducts:", error);
-            }
+            } catch(e) { console.error(e); }
+            finally { this.isModalLoading = false; }
         },
 
-        addItemToOpname(prod) {
-            const exists = this.opnameItems.find(i => i.id === prod.id);
-            if (exists) {
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({
-                        toast: true, position: 'top-end', icon: 'info',
-                        title: 'Produk sudah ada di daftar!', showConfirmButton: false, timer: 1500
-                    });
-                }
-            } else {
+        async goToModalPage(p) {
+            if (p < 1 || p > this.modalTotalPages) return;
+            this.modalPage = p;
+            await this.loadAllProducts();
+        },
+
+        // ---- Checkbox & counter logic ----
+        getItemById(id) {
+            return this.opnameItems.find(i => i.id == id) || null;
+        },
+
+        // Auto-add product to opnameItems if not yet there, and mark as checked
+        ensureItem(prod) {
+            const existing = this.opnameItems.find(i => i.id == prod.id);
+            if (!existing) {
                 this.opnameItems.push({
                     id: prod.id,
                     code: prod.code,
                     name: prod.name,
                     category: prod.category || '-',
                     system_stock: parseInt(prod.stock || 0),
-                    actual_stock: parseInt(prod.stock || 0)
+                    actual_stock: 0,
+                    price: parseFloat(prod.price || 0),
+                    checked: true
                 });
+            } else if (!existing.checked) {
+                existing.checked = true;
             }
-            this.searchKeyword = '';
-            this.searchResults = [];
         },
 
-        removeItem(index) {
-            this.opnameItems.splice(index, 1);
+        toggleProductCheck(prod, event) {
+            const checked = event.target.checked;
+            const existing = this.opnameItems.find(i => i.id == prod.id);
+            if (checked) {
+                if (!existing) {
+                    this.opnameItems.push({
+                        id: prod.id,
+                        code: prod.code,
+                        name: prod.name,
+                        category: prod.category || '-',
+                        system_stock: parseInt(prod.stock || 0),
+                        actual_stock: 0,
+                        price: parseFloat(prod.price || 0),
+                        checked: true
+                    });
+                } else {
+                    existing.checked = true;
+                }
+            } else {
+                if (existing) existing.checked = false;
+            }
         },
 
+        toggleSelectAll(event) {
+            const checked = event.target.checked;
+            this.modalProducts.forEach(prod => {
+                const existing = this.opnameItems.find(i => i.id == prod.id);
+                if (checked) {
+                    if (!existing) {
+                        this.opnameItems.push({
+                            id: prod.id, code: prod.code, name: prod.name,
+                            category: prod.category || '-',
+                            system_stock: parseInt(prod.stock || 0),
+                            actual_stock: 0,
+                            price: parseFloat(prod.price || 0),
+                            checked: true
+                        });
+                    } else { existing.checked = true; }
+                } else {
+                    if (existing) existing.checked = false;
+                }
+            });
+        },
+
+        incrementStock(id) {
+            const item = this.opnameItems.find(i => i.id == id);
+            if (item) item.actual_stock = (parseInt(item.actual_stock) || 0) + 1;
+        },
+
+        decrementStock(id) {
+            const item = this.opnameItems.find(i => i.id == id);
+            if (item) item.actual_stock = Math.max(0, (parseInt(item.actual_stock) || 0) - 1);
+        },
+
+        setActualStock(id, val) {
+            const item = this.opnameItems.find(i => i.id == id);
+            if (item) item.actual_stock = Math.max(0, parseInt(val) || 0);
+        },
+
+        // ---- Save ----
         async saveBatchOpname() {
-            if (this.opnameItems.length === 0) {
-                if (typeof Swal !== 'undefined') Swal.fire('Peringatan', 'Daftar bahan yang diopname masih kosong!', 'warning');
+            const checked = this.opnameItems.filter(i => i.checked);
+            if (!checked.length) {
+                if (typeof Swal !== 'undefined') Swal.fire('Peringatan', 'Pilih minimal 1 produk!', 'warning');
                 return;
             }
-
-            // CEGAT JIKA INTERNET MATI
             if (!navigator.onLine) {
                 if (typeof Swal !== 'undefined') Swal.fire('Offline', 'Koneksi terputus! Tidak dapat menyimpan data opname.', 'warning');
                 return;
             }
-
             this.isSavingBatch = true;
             try {
                 const payload = {
                     warehouse_id: this.selectedWarehouse,
-                    items: this.opnameItems.map(item => ({
+                    items: checked.map(item => ({
                         product_id: item.id,
                         system_stock: item.system_stock,
                         actual_stock: item.actual_stock
                     })),
-                    notes: this.batchNotes
+                    notes: ''
                 };
-
-                const response = await fetch('logic.php?action=save_opname_batch', {
+                const res = await fetch('logic.php?action=save_opname_batch', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-                const result = await response.json();
-
+                const result = await res.json();
                 if (result.status === 'success') {
                     if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Berhasil!',
-                            text: result.message,
-                            timer: 2000,
-                            showConfirmButton: false
-                        });
+                        Swal.fire({ icon:'success', title:'Berhasil!', text: result.message, timer:2000, showConfirmButton:false });
                     }
                     this.closeModal();
                     await this.loadHistory();
                 } else {
-                    if (typeof Swal !== 'undefined') Swal.fire('Gagal Menyimpan', result.message, 'error');
+                    if (typeof Swal !== 'undefined') Swal.fire('Error', result.message || 'Gagal menyimpan.', 'error');
                 }
-            } catch (error) {
-                console.error("Error saveBatchOpname:", error);
-                if (typeof Swal !== 'undefined') Swal.fire('Error', 'Gagal menyambung ke server.', 'error');
+            } catch(e) {
+                console.error(e);
+                if (typeof Swal !== 'undefined') Swal.fire('Error', 'Koneksi gagal.', 'error');
             } finally {
                 this.isSavingBatch = false;
             }
-        },
-
-        // 3. MENCARI PRODUK BERDASARKAN BARCODE (SCANNER TUNGGAL)
-        async searchBarcode(scannedCode = null) {
-            if (!navigator.onLine) {
-                if (typeof Swal !== 'undefined') Swal.fire('Offline', 'Pencarian barcode ke server membutuhkan koneksi internet!', 'warning');
-                return;
-            }
-
-            const codeToSearch = scannedCode || this.barcodeInput;
-            if (!codeToSearch) return;
-
-            try {
-                const response = await fetch(`logic.php?action=scan_barcode&warehouse_id=${encodeURIComponent(this.selectedWarehouse)}&code=${encodeURIComponent(codeToSearch)}`);
-                const result = await response.json();
-
-                if (result.status === 'success') {
-                    this.scannedProduct = result.data;
-                    this.actualStock = parseInt(this.scannedProduct.stock || 0);
-                    this.opnameNotes = '';
-                    
-                    this.playBeep();
-                    if (this.isCameraOpen) this.toggleCamera();
-                } else {
-                    if (typeof Swal !== 'undefined') Swal.fire('Tidak Ditemukan', result.message, 'error');
-                }
-            } catch (error) {
-                console.error("Error Scan:", error);
-                if (typeof Swal !== 'undefined') Swal.fire('Error', 'Gagal memproses barcode. Pastikan koneksi server stabil.', 'error');
-            } finally {
-                this.barcodeInput = '';
-            }
-        },
-
-        get selisih() {
-            if (!this.scannedProduct) return 0;
-            return parseInt(this.actualStock || 0) - parseInt(this.scannedProduct.stock || 0);
-        },
-
-        async saveOpname() {
-            if (this.selisih === 0) return;
-            
-            if (!navigator.onLine) {
-                if (typeof Swal !== 'undefined') Swal.fire('Offline', 'Koneksi terputus! Tidak dapat menyimpan data opname.', 'warning');
-                return;
-            }
-
-            this.isSaving = true;
-
-            try {
-                const fd = new FormData();
-                fd.append('warehouse_id', this.selectedWarehouse);
-                fd.append('product_id', this.scannedProduct.id);
-                fd.append('system_stock', this.scannedProduct.stock);
-                fd.append('actual_stock', this.actualStock);
-                fd.append('notes', this.opnameNotes);
-
-                const response = await fetch('logic.php?action=save_opname', { method: 'POST', body: fd });
-                const result = await response.json();
-
-                if (result.status === 'success') {
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            toast: true, position: 'top-end', icon: 'success',
-                            title: 'Stok Berhasil Disesuaikan!',
-                            showConfirmButton: false, timer: 1500,
-                            customClass: { popup: 'rounded-xl shadow-lg border border-slate-100 mt-4 mr-4' }
-                        });
-                    }
-                    this.resetScan();
-                    await this.loadHistory();
-                } else {
-                    if (typeof Swal !== 'undefined') Swal.fire('Gagal Menyimpan', result.message, 'error');
-                }
-            } catch (error) {
-                console.error("Error Save:", error);
-                if (typeof Swal !== 'undefined') Swal.fire('Error', 'Gagal menyambung ke database.', 'error');
-            } finally {
-                this.isSaving = false;
-            }
-        },
-
-        resetScan() {
-            this.scannedProduct = null;
-            this.actualStock = 0;
-            this.opnameNotes = '';
-        },
-
-        toggleCamera() {
-            if (this.isCameraOpen) {
-                this.stopCamera();
-            } else {
-                this.startCamera();
-            }
-        },
-
-        startCamera() {
-            this.isCameraOpen = true;
-            this.resetScan();
-            
-            this.html5QrcodeScanner = new Html5QrcodeScanner(
-                "reader", { fps: 10, qrbox: {width: 250, height: 250}, aspectRatio: 1.0 }, false);
-            
-            this.html5QrcodeScanner.render((decodedText, decodedResult) => {
-                this.searchBarcode(decodedText);
-            }, (error) => {});
-        },
-
-        stopCamera() {
-            if (this.html5QrcodeScanner) {
-                this.html5QrcodeScanner.clear().then(() => {
-                    this.isCameraOpen = false;
-                }).catch(error => {
-                    console.error("Gagal menutup kamera", error);
-                });
-            } else {
-                this.isCameraOpen = false;
-            }
-        },
-
-        playBeep() {
-            try {
-                const context = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = context.createOscillator();
-                const gain = context.createGain();
-                oscillator.connect(gain);
-                gain.connect(context.destination);
-                oscillator.type = "sine";
-                oscillator.frequency.value = 800;
-                gain.gain.value = 0.5;
-                oscillator.start();
-                setTimeout(() => { oscillator.stop(); }, 150);
-            } catch (e) {}
         }
     }));
 });

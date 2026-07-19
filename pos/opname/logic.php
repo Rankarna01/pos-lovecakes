@@ -21,7 +21,7 @@ if ($action === 'get_history') {
         $sql = "
             SELECT 
                 o.id, o.doc_no, o.product_id, o.system_stock, o.actual_stock, o.difference, o.notes, o.created_at,
-                p.name AS product_name, p.code AS product_code, p.category,
+                p.name AS product_name, p.code AS product_code, p.category, p.price,
                 COALESCE(u.name, 'Admin') AS admin_name,
                 COALESCE(w.name, CASE WHEN o.warehouse_id = 2 THEN 'Gudang 02' ELSE 'Store 01' END) AS store_name
             FROM opname_history_pos o
@@ -254,6 +254,102 @@ if ($action === 'save_opname') {
     } catch (Exception $e) {
         $pdo->rollBack();
         echo json_encode(['status' => 'error', 'message' => 'Gagal menyimpan opname: ' . $e->getMessage()]);
+    }
+    exit;
+}
+
+// 6a. DELETE OPNAME RECORD
+if ($action === 'delete_opname') {
+    $id = intval($_POST['id'] ?? 0);
+    if ($id <= 0) { echo json_encode(['status'=>'error','message'=>'ID tidak valid']); exit; }
+    try {
+        $stmt = $pdo->prepare("DELETE FROM opname_history_pos WHERE id = ?");
+        $stmt->execute([$id]);
+        echo json_encode(['status' => 'success', 'message' => 'Data berhasil dihapus.']);
+    } catch (Exception $e) {
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    }
+    exit;
+}
+
+// 6b. EDIT OPNAME ACTUAL STOCK
+if ($action === 'edit_opname') {
+    $id = intval($_POST['id'] ?? 0);
+    $actual_stock = intval($_POST['actual_stock'] ?? 0);
+    if ($id <= 0) { echo json_encode(['status'=>'error','message'=>'ID tidak valid']); exit; }
+    try {
+        // Get current data
+        $stmt = $pdo->prepare("SELECT system_stock FROM opname_history_pos WHERE id = ?");
+        $stmt->execute([$id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$row) { echo json_encode(['status'=>'error','message'=>'Data tidak ditemukan']); exit; }
+        $difference = $actual_stock - intval($row['system_stock']);
+        $stmt2 = $pdo->prepare("UPDATE opname_history_pos SET actual_stock = ?, difference = ? WHERE id = ?");
+        $stmt2->execute([$actual_stock, $difference, $id]);
+        echo json_encode(['status' => 'success', 'message' => 'Data berhasil diperbarui.']);
+    } catch (Exception $e) {
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    }
+    exit;
+}
+
+// 7. GET ALL PRODUCTS (for new opname modal table)
+if ($action === 'get_all_products') {
+    $keyword  = trim($_GET['keyword']  ?? '');
+    $category = trim($_GET['category'] ?? '');
+    $page     = max(1, intval($_GET['page'] ?? 1));
+    $per_page = 50;
+    $offset   = ($page - 1) * $per_page;
+
+    try {
+        // WHERE clause only (no duplicate FROM)
+        $where  = "WHERE 1=1";
+        $params = [];
+
+        // Filter by warehouse (produk per-store)
+        if ($wh_id > 0) {
+            $where   .= " AND (warehouse_id = ? OR warehouse_id IS NULL)";
+            $params[] = $wh_id;
+        }
+
+        if ($keyword !== '') {
+            $where   .= " AND (name LIKE ? OR code LIKE ? OR category LIKE ?)";
+            $params[] = "%$keyword%";
+            $params[] = "%$keyword%";
+            $params[] = "%$keyword%";
+        }
+
+        if ($category !== '') {
+            $where   .= " AND category = ?";
+            $params[] = $category;
+        }
+
+        // Total count
+        $stmt_count = $pdo->prepare("SELECT COUNT(*) FROM products $where");
+        $stmt_count->execute($params);
+        $total = (int)$stmt_count->fetchColumn();
+
+        // Data rows
+        $stmt = $pdo->prepare("SELECT id, code, name, category, stock, price FROM products $where ORDER BY name ASC LIMIT $per_page OFFSET $offset");
+        $stmt->execute($params);
+        $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Unique categories for filter dropdown
+        $stmt_cat = $pdo->prepare("SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category != '' ORDER BY category ASC");
+        $stmt_cat->execute();
+        $categories = $stmt_cat->fetchAll(PDO::FETCH_COLUMN);
+
+        echo json_encode([
+            'status'      => 'success',
+            'data'        => $products,
+            'total'       => $total,
+            'page'        => $page,
+            'per_page'    => $per_page,
+            'total_pages' => ceil($total / $per_page) ?: 1,
+            'categories'  => $categories
+        ]);
+    } catch (Exception $e) {
+        echo json_encode(['status' => 'error', 'message' => 'Gagal memuat produk: ' . $e->getMessage()]);
     }
     exit;
 }

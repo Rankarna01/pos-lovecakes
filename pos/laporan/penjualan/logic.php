@@ -88,10 +88,15 @@ if ($action === 'get_sales') {
         
         $paymentData = ['cash' => 0, 'qris' => 0, 'total' => 0];
         foreach ($pay_results as $row) {
-            if ($row['type'] === 'Cash' || strtolower($row['payment_method']) === 'cash') { 
-                $paymentData['cash'] += (float)$row['total']; 
-            } else { 
-                $paymentData['qris'] += (float)$row['total']; 
+            $pm = strtolower($row['payment_method']);
+            $dbType = strtolower($row['type'] ?? '');
+            
+            // Dinamiskan: Jika nama metode mengandung qris/transfer, atau tipenya non-cash
+            if (strpos($pm, 'qris') !== false || strpos($pm, 'transfer') !== false || in_array($dbType, ['qris', 'transfer', 'non-cash'])) {
+                $paymentData['qris'] += (float)$row['total'];
+            } else {
+                // Sisanya masuk ke Cash
+                $paymentData['cash'] += (float)$row['total'];
             }
             $paymentData['total'] += (float)$row['total'];
         }
@@ -123,7 +128,7 @@ if ($action === 'get_sales') {
 
         // 5. Penjualan per Kategori
         $sql5 = "
-            SELECT COALESCE(p.category, 'Uncategorized') as category_name, SUM(sd.qty) as total_qty, SUM(sd.subtotal) as total_amount
+            SELECT COALESCE(p.category, 'Produk Custom') as category_name, SUM(sd.qty) as total_qty, SUM(sd.subtotal) as total_amount
             FROM sale_details_pos sd
             JOIN sales_pos s ON sd.sale_id = s.id
             LEFT JOIN products p ON sd.product_id = p.id
@@ -253,8 +258,8 @@ if ($action === 'get_sales_by_item') {
         ";
 
         if ($filter_type === 'category') {
-            if ($filter_value === 'Uncategorized' || $filter_value === 'Item Custom') {
-                $sql .= " AND (p.category IS NULL OR p.category = '' OR p.category = 'Item Custom' OR p.id IS NULL) ";
+            if ($filter_value === 'Uncategorized' || $filter_value === 'Item Custom' || $filter_value === 'Produk Custom') {
+                $sql .= " AND (p.category IS NULL OR p.category = '' OR p.category = 'Item Custom' OR p.category = 'Produk Custom' OR p.id IS NULL) ";
             } else {
                 $sql .= " AND p.category = ? ";
                 $params[] = $filter_value;
