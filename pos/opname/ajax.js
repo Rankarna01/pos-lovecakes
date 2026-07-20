@@ -1,13 +1,14 @@
 document.addEventListener('alpine:init', () => {
     Alpine.data('opnameApp', () => ({
-        // State history (main table)
-        selectedWarehouse: window.CURRENT_WAREHOUSE_ID || '1',
-        historyRows: [],
-        searchHistory: '',
-        isLoadingHistory: false,
+        // Draft State
+        tanggal: new Date().toISOString().split('T')[0],
+        notes: '',
+        draftItems: [], // array of {id, name, category, system_stock, actual_stock, time_added}
+        isPosting: false,
 
-        // Modal state
+        // Modal State
         showModal: false,
+        selectedWarehouse: window.CURRENT_WAREHOUSE_ID || '1',
         modalProducts: [],
         modalPage: 1,
         modalTotalPages: 1,
@@ -16,12 +17,15 @@ document.addEventListener('alpine:init', () => {
         modalCategoryFilter: '',
         modalCategories: [],
         isModalLoading: false,
-        isSavingBatch: false,
-
-        // Selected items with actual stock values
-        opnameItems: [], // [{id, code, name, category, system_stock, actual_stock, price, checked}]
-
-        // Clock
+        
+        // Items currently being checked in modal before adding to draft
+        opnameItems: [], 
+        
+        // History State
+        historyOpen: false,
+        historyRows: [],
+        searchHistory: '',
+        isLoadingHistory: false,
         currentTime: '',
 
         async init() {
@@ -32,7 +36,7 @@ document.addEventListener('alpine:init', () => {
 
         _updateClock() {
             const now = new Date();
-            this.currentTime = now.toTimeString().substring(0, 5);
+            this.currentTime = now.toTimeString().substring(0, 8);
         },
 
         // ---- Computed ----
@@ -56,95 +60,44 @@ document.addEventListener('alpine:init', () => {
             return pages;
         },
 
-        // ---- History ----
-        onWarehouseChange() {
-            this.loadHistory();
-        },
-
-        // Saat ganti store di dalam modal - reset pilihan & reload produk
-        onModalWarehouseChange() {
-            this.opnameItems = [];
-            this.modalCategoryFilter = '';
-            this.modalSearch = '';
-            this.modalCategories = [];
-            this.loadAllProducts(true);
-        },
-
+        // ---- History Actions ----
         async loadHistory() {
             this.isLoadingHistory = true;
             try {
-                const res = await fetch(`logic.php?action=get_history&warehouse_id=${encodeURIComponent(this.selectedWarehouse)}&search=${encodeURIComponent(this.searchHistory)}`);
+                const wh_id = window.CURRENT_WAREHOUSE_ID || '0';
+                const url = `../laporan/opname/logic.php?action=get_report&warehouse_id=${wh_id}&date_from=2000-01-01&date_to=2099-12-31`;
+                const res = await fetch(url);
                 const data = await res.json();
-                if (data.status === 'success') this.historyRows = data.data || [];
-            } catch(e) { console.error(e); }
+                if (data.status === 'success') {
+                    // Filter by search string if any
+                    let rows = data.data || [];
+                    if (this.searchHistory.trim() !== '') {
+                        const kw = this.searchHistory.toLowerCase();
+                        rows = rows.filter(r => 
+                            (r.doc_no && r.doc_no.toLowerCase().includes(kw)) ||
+                            (r.product_name && r.product_name.toLowerCase().includes(kw))
+                        );
+                    }
+                    this.historyRows = rows.slice(0, 50); // limit to 50 for quick view
+                }
+            } catch (e) { console.error(e); }
             finally { this.isLoadingHistory = false; }
         },
 
-        async deleteRow(row) {
-            if (typeof Swal === 'undefined') return;
-            const conf = await Swal.fire({
-                title: 'Hapus data ini?',
-                text: 'Data opname "' + (row.product_name || '') + '" akan dihapus.',
-                icon: 'warning', showCancelButton: true,
-                confirmButtonColor: '#e11d48', confirmButtonText: 'Hapus!', cancelButtonText: 'Batal'
-            });
-            if (!conf.isConfirmed) return;
-            try {
-                const fd = new FormData();
-                fd.append('action', 'delete_opname');
-                fd.append('id', row.id);
-                const res = await fetch('logic.php', { method: 'POST', body: fd });
-                const data = await res.json();
-                if (data.status === 'success') {
-                    Swal.fire({ toast:true, position:'top-end', icon:'success', title:'Data dihapus!', showConfirmButton:false, timer:1500 });
-                    this.loadHistory();
-                } else {
-                    Swal.fire('Error', data.message || 'Gagal menghapus.', 'error');
-                }
-            } catch(e) { console.error(e); }
-        },
-
-        async editRow(row) {
-            if (typeof Swal === 'undefined') return;
-            const { value: newStock } = await Swal.fire({
-                title: 'Edit Stok Aktual',
-                html: `<div class="text-sm text-slate-600 mb-3"><strong>${row.product_name}</strong></div>
-                       <input id="swal-edit-stock" type="number" value="${row.actual_stock}" class="swal2-input" style="width:120px;text-align:center;font-weight:900;" min="0">`,
-                focusConfirm: false,
-                showCancelButton: true,
-                confirmButtonText: 'Simpan',
-                preConfirm: () => parseInt(document.getElementById('swal-edit-stock').value || 0)
-            });
-            if (newStock === undefined) return;
-            try {
-                const fd = new FormData();
-                fd.append('action', 'edit_opname');
-                fd.append('id', row.id);
-                fd.append('actual_stock', newStock);
-                const res = await fetch('logic.php', { method: 'POST', body: fd });
-                const data = await res.json();
-                if (data.status === 'success') {
-                    Swal.fire({ toast:true, position:'top-end', icon:'success', title:'Berhasil diperbarui!', showConfirmButton:false, timer:1500 });
-                    this.loadHistory();
-                } else {
-                    Swal.fire('Error', data.message || 'Gagal update.', 'error');
-                }
-            } catch(e) { console.error(e); }
-        },
-
-        formatRupiah(val) {
-            const num = parseInt(val || 0);
-            if (num === 0) return '0';
-            return 'Rp ' + num.toLocaleString('id-ID');
-        },
-
-        // ---- Modal ----
+        // ---- Modal Actions ----
         async openModal() {
             this.showModal = true;
             this.modalPage = 1;
             this.modalSearch = '';
             this.modalCategoryFilter = '';
+            // Reset modal selection state to prepare for new selections
             this.opnameItems = [];
+            
+            // Auto-populate opnameItems with draft items so they appear checked/with stock if already added
+            this.draftItems.forEach(d => {
+                this.opnameItems.push({...d, checked: true});
+            });
+            
             await this.loadAllProducts();
         },
 
@@ -152,6 +105,14 @@ document.addEventListener('alpine:init', () => {
             this.showModal = false;
             this.modalProducts = [];
             this.opnameItems = [];
+        },
+
+        onModalWarehouseChange() {
+            this.opnameItems = [];
+            this.modalCategoryFilter = '';
+            this.modalSearch = '';
+            this.modalCategories = [];
+            this.loadAllProducts(true);
         },
 
         async loadAllProducts(resetPage = false) {
@@ -179,44 +140,41 @@ document.addEventListener('alpine:init', () => {
             await this.loadAllProducts();
         },
 
-        // ---- Checkbox & counter logic ----
+        // ---- Interaction in Modal ----
         getItemById(id) {
-            return this.opnameItems.find(i => i.id == id) || null;
+            return this.opnameItems.find(i => i.id == id);
         },
 
-        // Auto-add product to opnameItems if not yet there, and mark as checked
         ensureItem(prod) {
-            const existing = this.opnameItems.find(i => i.id == prod.id);
+            let existing = this.getItemById(prod.id);
             if (!existing) {
-                this.opnameItems.push({
-                    id: prod.id,
-                    code: prod.code,
-                    name: prod.name,
+                existing = {
+                    id: prod.id, code: prod.code, name: prod.name,
                     category: prod.category || '-',
-                    system_stock: parseInt(prod.stock || 0),
+                    system_stock: parseFloat(prod.stock || 0),
                     actual_stock: 0,
                     price: parseFloat(prod.price || 0),
-                    checked: true
-                });
-            } else if (!existing.checked) {
-                existing.checked = true;
+                    checked: true,
+                    time_added: this.currentTime
+                };
+                this.opnameItems.push(existing);
             }
+            if (!existing.checked) existing.checked = true;
         },
 
         toggleProductCheck(prod, event) {
             const checked = event.target.checked;
-            const existing = this.opnameItems.find(i => i.id == prod.id);
+            let existing = this.getItemById(prod.id);
             if (checked) {
                 if (!existing) {
                     this.opnameItems.push({
-                        id: prod.id,
-                        code: prod.code,
-                        name: prod.name,
+                        id: prod.id, code: prod.code, name: prod.name,
                         category: prod.category || '-',
-                        system_stock: parseInt(prod.stock || 0),
+                        system_stock: parseFloat(prod.stock || 0),
                         actual_stock: 0,
                         price: parseFloat(prod.price || 0),
-                        checked: true
+                        checked: true,
+                        time_added: this.currentTime
                     });
                 } else {
                     existing.checked = true;
@@ -235,10 +193,11 @@ document.addEventListener('alpine:init', () => {
                         this.opnameItems.push({
                             id: prod.id, code: prod.code, name: prod.name,
                             category: prod.category || '-',
-                            system_stock: parseInt(prod.stock || 0),
+                            system_stock: parseFloat(prod.stock || 0),
                             actual_stock: 0,
                             price: parseFloat(prod.price || 0),
-                            checked: true
+                            checked: true,
+                            time_added: this.currentTime
                         });
                     } else { existing.checked = true; }
                 } else {
@@ -248,62 +207,122 @@ document.addEventListener('alpine:init', () => {
         },
 
         incrementStock(id) {
-            const item = this.opnameItems.find(i => i.id == id);
-            if (item) item.actual_stock = (parseInt(item.actual_stock) || 0) + 1;
+            const item = this.getItemById(id);
+            if (item) item.actual_stock++;
         },
 
         decrementStock(id) {
-            const item = this.opnameItems.find(i => i.id == id);
-            if (item) item.actual_stock = Math.max(0, (parseInt(item.actual_stock) || 0) - 1);
+            const item = this.getItemById(id);
+            if (item && item.actual_stock > 0) item.actual_stock--;
         },
 
         setActualStock(id, val) {
-            const item = this.opnameItems.find(i => i.id == id);
-            if (item) item.actual_stock = Math.max(0, parseInt(val) || 0);
+            const item = this.getItemById(id);
+            if (item) {
+                let v = parseFloat(val);
+                if (isNaN(v) || v < 0) v = 0;
+                item.actual_stock = v;
+            }
         },
 
-        // ---- Save ----
-        async saveBatchOpname() {
-            const checked = this.opnameItems.filter(i => i.checked);
-            if (!checked.length) {
-                if (typeof Swal !== 'undefined') Swal.fire('Peringatan', 'Pilih minimal 1 produk!', 'warning');
-                return;
+        // ---- Draft List Actions ----
+        tambahKeDraft() {
+            const checkedItems = this.opnameItems.filter(i => i.checked);
+            checkedItems.forEach(item => {
+                const existingIndex = this.draftItems.findIndex(d => d.id === item.id);
+                if (existingIndex > -1) {
+                    // Update existing
+                    this.draftItems[existingIndex].actual_stock = item.actual_stock;
+                } else {
+                    // Add new
+                    this.draftItems.push({...item});
+                }
+            });
+            this.closeModal();
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: `${checkedItems.length} produk ditambahkan`,
+                    showConfirmButton: false,
+                    timer: 1500
+                });
             }
-            if (!navigator.onLine) {
-                if (typeof Swal !== 'undefined') Swal.fire('Offline', 'Koneksi terputus! Tidak dapat menyimpan data opname.', 'warning');
-                return;
-            }
-            this.isSavingBatch = true;
+        },
+
+        hapusDraftItem(id) {
+            this.draftItems = this.draftItems.filter(i => i.id !== id);
+        },
+
+        // ---- Posting ----
+        async postingOpname() {
+            if (this.draftItems.length === 0) return;
+            
+            if (typeof Swal === 'undefined') return;
+            const conf = await Swal.fire({
+                title: 'Posting Opname?',
+                text: `Anda akan menyimpan opname untuk ${this.draftItems.length} bahan baku.`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#2563eb',
+                confirmButtonText: 'Ya, Posting!',
+                cancelButtonText: 'Batal'
+            });
+
+            if (!conf.isConfirmed) return;
+
+            this.isPosting = true;
             try {
+                // Ensure correct warehouse
+                let wId = parseInt(this.selectedWarehouse);
+                if (isNaN(wId) || wId <= 0) {
+                    wId = window.CURRENT_WAREHOUSE_ID || 1;
+                }
+
                 const payload = {
-                    warehouse_id: this.selectedWarehouse,
-                    items: checked.map(item => ({
-                        product_id: item.id,
-                        system_stock: item.system_stock,
-                        actual_stock: item.actual_stock
+                    items: this.draftItems.map(d => ({
+                        product_id: d.id,
+                        system_stock: d.system_stock,
+                        actual_stock: d.actual_stock
                     })),
-                    notes: ''
+                    notes: this.notes,
+                    tanggal: this.tanggal
                 };
-                const res = await fetch('logic.php?action=save_opname_batch', {
+
+                const res = await fetch(`logic.php?action=save_opname_batch&warehouse_id=${wId}`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify(payload)
                 });
-                const result = await res.json();
-                if (result.status === 'success') {
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({ icon:'success', title:'Berhasil!', text: result.message, timer:2000, showConfirmButton:false });
-                    }
-                    this.closeModal();
+                
+                const data = await res.json();
+                if (data.status === 'success') {
+                    await Swal.fire({
+                        title: 'Berhasil!',
+                        text: data.message || 'Opname berhasil diposting.',
+                        icon: 'success',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    
+                    // Reset draft after success
+                    this.draftItems = [];
+                    this.notes = '';
+                    
+                    // Reload history and open accordion
                     await this.loadHistory();
+                    this.historyOpen = true;
                 } else {
-                    if (typeof Swal !== 'undefined') Swal.fire('Error', result.message || 'Gagal menyimpan.', 'error');
+                    Swal.fire('Error', data.message || 'Gagal menyimpan opname.', 'error');
                 }
-            } catch(e) {
+            } catch (e) {
                 console.error(e);
-                if (typeof Swal !== 'undefined') Swal.fire('Error', 'Koneksi gagal.', 'error');
+                Swal.fire('Error', 'Terjadi kesalahan sistem saat menyimpan data.', 'error');
             } finally {
-                this.isSavingBatch = false;
+                this.isPosting = false;
             }
         }
     }));

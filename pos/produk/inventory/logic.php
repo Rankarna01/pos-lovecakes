@@ -75,6 +75,7 @@ if ($action === 'get_inventory') {
                 ORDER BY po.created_at DESC LIMIT 100
             ");
             $outgoing = array_merge($outgoing, $stmtOut->fetchAll(PDO::FETCH_ASSOC));
+        } catch (Exception $e) {}
         try {
             $filter_mut_in = ($wh_id > 0) ? " AND (pm.to_warehouse_id = $wh_id)" : "";
             $stmtMutIn = $pdo->query("

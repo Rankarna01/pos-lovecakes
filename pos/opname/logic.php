@@ -63,23 +63,31 @@ if ($action === 'get_history') {
 if ($action === 'search_products') {
     $keyword = trim($_GET['keyword'] ?? '');
     try {
-        $sql = "SELECT id, code, name, category, stock, warehouse_id FROM products WHERE 1=1";
+        $sql = "
+            SELECT 
+                p.id, p.code, p.name, p.category, 
+                " . ($wh_id > 0 ? "COALESCE(pws.stock, p.stock)" : "p.stock") . " AS stock, 
+                p.warehouse_id 
+            FROM products p
+            " . ($wh_id > 0 ? "LEFT JOIN product_warehouse_stocks pws ON p.id = pws.product_id AND pws.warehouse_id = $wh_id" : "") . "
+            WHERE 1=1
+        ";
         $params = [];
 
         if ($wh_id > 0) {
-            $sql .= " AND (warehouse_id = ? OR (warehouse_id IS NULL AND ? = 1))";
+            $sql .= " AND (p.warehouse_id = ? OR (p.warehouse_id IS NULL AND ? = 1))";
             $params[] = $wh_id;
             $params[] = $wh_id;
         }
 
         if ($keyword !== '') {
-            $sql .= " AND (name LIKE ? OR code LIKE ? OR category LIKE ?)";
+            $sql .= " AND (p.name LIKE ? OR p.code LIKE ? OR p.category LIKE ?)";
             $params[] = "%$keyword%";
             $params[] = "%$keyword%";
             $params[] = "%$keyword%";
         }
 
-        $sql .= " ORDER BY name ASC LIMIT 50";
+        $sql .= " ORDER BY p.name ASC LIMIT 50";
 
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
@@ -96,10 +104,18 @@ if ($action === 'search_products') {
 if ($action === 'scan_barcode') {
     $code = trim($_GET['code'] ?? '');
     try {
-        $sql = "SELECT id, code, name, category, stock, warehouse_id FROM products WHERE code = ?";
+        $sql = "
+            SELECT 
+                p.id, p.code, p.name, p.category, 
+                " . ($wh_id > 0 ? "COALESCE(pws.stock, p.stock)" : "p.stock") . " AS stock, 
+                p.warehouse_id 
+            FROM products p
+            " . ($wh_id > 0 ? "LEFT JOIN product_warehouse_stocks pws ON p.id = pws.product_id AND pws.warehouse_id = $wh_id" : "") . "
+            WHERE p.code = ?
+        ";
         $params = [$code];
         if ($wh_id > 0) {
-            $sql .= " AND (warehouse_id = ? OR (warehouse_id IS NULL AND ? = 1))";
+            $sql .= " AND (p.warehouse_id = ? OR (p.warehouse_id IS NULL AND ? = 1))";
             $params[] = $wh_id;
             $params[] = $wh_id;
         }
@@ -143,7 +159,16 @@ if ($action === 'save_opname_batch') {
     try {
         $pdo->beginTransaction();
 
-        $stmt_update = $pdo->prepare("UPDATE products SET stock = ? WHERE id = ?");
+        if ($wh_id > 0) {
+            $stmt_update = $pdo->prepare("
+                INSERT INTO product_warehouse_stocks (product_id, warehouse_id, stock) 
+                VALUES (?, ?, ?) 
+                ON DUPLICATE KEY UPDATE stock = VALUES(stock)
+            ");
+        } else {
+            $stmt_update = $pdo->prepare("UPDATE products SET stock = ? WHERE id = ?");
+        }
+        
         $stmt_history = $pdo->prepare("INSERT INTO inventory_history_pos (product_id, type, qty, reference_no, source) VALUES (?, ?, ?, ?, ?)");
         $stmt_opname = $pdo->prepare("
             INSERT INTO opname_history_pos 
@@ -175,7 +200,11 @@ if ($action === 'save_opname_batch') {
 
             // 2. Jika ada selisih, update master stock dan catat inventory history
             if ($difference != 0) {
-                $stmt_update->execute([$actual_stock, $product_id]);
+                if ($wh_id > 0) {
+                    $stmt_update->execute([$product_id, $wh_id, $actual_stock]);
+                } else {
+                    $stmt_update->execute([$actual_stock, $product_id]);
+                }
 
                 $type = $difference > 0 ? 'Masuk' : 'Keluar';
                 $qty_mutasi = abs($difference);
@@ -223,8 +252,17 @@ if ($action === 'save_opname') {
     try {
         $pdo->beginTransaction();
 
-        $stmt_update = $pdo->prepare("UPDATE products SET stock = ? WHERE id = ?");
-        $stmt_update->execute([$actual_stock, $product_id]);
+        if ($wh_id > 0) {
+            $stmt_update = $pdo->prepare("
+                INSERT INTO product_warehouse_stocks (product_id, warehouse_id, stock) 
+                VALUES (?, ?, ?) 
+                ON DUPLICATE KEY UPDATE stock = VALUES(stock)
+            ");
+            $stmt_update->execute([$product_id, $wh_id, $actual_stock]);
+        } else {
+            $stmt_update = $pdo->prepare("UPDATE products SET stock = ? WHERE id = ?");
+            $stmt_update->execute([$actual_stock, $product_id]);
+        }
 
         $type = $difference > 0 ? 'Masuk' : 'Keluar';
         $qty_mutasi = abs($difference);
@@ -305,32 +343,40 @@ if ($action === 'get_all_products') {
         // WHERE clause only (no duplicate FROM)
         $where  = "WHERE 1=1";
         $params = [];
+        $join   = "";
 
         // Filter by warehouse (produk per-store)
         if ($wh_id > 0) {
-            $where   .= " AND (warehouse_id = ? OR warehouse_id IS NULL)";
+            $join    = "LEFT JOIN product_warehouse_stocks pws ON p.id = pws.product_id AND pws.warehouse_id = $wh_id";
+            $where  .= " AND (p.warehouse_id = ? OR p.warehouse_id IS NULL)";
             $params[] = $wh_id;
         }
 
         if ($keyword !== '') {
-            $where   .= " AND (name LIKE ? OR code LIKE ? OR category LIKE ?)";
+            $where   .= " AND (p.name LIKE ? OR p.code LIKE ? OR p.category LIKE ?)";
             $params[] = "%$keyword%";
             $params[] = "%$keyword%";
             $params[] = "%$keyword%";
         }
 
         if ($category !== '') {
-            $where   .= " AND category = ?";
+            $where   .= " AND p.category = ?";
             $params[] = $category;
         }
 
         // Total count
-        $stmt_count = $pdo->prepare("SELECT COUNT(*) FROM products $where");
+        $stmt_count = $pdo->prepare("SELECT COUNT(*) FROM products p $join $where");
         $stmt_count->execute($params);
         $total = (int)$stmt_count->fetchColumn();
 
         // Data rows
-        $stmt = $pdo->prepare("SELECT id, code, name, category, stock, price FROM products $where ORDER BY name ASC LIMIT $per_page OFFSET $offset");
+        $sql_rows = "
+            SELECT p.id, p.code, p.name, p.category, p.price, 
+                   " . ($wh_id > 0 ? "COALESCE(pws.stock, p.stock)" : "p.stock") . " AS stock 
+            FROM products p $join $where 
+            ORDER BY p.name ASC LIMIT $per_page OFFSET $offset
+        ";
+        $stmt = $pdo->prepare($sql_rows);
         $stmt->execute($params);
         $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
