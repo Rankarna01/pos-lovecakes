@@ -40,7 +40,7 @@ $page_title = "Laporan Pelanggan - Love Cakes POS";
         </header>
 
         <main class="flex-1 overflow-x-hidden overflow-y-auto custom-scrollbar p-4 md:p-6 bg-[#f8fafc] relative">
-            <div class="max-w-7xl mx-auto space-y-6">
+            <div class="w-full max-w-full space-y-6">
                 
                 <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row justify-between items-center sticky top-0 z-10 gap-3">
                     <div class="relative w-full sm:w-1/2 md:w-1/3">

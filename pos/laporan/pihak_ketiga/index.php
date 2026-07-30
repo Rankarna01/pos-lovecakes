@@ -23,7 +23,7 @@ $page_title = "Laporan Pihak Ketiga - Love Cakes POS";
         </header>
 
         <main class="flex-1 overflow-x-hidden overflow-y-auto custom-scrollbar p-4 md:p-6 bg-[#f8fafc]">
-            <div class="max-w-[1400px] mx-auto space-y-6">
+            <div class="w-full max-w-full space-y-6">
                 
                 <div class="bg-white p-5 rounded-[1.5rem] shadow-sm border border-slate-200">
                     <p class="text-sm font-bold text-slate-500 mb-4">Pantau penjualan dari GrabFood, GoFood, dan ShopeeFood beserta persentase potongan komisi aplikasi.</p>

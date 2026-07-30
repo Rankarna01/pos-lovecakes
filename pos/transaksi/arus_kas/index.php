@@ -23,7 +23,7 @@ $page_title = "Arus Kas (Petty Cash) - Love Cakes POS";
         </header>
 
         <main class="flex-1 overflow-x-hidden overflow-y-auto custom-scrollbar p-4 md:p-6 bg-slate-100/50">
-            <div class="max-w-7xl mx-auto space-y-4 relative" :class="isLoading ? 'opacity-50 pointer-events-none' : ''">
+            <div class="w-full max-w-full space-y-4 relative" :class="isLoading ? 'opacity-50 pointer-events-none' : ''">
                 
                 <div x-show="isLoading" class="absolute inset-0 z-50 bg-white/50 backdrop-blur-sm flex flex-col items-center justify-center rounded-3xl" style="display: none;">
                     <i class="fa-solid fa-circle-notch fa-spin text-4xl text-primary mb-3"></i>

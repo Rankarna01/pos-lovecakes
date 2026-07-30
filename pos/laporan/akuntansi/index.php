@@ -32,7 +32,7 @@ $page_title = "Akuntansi Internal - Love Cakes POS";
         </header>
 
         <main class="flex-1 overflow-x-hidden overflow-y-auto custom-scrollbar p-4 md:p-6 bg-[#f8fafc]">
-            <div class="max-w-[1400px] mx-auto space-y-6">
+            <div class="w-full max-w-full space-y-6">
                 
                 <!-- KOTAK FILTER -->
                 <div class="bg-white p-4 rounded-[1.5rem] shadow-sm border border-slate-200 flex flex-wrap items-center gap-3">

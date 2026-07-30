@@ -31,7 +31,7 @@ $page_title = "Pengaturan POS - Love Cakes";
         </header>
 
         <main class="flex-1 overflow-x-hidden overflow-y-auto custom-scrollbar p-4 md:p-6 bg-slate-100/50">
-            <div class="max-w-4xl mx-auto space-y-6 relative" :class="isLoading ? 'opacity-50 pointer-events-none' : ''">
+            <div class="w-full max-w-full space-y-6 relative" :class="isLoading ? 'opacity-50 pointer-events-none' : ''">
                 
                 <div x-show="isLoading" class="absolute inset-0 z-10 flex items-center justify-center bg-transparent">
                     <i class="fa-solid fa-circle-notch fa-spin text-4xl text-primary"></i>

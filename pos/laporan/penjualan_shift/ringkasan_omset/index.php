@@ -35,7 +35,7 @@ $page_title = "Ringkasan Omset - Love Cakes POS";
                 <span class="font-bold text-slate-500 uppercase tracking-widest text-sm">Menarik Data Laporan...</span>
             </div>
 
-            <div class="max-w-7xl mx-auto space-y-6">
+            <div class="w-full max-w-full space-y-6">
                 
                 <!-- FILTER & EXPORT -->
                 <div class="bg-white p-4 rounded-[1.5rem] shadow-sm border border-slate-200 flex flex-wrap items-center gap-3">

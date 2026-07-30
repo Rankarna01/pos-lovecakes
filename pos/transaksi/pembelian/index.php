@@ -23,7 +23,7 @@ $page_title = "Pembelian & Restock - Love Cakes POS";
         </header>
 
         <main class="flex-1 overflow-x-hidden overflow-y-auto custom-scrollbar p-4 md:p-6 bg-slate-100/50">
-            <div class="max-w-7xl mx-auto space-y-4">
+            <div class="w-full max-w-full space-y-4">
                 
                 <div class="flex justify-between items-end bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-200">
                     <div>

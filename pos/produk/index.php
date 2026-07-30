@@ -42,7 +42,7 @@ $page_title = "Katalog Produk - Love Cakes POS";
         </header>
 
         <main class="flex-1 overflow-x-hidden overflow-y-auto custom-scrollbar p-4 md:p-6 bg-[#f8fafc] relative">
-            <div class="max-w-[1400px] mx-auto space-y-6">
+            <div class="w-full max-w-full space-y-6">
                 
                 <div class="bg-white p-2 sm:p-3 rounded-2xl shadow-sm border border-slate-200 flex flex-col xl:flex-row gap-3 justify-between items-center sticky top-0 z-10">
                     <div class="relative w-full xl:w-1/3">

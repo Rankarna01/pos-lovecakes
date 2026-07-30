@@ -58,11 +58,48 @@ foreach ($payments as $p) {
     }
 }
 
+// Hitung Pembatalan (Void)
+$stmt_void = $pdo->prepare("
+    SELECT SUM(amount) as total_void_amount, SUM(IF(is_cash_deducted=1, amount, 0)) as total_void_cash 
+    FROM sale_cancellations_pos 
+    WHERE created_at BETWEEN ? AND IFNULL(?, NOW())
+");
+$stmt_void->execute([$shift['start_time'], $shift['end_time']]);
+$void_data = $stmt_void->fetch(PDO::FETCH_ASSOC);
+$total_void_amount = $void_data['total_void_amount'] ?? 0;
+$total_void_cash = $void_data['total_void_cash'] ?? 0;
+
+// Query pembatalan per metode pembayaran
+$stmt_void_methods = $pdo->prepare("
+    SELECT UPPER(s.payment_method) as payment_method, SUM(sc.amount) as void_amount
+    FROM sale_cancellations_pos sc
+    JOIN sales_pos s ON sc.sale_id = s.id
+    WHERE sc.created_at BETWEEN ? AND IFNULL(?, NOW())
+    GROUP BY UPPER(s.payment_method)
+");
+$stmt_void_methods->execute([$shift['start_time'], $shift['end_time']]);
+$void_methods = $stmt_void_methods->fetchAll(PDO::FETCH_ASSOC);
+
+foreach ($void_methods as $vm) {
+    $method = $vm['payment_method'];
+    if (isset($grouped_payments[$method])) {
+        $grouped_payments[$method]['pembatalan'] += $vm['void_amount'];
+    } else {
+        $grouped_payments[$method] = [
+            'penjualan' => 0,
+            'pembayaran_kredit' => 0,
+            'pengembalian' => 0,
+            'pembatalan' => $vm['void_amount']
+        ];
+    }
+}
+
 // Hitung Kas Aktual / Expected
 $awal_laci = $shift['start_cash'];
 $kas_keluar = $shift['total_kas_keluar'];
 $kas_masuk = $shift['total_cash_in'] ?? 0; 
-$expected_cash = $awal_laci + $total_penjualan_tunai + $total_pembayaran_kredit_tunai + $kas_masuk - $kas_keluar;
+$expected_cash = $awal_laci + $total_penjualan_tunai + $total_pembayaran_kredit_tunai + $kas_masuk - $kas_keluar - $total_void_cash;
+
 
 // Hitung Grand Total (Tunai + Non-Tunai)
 $total_diharapkan = 0;
@@ -79,7 +116,8 @@ foreach ($grouped_payments as $method => $data) {
     $total_uang_masuk_semua += $data['penjualan'] + $data['pembayaran_kredit'];
 }
 
-$grand_total_diharapkan = $awal_laci + $total_uang_masuk_semua + $kas_masuk - $kas_keluar;
+$grand_total_diharapkan = $awal_laci + $total_uang_masuk_semua + $kas_masuk - $kas_keluar - $total_void_amount;
+
 
 // Actual dari shift (untuk tunai saja? atau selisih?)
 // Di struk referensi, Total Aktual sama dengan Total Diharapkan jika tidak ada selisih di laci tunai.
@@ -98,15 +136,27 @@ function fRp($val) {
     <title>Struk Tutup Shift - <?= $shift['id'] ?></title>
     <style>
         @page { margin: 0; }
-        body {
-            font-family: 'Arial', 'Helvetica', sans-serif;
-            font-size: 12px;
-            margin: 0;
-            padding: 10px;
-            width: 80mm;
-            color: #000;
-            line-height: 1.4;
+        body { 
+            font-family: 'Arial', 'Helvetica', sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: #f1f5f9; 
+            color: #1e293b;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .receipt-container {
+            width: 80mm; 
+            max-width: 100%;
+            background: #fff; 
+            padding: 5mm; 
+            font-size: 12px; 
+            line-height: 1.4; 
             font-weight: bold;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+            border-radius: 8px;
+            color: #000;
         }
         .text-center { text-align: center; }
         .text-right { text-align: right; }
@@ -118,12 +168,58 @@ function fRp($val) {
         table { width: 100%; border-collapse: collapse; }
         td { padding: 1px 0; vertical-align: top; }
         .w-half { width: 50%; }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+        .btn {
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            color: white;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        .btn-usb { background: #10b981; }
+        .btn-bt { background: #3b82f6; }
+        .btn-close { background: #64748b; }
+
         @media print {
-            body { width: 100%; padding: 0; }
+            body { 
+                background: none; 
+                padding: 0; 
+                display: block; 
+            }
+            .receipt-container { 
+                width: 100%;
+                max-width: 100%;
+                padding: 0; 
+                box-shadow: none; 
+                border-radius: 0; 
+            }
+            .no-print, .action-buttons { display: none !important; }
         }
     </style>
 </head>
-<body onload="window.print(); setTimeout(function(){ window.close(); }, 1500);">
+<body>
+    
+    <div class="action-buttons no-print">
+        <button onclick="window.print()" class="btn btn-usb">🖨️ Print Thermal (USB)</button>
+        <button onclick="printBluetooth()" class="btn btn-bt" id="btn-bt">📶 Print Bluetooth</button>
+        <button onclick="window.close()" class="btn btn-close">Tutup</button>
+    </div>
+
+    <div class="receipt-container">
+
 
     <div class="text-center" style="margin-bottom: 10px;">
         <div class="font-bold uppercase"><?= $store_name ?></div>
@@ -141,7 +237,7 @@ function fRp($val) {
         <div class="flex"><span>Akhiri Shift</span><span><?= $shift['end_time'] ? date('d M Y H:i', strtotime($shift['end_time'])) : '-' ?></span></div>
         <div class="flex"><span>Jumlah Tamu</span><span><?= $total_tamu ?> pax(s)</span></div>
         <div class="flex"><span>Resi</span><span><?= $total_tamu ?></span></div>
-        <div class="flex"><span>Pengembalian</span><span>0</span></div>
+        <div class="flex"><span>Pembatalan Uang Cash</span><span><?= fRp($total_void_cash) ?></span></div>
     </div>
 
     <div class="dashed-line"></div>
@@ -158,7 +254,7 @@ function fRp($val) {
     <div class="flex"><span>Pembayaran Kredit</span><span><?= fRp($total_pembayaran_kredit_tunai) ?></span></div>
     <?php endif; ?>
     <div class="flex"><span>Pengembalian Tunai</span><span>0</span></div>
-    <div class="flex"><span>Pembatalan Tunai</span><span>0</span></div>
+    <div class="flex"><span>Pembatalan Tunai</span><span><?= fRp($total_void_cash) ?></span></div>
     <div class="flex"><span>Kas Masuk-Keluar</span><span><?= fRp($kas_masuk - $kas_keluar) ?></span></div>
     <div class="dashed-line"></div>
     <div class="flex" style="margin-top: 5px;"><span>Kas Aktual</span><span><?= $shift['end_time'] ? fRp($shift['end_cash']) : '-' ?></span></div>
@@ -170,7 +266,7 @@ function fRp($val) {
     <!-- NON TUNAI -->
     <?php foreach ($grouped_payments as $method => $data): ?>
         <?php if ($method !== 'CASH'): ?>
-        <?php $method_total = $data['penjualan'] + $data['pembayaran_kredit']; ?>
+        <?php $method_total = $data['penjualan'] + $data['pembayaran_kredit'] - $data['pembatalan']; ?>
         <div class="flex font-bold" style="margin-top: 5px;">
             <span><?= $method ?></span>
             <span><?= fRp($method_total) ?></span>
@@ -180,7 +276,7 @@ function fRp($val) {
         <div class="flex"><span>Pembayaran Kredit</span><span><?= fRp($data['pembayaran_kredit']) ?></span></div>
         <?php endif; ?>
         <div class="flex"><span>Pengembalian</span><span>0</span></div>
-        <div class="flex"><span>Pembatalan</span><span>0</span></div>
+        <div class="flex"><span>Pembatalan</span><span><?= fRp($data['pembatalan']) ?></span></div>
         <?php endif; ?>
     <?php endforeach; ?>
 
@@ -189,10 +285,7 @@ function fRp($val) {
     <div class="flex"><span>Total Aktual</span><span><?= $shift['end_time'] ? fRp($grand_total_aktual) : '-' ?></span></div>
     <div class="flex font-bold" style="margin-bottom: 20px;"><span>Total Selisih</span><span><?= fRp($selisih) ?></span></div>
 
-    <div class="text-center no-print" style="margin-top: 20px; display:flex; gap:10px; justify-content:center;">
-        <button onclick="window.print()" class="btn btn-usb" style="padding:10px 15px; background:#10b981; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">🖨️ Print Thermal (USB)</button>
-        <button onclick="printBluetooth()" class="btn btn-bt" id="btn-bt" style="padding:10px 15px; background:#3b82f6; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">📶 Print Bluetooth</button>
-    </div>
+    </div> <!-- End receipt-container -->
 
     <script>
         const shiftData = {
@@ -208,6 +301,7 @@ function fRp($val) {
             penjualan_tunai: "<?= fRp($total_penjualan_tunai) ?>",
             kredit_tunai: "<?= fRp($total_pembayaran_kredit_tunai) ?>",
             kas_masuk_keluar: "<?= fRp($kas_masuk - $kas_keluar) ?>",
+            pembatalan_tunai: "<?= fRp($total_void_cash) ?>",
             kas_aktual: "<?= $shift['end_time'] ? fRp($shift['end_cash']) : '-' ?>",
             kas_selisih: "<?= fRp($selisih) ?>",
             
@@ -216,11 +310,12 @@ function fRp($val) {
             total_selisih: "<?= fRp($selisih) ?>"
         };
 
-        document.addEventListener("DOMContentLoaded", function() {
-            setTimeout(() => { 
-                window.print(); 
-            }, 500);
-        });
+        // Dihapus auto-print timer untuk memungkinkan preview
+        // document.addEventListener("DOMContentLoaded", function() {
+        //     setTimeout(() => { 
+        //         window.print(); 
+        //     }, 500);
+        // });
 
         async function printBluetooth(isAutoPrint = false) {
             const btn = document.getElementById('btn-bt');
@@ -262,6 +357,7 @@ function fRp($val) {
                 printText += "Awal Laci      : Rp " + shiftData.awal_laci + "\n";
                 printText += "Penjualan      : Rp " + shiftData.penjualan_tunai + "\n";
                 printText += "P. Kredit      : Rp " + shiftData.kredit_tunai + "\n";
+                printText += "Pembatalan     : Rp " + shiftData.pembatalan_tunai + "\n";
                 printText += "Kas In-Out     : Rp " + shiftData.kas_masuk_keluar + "\n";
                 printText += "Kas Aktual     : Rp " + shiftData.kas_aktual + "\n";
                 printText += "Selisih        : Rp " + shiftData.kas_selisih + "\n";

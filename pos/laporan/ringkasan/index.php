@@ -31,7 +31,7 @@ $page_title = "Ringkasan & Jam Ramai - Love Cakes POS";
                 <i class="fa-solid fa-circle-notch fa-spin text-4xl text-primary"></i>
             </div>
 
-            <div class="max-w-7xl mx-auto space-y-6">
+            <div class="w-full max-w-full space-y-6">
                 
                 <div class="bg-white p-4 rounded-[1.5rem] shadow-sm border border-slate-200 flex flex-wrap items-center gap-3">
                     <div class="flex items-center gap-2 flex-1 md:flex-none">

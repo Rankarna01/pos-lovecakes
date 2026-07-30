@@ -167,6 +167,19 @@ if ($action === 'get_sales') {
         $stmt_cust->execute(array_merge([$start_date, $end_date], $wh_params, $pay_params, $status_params));
         $sales_by_customer = $stmt_cust->fetchAll(PDO::FETCH_ASSOC);
 
+        // 8. Riwayat Pembatalan Transaksi
+        $sql8 = "
+            SELECT sc.*, s.invoice_no, s.payment_method, sp.note as admin_name
+            FROM sale_cancellations_pos sc
+            JOIN sales_pos s ON sc.sale_id = s.id
+            LEFT JOIN supervisor_pins_pos sp ON sc.authorized_by_pin = sp.pin
+            WHERE DATE(sc.created_at) BETWEEN ? AND ? $wh_filter
+            ORDER BY sc.created_at DESC
+        ";
+        $stmt_cancel = $pdo->prepare($sql8);
+        $stmt_cancel->execute(array_merge([$start_date, $end_date], $wh_params));
+        $cancellations = $stmt_cancel->fetchAll(PDO::FETCH_ASSOC);
+
         echo json_encode([
             'status' => 'success', 
             'data' => $sales, 
@@ -176,7 +189,8 @@ if ($action === 'get_sales') {
             'dp_pelunasan' => $dp_pelunasan,
             'sales_by_category' => $sales_by_category,
             'sales_by_item' => $sales_by_item,
-            'sales_by_customer' => $sales_by_customer
+            'sales_by_customer' => $sales_by_customer,
+            'cancellations' => $cancellations
         ]);
     } catch (Exception $e) {
         echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);

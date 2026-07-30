@@ -23,7 +23,7 @@ $page_title = "Rekap QRIS & E-Wallet - Love Cakes POS";
         </header>
 
         <main class="flex-1 overflow-x-hidden overflow-y-auto custom-scrollbar p-4 md:p-6 bg-slate-100/50">
-            <div class="max-w-7xl mx-auto space-y-4">
+            <div class="w-full max-w-full space-y-4">
                 
                 <div class="bg-white p-5 rounded-[1.5rem] shadow-sm border border-slate-200 mb-4">
                     <h3 class="text-lg font-black text-slate-800 mb-2">Settlement / Pencairan Dana</h3>

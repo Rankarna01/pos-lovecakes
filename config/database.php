@@ -1,8 +1,10 @@
 <?php
-$host = 'localhost';
-$user = 'root';
-$pass = ''; // Sesuaikan
-$dbname = 'sim-kue'; // Sesuaikan
+require_once __DIR__ . '/env.php';
+
+$host   = env('DB_HOST', 'localhost');
+$user   = env('DB_USER', 'root');
+$pass   = env('DB_PASS', '');
+$dbname = env('DB_NAME', 'sim-kue');
 
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname", $user, $pass);

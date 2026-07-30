@@ -35,12 +35,14 @@ document.addEventListener('alpine:init', () => {
         salesByCategory: [],
         salesByItem: [],
         salesByCustomer: [],
+        cancellations: [],
 
         // Pagination variables
         catPage: 1,
         itemPage: 1,
         custPage: 1,
         salePage: 1,
+        cancelPage: 1,
         perPage: 10,
 
         async init() {
@@ -113,11 +115,13 @@ document.addEventListener('alpine:init', () => {
                     this.salesByCategory = result.sales_by_category || [];
                     this.salesByItem = result.sales_by_item || [];
                     this.salesByCustomer = result.sales_by_customer || [];
+                    this.cancellations = result.cancellations || [];
 
                     this.catPage = 1;
                     this.itemPage = 1;
                     this.custPage = 1;
                     this.salePage = 1;
+                    this.cancelPage = 1;
                 }
             } catch (error) {
                 console.error('Error fetching sales report:', error);
@@ -202,12 +206,17 @@ document.addEventListener('alpine:init', () => {
             return Math.ceil(this.salesByCustomer.length / this.perPage) || 1;
         },
 
-        get paginatedSales() {
-            const start = (this.salePage - 1) * this.perPage;
-            return this.filteredSales.slice(start, start + this.perPage);
+        get totalCancelPages() { return Math.ceil(this.cancellations.length / this.perPage) || 1; },
+        get paginatedCancellations() {
+            const start = (this.cancelPage - 1) * this.perPage;
+            return this.cancellations.slice(start, start + this.perPage);
         },
         get totalSalePages() {
             return Math.ceil(this.filteredSales.length / this.perPage) || 1;
+        },
+        get paginatedSales() {
+            const start = (this.salePage - 1) * this.perPage;
+            return this.filteredSales.slice(start, start + this.perPage);
         },
 
         openCustomerDetail(cust) {

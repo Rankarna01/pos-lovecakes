@@ -20,6 +20,14 @@ document.addEventListener('alpine:init', () => {
         showModal: false,
         isDetailLoading: false,
 
+        // State Modal Void
+        showVoidModal: false,
+        voidItems: [],
+        voidReason: '',
+        voidPin: '',
+        voidTotalAmount: 0,
+        isSubmittingVoid: false,
+
         async init() {
             await this.fetchSales();
         },
@@ -129,6 +137,103 @@ document.addEventListener('alpine:init', () => {
 
         formatRupiah(angka) {
             return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(parseFloat(angka) || 0);
+        },
+
+        // VOID LOGIC
+        openVoidModal() {
+            if (!this.activeSale) return;
+            this.voidReason = '';
+            this.voidPin = '';
+            this.voidTotalAmount = 0;
+            
+            // Map items for void checklist
+            this.voidItems = this.activeDetails.map(item => ({
+                id: item.id,
+                product_id: item.product_id,
+                product_name: item.product_name,
+                price: parseFloat(item.price),
+                max_qty: parseInt(item.qty) - parseInt(item.cancelled_qty || 0),
+                void_qty: parseInt(item.qty) - parseInt(item.cancelled_qty || 0),
+                selected: false
+            })).filter(item => item.max_qty > 0);
+
+            this.showVoidModal = true;
+        },
+
+        closeVoidModal() {
+            this.showVoidModal = false;
+        },
+
+        toggleSelectAllVoid() {
+            const allSelected = this.voidItems.every(i => i.selected);
+            this.voidItems.forEach(i => i.selected = !allSelected);
+            this.calculateVoidAmount();
+        },
+
+        calculateVoidAmount() {
+            let total = 0;
+            this.voidItems.forEach(item => {
+                if (item.selected) {
+                    let vq = parseInt(item.void_qty);
+                    if (isNaN(vq) || vq < 1) vq = 1;
+                    if (vq > item.max_qty) vq = item.max_qty;
+                    item.void_qty = vq;
+                    total += (vq * item.price);
+                }
+            });
+            this.voidTotalAmount = total;
+        },
+
+        async submitVoid() {
+            const selectedItems = this.voidItems.filter(i => i.selected);
+            if (selectedItems.length === 0) {
+                if (typeof Swal !== 'undefined') Swal.fire('Peringatan', 'Pilih minimal 1 item untuk dibatalkan', 'warning');
+                return;
+            }
+            if (!this.voidReason || !this.voidPin) {
+                if (typeof Swal !== 'undefined') Swal.fire('Peringatan', 'Alasan dan PIN Admin wajib diisi!', 'warning');
+                return;
+            }
+
+            const isFullVoid = this.voidItems.every(i => i.selected && i.void_qty === i.max_qty);
+
+            this.isSubmittingVoid = true;
+            try {
+                const formData = new FormData();
+                formData.append('action', 'cancel_sale');
+                formData.append('sale_id', this.activeSale.id);
+                formData.append('cancellation_type', isFullVoid ? 'full' : 'partial');
+                formData.append('reason', this.voidReason);
+                formData.append('pin', this.voidPin);
+                formData.append('total_amount', this.voidTotalAmount);
+                formData.append('items', JSON.stringify(selectedItems.map(i => ({
+                    sale_detail_id: i.id,
+                    product_id: i.product_id,
+                    qty: i.void_qty,
+                    price: i.price,
+                    amount: i.void_qty * i.price
+                }))));
+
+                const response = await fetch('logic.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    if (typeof Swal !== 'undefined') Swal.fire('Berhasil!', result.message, 'success');
+                    this.closeVoidModal();
+                    this.showModal = false;
+                    this.fetchSales();
+                } else {
+                    if (typeof Swal !== 'undefined') Swal.fire('Gagal', result.message, 'error');
+                }
+            } catch (error) {
+                console.error("Gagal membatalkan transaksi", error);
+                if (typeof Swal !== 'undefined') Swal.fire('Error', 'Terjadi kesalahan sistem saat membatalkan.', 'error');
+            } finally {
+                this.isSubmittingVoid = false;
+            }
         }
     }));
 });

@@ -35,7 +35,7 @@ $page_title = "Master Pembayaran - Love Cakes POS";
                 <i class="fa-solid fa-circle-notch fa-spin text-4xl text-blue-600"></i>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-6xl mx-auto">
+            <div class="w-full max-w-full grid grid-cols-1 lg:grid-cols-2 gap-6">
                 
                 <!-- KIRI: FORM -->
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden h-fit">

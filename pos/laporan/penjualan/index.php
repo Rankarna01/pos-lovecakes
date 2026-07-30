@@ -31,7 +31,7 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
         </header>
 
         <main class="flex-1 overflow-x-hidden overflow-y-auto custom-scrollbar p-4 md:p-6 bg-[#f8fafc]">
-            <div class="max-w-[1400px] mx-auto space-y-6">
+            <div class="w-full max-w-full space-y-6">
                 
                 <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-3 items-center sticky top-0 z-10 flex-wrap">
                     <div class="flex items-center gap-2 w-full md:w-auto">
@@ -96,6 +96,9 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                         </button>
                         <button @click="activeTab = 'rincian'" :class="activeTab === 'rincian' ? 'bg-primary text-white shadow-md shadow-primary/20' : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'" class="px-5 py-3 rounded-xl font-black text-xs flex items-center gap-2 transition-all whitespace-nowrap">
                             <i class="fa-solid fa-receipt"></i> Rincian Detail Transaksi
+                        </button>
+                        <button @click="activeTab = 'batal'" :class="activeTab === 'batal' ? 'bg-primary text-white shadow-md shadow-primary/20' : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'" class="px-5 py-3 rounded-xl font-black text-xs flex items-center gap-2 transition-all whitespace-nowrap">
+                            <i class="fa-solid fa-ban"></i> Riwayat Pembatalan
                         </button>
                     </div>
 
@@ -419,7 +422,11 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                                                     <span class="text-[10px] font-bold text-slate-300">—</span>
                                                 </template>
                                             </td>
-                                            <td class="p-4 text-right font-black text-primary" x-text="'Rp ' + formatRupiah(sale.total_amount)"></td>
+                                            <td class="p-4 text-right">
+                                                <div class="font-black text-primary" :class="sale.cancellation_status !== 'none' ? 'line-through text-slate-400' : ''" x-text="'Rp ' + formatRupiah(sale.total_amount)"></div>
+                                                <div x-show="sale.cancellation_status === 'full'" class="text-[9px] font-black text-rose-600 uppercase mt-1 bg-rose-100 inline-block px-2 py-0.5 rounded border border-rose-300">BATAL PENUH</div>
+                                                <div x-show="sale.cancellation_status === 'partial'" class="text-[9px] font-black text-amber-600 uppercase mt-1 bg-amber-100 inline-block px-2 py-0.5 rounded border border-amber-300">BATAL SEBAGIAN</div>
+                                            </td>
                                             <td class="p-4 text-center"><span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-black uppercase border border-slate-200" x-text="sale.payment_method"></span></td>
                                             <td class="p-4 text-center">
                                                 <div class="flex items-center justify-center gap-2">
@@ -439,6 +446,62 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                                 <button @click="if(salePage > 1) salePage--" :disabled="salePage === 1" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-40 transition-all font-black"><i class="fa-solid fa-chevron-left mr-1"></i> Prev</button>
                                 <button @click="if(salePage < totalSalePages) salePage++" :disabled="salePage === totalSalePages" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-40 transition-all font-black">Next <i class="fa-solid fa-chevron-right ml-1"></i></button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 5: RIWAYAT PEMBATALAN -->
+                <div x-show="activeTab === 'batal'" class="bg-white p-6 rounded-[1.5rem] shadow-sm border border-slate-200">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b border-slate-100 pb-4">
+                        <div>
+                            <h3 class="font-black text-slate-800 text-base">Riwayat Pembatalan Transaksi</h3>
+                            <p class="text-xs text-slate-400 font-medium mt-0.5">Daftar transaksi yang dibatalkan pada periode ini</p>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="w-full text-left border-collapse whitespace-nowrap min-w-[900px]">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase tracking-widest">
+                                    <th class="p-4 font-black">Waktu Batal</th>
+                                    <th class="p-4 font-black">Invoice</th>
+                                    <th class="p-4 font-black text-center">Tipe Batal</th>
+                                    <th class="p-4 font-black text-right text-rose-500">Nominal Batal</th>
+                                    <th class="p-4 font-black">Metode Bayar</th>
+                                    <th class="p-4 font-black">Kasir / Admin</th>
+                                    <th class="p-4 font-black">Alasan</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-sm divide-y divide-slate-100">
+                                <tr x-show="cancellations.length === 0">
+                                    <td colspan="7" class="p-8 text-center text-slate-400 font-bold">Tidak ada riwayat pembatalan pada periode ini.</td>
+                                </tr>
+                                <template x-for="cancel in paginatedCancellations" :key="cancel.id">
+                                    <tr class="hover:bg-slate-50 transition-colors">
+                                        <td class="p-4 font-bold text-slate-600">
+                                            <div class="text-[10px] font-bold text-slate-400 mt-1" x-text="formatDate(cancel.created_at)"></div>
+                                        </td>
+                                        <td class="p-4 font-black text-slate-800" x-text="cancel.invoice_no"></td>
+                                        <td class="p-4 text-center">
+                                            <span x-show="cancel.cancellation_type === 'full'" class="text-[10px] font-black text-rose-600 uppercase bg-rose-100 px-2 py-0.5 rounded border border-rose-300">BATAL PENUH</span>
+                                            <span x-show="cancel.cancellation_type === 'partial'" class="text-[10px] font-black text-amber-600 uppercase bg-amber-100 px-2 py-0.5 rounded border border-amber-300">BATAL SEBAGIAN</span>
+                                        </td>
+                                        <td class="p-4 text-right font-black text-rose-600" x-text="'-Rp ' + formatRupiah(cancel.amount)"></td>
+                                        <td class="p-4">
+                                            <span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-black uppercase border border-slate-200" x-text="cancel.payment_method"></span>
+                                        </td>
+                                        <td class="p-4 font-bold text-slate-700" x-text="cancel.admin_name || 'Admin'"></td>
+                                        <td class="p-4 text-slate-500 italic text-xs max-w-[200px] truncate" x-text="cancel.reason || '-'"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div x-show="totalCancelPages > 1" class="flex items-center justify-between mt-6 pt-4 border-t border-slate-100 text-xs font-bold text-slate-500">
+                        <span>Menampilkan halaman <span x-text="cancelPage"></span> dari <span x-text="totalCancelPages"></span> (<span x-text="cancellations.length"></span> transaksi batal)</span>
+                        <div class="flex gap-1.5">
+                            <button @click="if(cancelPage > 1) cancelPage--" :disabled="cancelPage === 1" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-40 transition-all font-black"><i class="fa-solid fa-chevron-left mr-1"></i> Prev</button>
+                            <button @click="if(cancelPage < totalCancelPages) cancelPage++" :disabled="cancelPage === totalCancelPages" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-40 transition-all font-black">Next <i class="fa-solid fa-chevron-right ml-1"></i></button>
                         </div>
                     </div>
                 </div>

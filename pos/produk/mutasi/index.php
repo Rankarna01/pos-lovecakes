@@ -39,7 +39,7 @@ $page_title = "Mutasi Stok Produk - Love Cakes POS";
         </header>
 
         <main class="flex-1 overflow-x-hidden overflow-y-auto custom-scrollbar p-4 md:p-6 bg-[#f8fafc]">
-            <div class="max-w-[1400px] mx-auto space-y-6">
+            <div class="w-full max-w-full space-y-6">
                 
                 <!-- CARD FORM MUTASI -->
                 <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">

@@ -34,7 +34,7 @@ $page_title = "Pengaturan Toko - Love Cakes POS";
                 <p class="text-sm font-bold tracking-widest text-slate-500 uppercase">Memuat Konfigurasi...</p>
             </div>
 
-            <div class="max-w-5xl mx-auto space-y-6" x-show="!isLoading">
+            <div class="w-full max-w-full space-y-6" x-show="!isLoading">
                 
                 <div class="bg-white rounded-[1.5rem] shadow-sm border border-slate-200 overflow-hidden">
                     <div class="p-5 border-b border-slate-100 bg-slate-50">

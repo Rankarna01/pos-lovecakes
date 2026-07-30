@@ -26,7 +26,7 @@ $page_title = "Pengaturan Printer - Love Cakes POS";
         </header>
 
         <main class="flex-1 overflow-x-hidden overflow-y-auto custom-scrollbar p-4 md:p-6 bg-[#f8fafc]">
-            <div class="max-w-5xl mx-auto">
+            <div class="w-full max-w-full">
                 
                 <div class="mb-6">
                     <p class="text-sm font-bold text-slate-500 uppercase tracking-widest">Integrasi Hardware POS</p>

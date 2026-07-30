@@ -31,7 +31,7 @@ $page_title = "Laporan Shift - Love Cakes POS";
         </header>
 
         <main class="flex-1 overflow-x-hidden overflow-y-auto custom-scrollbar p-4 md:p-6 bg-slate-100/50">
-            <div class="max-w-7xl mx-auto space-y-4">
+            <div class="w-full max-w-full space-y-4">
                 <div class="bg-white p-4 rounded-[1.5rem] shadow-sm border border-slate-200 flex flex-col md:flex-row gap-3">
                     <div class="flex items-center gap-2">
                         <input type="date" x-model="filters.startDate" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-primary/20">

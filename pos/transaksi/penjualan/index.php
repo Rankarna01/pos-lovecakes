@@ -33,7 +33,7 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
         </header>
 
         <main class="flex-1 overflow-x-hidden overflow-y-auto custom-scrollbar p-4 md:p-6 bg-slate-100/50">
-            <div class="max-w-7xl mx-auto space-y-4">
+            <div class="w-full max-w-full space-y-4">
                 
                 <div class="bg-white p-4 rounded-[1.5rem] shadow-sm border border-slate-200 flex flex-wrap gap-3">
                     <div class="relative flex-1 min-w-[200px]">
@@ -126,7 +126,11 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                                         <td class="p-4">
                                             <span class="px-2 py-1 rounded bg-slate-100 text-slate-600 text-[10px] font-black uppercase border border-slate-200" x-text="sale.channel"></span>
                                         </td>
-                                        <td class="p-4 text-right font-black text-primary" x-text="'Rp ' + formatRupiah(sale.total_amount)"></td>
+                                        <td class="p-4 text-right">
+                                            <div class="font-black text-primary" :class="sale.cancellation_status !== 'none' ? 'line-through text-slate-400' : ''" x-text="'Rp ' + formatRupiah(sale.total_amount)"></div>
+                                            <div x-show="sale.cancellation_status === 'full'" class="text-[9px] font-black text-rose-600 uppercase mt-1 bg-rose-100 inline-block px-2 py-0.5 rounded border border-rose-300">BATAL PENUH</div>
+                                            <div x-show="sale.cancellation_status === 'partial'" class="text-[9px] font-black text-amber-600 uppercase mt-1 bg-amber-100 inline-block px-2 py-0.5 rounded border border-amber-300">BATAL SEBAGIAN</div>
+                                        </td>
                                         <td class="p-4 text-center">
                                             <span class="px-2 py-1 rounded-lg text-[10px] font-black uppercase border" 
                                                   :class="sale.payment_method === 'cash' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-blue-50 text-blue-600 border-blue-200'" 
@@ -298,9 +302,76 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                     </template>
                 </div>
 
-                <div class="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
-                    <button @click="printReceipt(activeSale?.invoice_no)" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-black px-6 py-3 rounded-xl transition-all shadow-md flex justify-center items-center gap-2">
+                <div class="p-5 border-t border-slate-100 bg-slate-50 flex justify-between gap-3 flex-wrap sm:flex-nowrap">
+                    <button @click="openVoidModal()" class="w-full sm:w-auto bg-rose-50 hover:bg-rose-100 text-rose-600 font-black px-6 py-3 rounded-xl transition-all border border-rose-200 flex justify-center items-center gap-2" x-show="activeSale && activeSale.cancellation_status !== 'full'">
+                        <i class="fa-solid fa-ban"></i> Batalkan Transaksi
+                    </button>
+                    <button @click="printReceipt(activeSale?.invoice_no)" class="w-full sm:flex-1 bg-slate-800 hover:bg-slate-900 text-white font-black px-6 py-3 rounded-xl transition-all shadow-md flex justify-center items-center gap-2">
                         <i class="fa-solid fa-print"></i> Cetak Ulang Struk
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL PEMBATALAN TRANSAKSI (VOID) -->
+        <div x-show="showVoidModal" class="fixed inset-0 z-[60] flex items-center justify-center" style="display: none;" x-cloak>
+            <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="closeVoidModal()"></div>
+            <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl relative z-10 flex flex-col max-h-[90vh] m-4 transform transition-all overflow-hidden border border-slate-100">
+                <div class="p-5 border-b border-rose-100 flex justify-between items-center bg-rose-50">
+                    <h3 class="font-black text-lg text-rose-800"><i class="fa-solid fa-ban mr-2"></i>Batalkan Transaksi</h3>
+                    <button @click="closeVoidModal()" class="w-8 h-8 flex items-center justify-center rounded-full bg-rose-200 hover:bg-rose-600 hover:text-white text-rose-700 transition-colors"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                
+                <div class="p-6 overflow-y-auto custom-scrollbar flex-1 bg-white space-y-4">
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                        <div class="text-xs font-black text-slate-500 uppercase mb-3 flex justify-between items-center">
+                            <span>Pilih Item yang Dibatalkan</span>
+                            <button @click="toggleSelectAllVoid()" class="text-primary hover:underline lowercase font-bold">Pilih Semua</button>
+                        </div>
+                        <div class="space-y-2">
+                            <template x-for="(item, index) in voidItems" :key="index">
+                                <label class="flex items-start gap-3 p-3 bg-white border rounded-lg cursor-pointer transition-colors" :class="item.selected ? 'border-primary bg-blue-50/50' : 'border-slate-200'">
+                                    <div class="mt-1">
+                                        <input type="checkbox" x-model="item.selected" @change="calculateVoidAmount()" class="w-4 h-4 text-primary bg-slate-100 border-slate-300 rounded focus:ring-primary focus:ring-2">
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="font-bold text-sm text-slate-800" x-text="item.product_name"></div>
+                                        <div class="flex justify-between items-center mt-2">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-xs text-slate-500 font-bold">Qty Batal:</span>
+                                                <input type="number" x-model="item.void_qty" @input="calculateVoidAmount()" min="1" :max="item.max_qty" :disabled="!item.selected" class="w-16 px-2 py-1 text-xs border border-slate-300 rounded outline-none focus:border-primary">
+                                                <span class="text-xs text-slate-500" x-text="'/ ' + item.max_qty"></span>
+                                            </div>
+                                            <div class="text-xs font-black text-slate-700" x-text="'Rp ' + formatRupiah(item.price * item.void_qty)"></div>
+                                        </div>
+                                    </div>
+                                </label>
+                            </template>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center p-4 bg-rose-50 rounded-xl border border-rose-100">
+                        <div class="text-sm font-bold text-rose-800">Total Nominal Pembatalan:</div>
+                        <div class="text-lg font-black text-rose-600" x-text="'Rp ' + formatRupiah(voidTotalAmount)"></div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1">Alasan Pembatalan <span class="text-rose-500">*</span></label>
+                            <input type="text" x-model="voidReason" placeholder="Misal: Salah input pesanan" class="w-full px-4 py-2 border border-slate-300 rounded-xl outline-none focus:border-primary text-sm font-medium">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1">PIN Admin / Supervisor <span class="text-rose-500">*</span></label>
+                            <input type="password" x-model="voidPin" placeholder="Masukkan 6 digit PIN" maxlength="6" class="w-full px-4 py-2 border border-slate-300 rounded-xl outline-none focus:border-primary text-sm font-black tracking-[0.3em] text-center">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-5 border-t border-slate-100 bg-slate-50 flex gap-3">
+                    <button @click="submitVoid()" :disabled="isSubmittingVoid || voidTotalAmount <= 0 || !voidReason || !voidPin" class="w-full bg-rose-600 hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black px-6 py-3 rounded-xl transition-all shadow-md flex justify-center items-center gap-2">
+                        <i class="fa-solid fa-check" x-show="!isSubmittingVoid"></i>
+                        <i class="fa-solid fa-circle-notch fa-spin" x-show="isSubmittingVoid"></i>
+                        Konfirmasi Pembatalan
                     </button>
                 </div>
             </div>

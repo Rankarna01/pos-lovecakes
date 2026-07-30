@@ -29,7 +29,7 @@ $page_title = "Master Shift - Love Cakes POS";
         </header>
 
         <main class="flex-1 overflow-x-hidden overflow-y-auto custom-scrollbar p-4 md:p-6 bg-[#f8fafc]">
-            <div class="max-w-4xl mx-auto">
+            <div class="w-full max-w-full">
                 
                 <div x-show="isLoading" class="text-center py-20 flex flex-col items-center justify-center">
                     <div class="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-4"></div>
