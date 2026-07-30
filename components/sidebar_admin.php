@@ -245,9 +245,14 @@ function isDropdownActive($paths, $current_uri) {
             <span class="text-sm whitespace-nowrap transition-all duration-300">Identitas Toko</span>
         </a>
 
-        <a href="<?= BASE_URL ?>pos/pengaturan/pembayaran/" title="Metode Pembayaran" class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all mb-6 <?= getNavClass('/pos/pengaturan/pembayaran/', $current_uri) ?>">
+        <a href="<?= BASE_URL ?>pos/pengaturan/pembayaran/" title="Metode Pembayaran" class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all mb-1 <?= getNavClass('/pos/pengaturan/pembayaran/', $current_uri) ?>">
             <i class="fa-solid fa-credit-card w-5 text-center text-lg shrink-0"></i> 
             <span class="text-sm whitespace-nowrap transition-all duration-300">Metode Pembayaran</span>
+        </a>
+
+        <a href="<?= BASE_URL ?>pos/pengaturan/barcode/" title="Pengaturan Barcode" class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all mb-6 <?= getNavClass('/pos/pengaturan/barcode/', $current_uri) ?>">
+            <i class="fa-solid fa-barcode w-5 text-center text-lg shrink-0"></i> 
+            <span class="text-sm whitespace-nowrap transition-all duration-300">Cetak Barcode</span>
         </a>
 
         <!-- ===== TOMBOL LOGOUT ADMIN ===== -->

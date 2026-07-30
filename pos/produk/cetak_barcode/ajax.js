@@ -6,21 +6,53 @@ document.addEventListener('alpine:init', () => {
         searchQuery: '',
         printQueue: [],
         isLoading: false,
+        barcodeSettings: {
+            barcode_format:         'CODE128',
+            barcode_height:         30,
+            barcode_width:          1,
+            barcode_paper_size:     '40x30',
+            barcode_paper_custom_w: 40,
+            barcode_paper_custom_h: 30,
+            barcode_per_row:        3,
+            barcode_show_name:      '1',
+            barcode_name_position:  'bottom',
+            barcode_show_sku:       '1',
+            barcode_show_price:     '1',
+            barcode_show_expired:   '0',
+            barcode_show_category:  '0',
+        },
 
         async init() {
-            // Watcher Pencarian
             this.$watch('searchQuery', (val) => {
                 if (val.trim() === '') {
                     this.filteredProducts = this.products;
                 } else {
                     const q = val.toLowerCase();
                     this.filteredProducts = this.products.filter(p => 
-                        p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q)
+                        p.name.toLowerCase().includes(q) || (p.code && p.code.toLowerCase().includes(q))
                     );
                 }
             });
 
-            await this.fetchProducts();
+            await Promise.all([
+                this.fetchProducts(),
+                this.loadBarcodeSettings()
+            ]);
+        },
+
+        async loadBarcodeSettings() {
+            try {
+                const res = await fetch('../../pengaturan/barcode/logic.php?action=get_public');
+                const result = await res.json();
+                if (result.status === 'success') {
+                    this.barcodeSettings = { ...this.barcodeSettings, ...result.data };
+                    this.barcodeSettings.barcode_height   = parseInt(this.barcodeSettings.barcode_height) || 30;
+                    this.barcodeSettings.barcode_width    = parseFloat(this.barcodeSettings.barcode_width) || 1;
+                    this.barcodeSettings.barcode_per_row  = parseInt(this.barcodeSettings.barcode_per_row) || 3;
+                }
+            } catch(e) {
+                console.warn('Menggunakan setting barcode default:', e);
+            }
         },
 
         async fetchProducts() {
@@ -47,16 +79,12 @@ document.addEventListener('alpine:init', () => {
         },
 
         addToQueue(product) {
-            // Cek apakah sudah ada di keranjang
             const existing = this.printQueue.find(item => item.id === product.id);
             if (existing) {
-                existing.printQty++; // Tambah jumlah stikernya
+                existing.printQty++;
             } else {
-                // Masukkan produk baru, default 1 stiker
                 this.printQueue.push({ ...product, printQty: 1 });
             }
-            
-            // Efek suara beep kecil (opsional)
             this.playBeep();
         },
 
@@ -68,95 +96,124 @@ document.addEventListener('alpine:init', () => {
             return this.printQueue.reduce((total, item) => total + (parseInt(item.printQty) || 0), 0);
         },
 
-        // --- ALGORITMA UTAMA GENERATE BARCODE MASSAL ---
+        getPaperDimensions() {
+            const s = this.barcodeSettings;
+            const sizeMap = {
+                '40x30': { w: '40mm', h: '30mm' },
+                '50x30': { w: '50mm', h: '30mm' },
+                '58x40': { w: '58mm', h: '40mm' },
+                '80x50': { w: '80mm', h: '50mm' },
+                'a4':    { w: '210mm', h: '297mm' },
+                'custom':{ w: `${s.barcode_paper_custom_w}mm`, h: `${s.barcode_paper_custom_h}mm` },
+            };
+            return sizeMap[s.barcode_paper_size] || sizeMap['40x30'];
+        },
+
+        // =====================================================
+        // GENERATE CETAK DINAMIS DARI SETTINGS
+        // =====================================================
         generateBulkPrint() {
             if (this.printQueue.length === 0) return;
 
-            // Buka Window Baru
-            const printWindow = window.open('', '_blank', 'width=400,height=600');
-            
-            // Susun HTML-nya
-            let htmlContent = `
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>Cetak Barcode Massal</title>
-                    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-                    <style>
-                        /* Ukuran stiker Thermal standar (Misal: 40mm x 30mm) */
-                        @page { margin: 0; size: 40mm 30mm; } 
-                        body { 
-                            margin: 0; padding: 0; 
-                            background: #fff; color: #000;
-                            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-                        }
-                        .sticker-page {
-                            width: 40mm; height: 30mm;
-                            display: flex; flex-direction: column; align-items: center; justify-content: center;
-                            page-break-after: always; /* PENTING: Memotong setiap stiker */
-                            box-sizing: border-box; padding: 2px;
-                            text-align: center;
-                        }
-                        .p-name { font-size: 10px; font-weight: bold; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; margin-bottom: 2px; }
-                        .p-price { font-size: 9px; font-weight: bold; margin-top: 0px; }
-                        svg { max-width: 100%; height: 18mm; display: block; }
-                    </style>
-                </head>
-                <body>
-            `;
+            const cfg  = this.barcodeSettings;
+            const dim  = this.getPaperDimensions();
+            const isA4 = cfg.barcode_paper_size === 'a4';
+            const perRow = parseInt(cfg.barcode_per_row) || 3;
 
-            // Looping produk di keranjang
+            const stickerStyles = isA4
+                ? `
+                    @page { margin: 5mm; size: A4; }
+                    .sticker-grid { display: grid; grid-template-columns: repeat(${perRow}, 1fr); gap: 3mm; }
+                    .sticker-page { border: 0.5pt dashed #ccc; border-radius: 2mm; padding: 2mm; text-align: center; break-inside: avoid; }
+                  `
+                : `
+                    @page { margin: 0; size: ${dim.w} ${dim.h}; }
+                    .sticker-grid { display: block; }
+                    .sticker-page {
+                        width: ${dim.w}; height: ${dim.h};
+                        display: flex; flex-direction: column; align-items: center; justify-content: center;
+                        page-break-after: always; box-sizing: border-box; padding: 2px; text-align: center;
+                    }
+                  `;
+
+            const printWindow = window.open('', '_blank', 'width=500,height=700');
+
+            let stickerItems = '';
             this.printQueue.forEach(item => {
-                // Looping sejumlah 'printQty' yang diminta
-                let qty = parseInt(item.printQty) || 1;
+                const qty = parseInt(item.printQty) || 1;
+                const formattedPrice = new Intl.NumberFormat('id-ID').format(item.price || 0);
+                const expDate = item.expired_date ? item.expired_date : '01/08/2025';
+
                 for (let i = 0; i < qty; i++) {
-                    let formattedPrice = new Intl.NumberFormat('id-ID').format(item.price);
-                    
-                    htmlContent += `
+                    const showNameTop    = cfg.barcode_show_name == '1' && cfg.barcode_name_position === 'top';
+                    const showNameBottom = cfg.barcode_show_name == '1' && cfg.barcode_name_position !== 'top';
+                    const showPrice      = cfg.barcode_show_price == '1';
+                    const showExpired    = cfg.barcode_show_expired == '1';
+                    const showCategory   = cfg.barcode_show_category == '1';
+
+                    stickerItems += `
                         <div class="sticker-page">
-                            <div class="p-name">${item.name}</div>
-                            <svg class="barcode-item" data-code="${item.code}"></svg>
-                            <div class="p-price">Rp ${formattedPrice}</div>
+                            ${showCategory ? `<div class="p-cat">${item.category || 'Produk'}</div>` : ''}
+                            ${showNameTop  ? `<div class="p-name">${item.name}</div>` : ''}
+                            <svg class="barcode-item" data-code="${item.code || item.id}" data-show-sku="${cfg.barcode_show_sku}"></svg>
+                            ${showNameBottom ? `<div class="p-name">${item.name}</div>` : ''}
+                            ${showPrice     ? `<div class="p-price">Rp ${formattedPrice}</div>` : ''}
+                            ${showExpired   ? `<div class="p-exp">EXP: ${expDate}</div>` : ''}
                         </div>
                     `;
                 }
             });
 
-            htmlContent += `
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Cetak Barcode - Love Cakes</title>
+                    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"><\/script>
+                    <style>
+                        ${stickerStyles}
+                        body { margin: 0; padding: 0; background: #fff; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+                        .p-name { font-size: 8px; font-weight: bold; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; max-width: 100%; margin: 1px 0; white-space: nowrap; }
+                        .p-price { font-size: 9px; font-weight: bold; margin-top: 1px; }
+                        .p-exp { font-size: 8px; font-weight: bold; color: #cc0000; margin-top: 1px; }
+                        .p-cat { font-size: 7px; text-transform: uppercase; color: #888; letter-spacing: 0.5px; }
+                        svg { display: block; margin: 0 auto; }
+                    </style>
+                </head>
+                <body>
+                    <div class="sticker-grid">
+                        ${stickerItems}
+                    </div>
                     <script>
-                        // Setelah HTML ter-load, jalankan library JsBarcode untuk semua elemen SVG
                         document.addEventListener("DOMContentLoaded", function() {
                             const barcodes = document.querySelectorAll('.barcode-item');
-                            
-                            barcodes.forEach(svg => {
-                                const code = svg.getAttribute('data-code');
-                                JsBarcode(svg, code, {
-                                    format: "CODE128",
-                                    width: 1.5,
-                                    height: 35,
-                                    displayValue: true,
-                                    fontSize: 10,
-                                    margin: 1
-                                });
+                            barcodes.forEach(function(svg) {
+                                const code     = svg.getAttribute('data-code');
+                                const showSku  = svg.getAttribute('data-show-sku') === '1';
+                                try {
+                                    JsBarcode(svg, code, {
+                                        format:       "${cfg.barcode_format}",
+                                        width:        ${parseFloat(cfg.barcode_width) || 1},
+                                        height:       ${parseInt(cfg.barcode_height) || 30},
+                                        displayValue: showSku,
+                                        fontSize:     9,
+                                        margin:       2,
+                                        background:   '#ffffff',
+                                        lineColor:    '#000000'
+                                    });
+                                } catch(e) {
+                                    svg.outerHTML = '<div style="font-size:8px;color:red;">SKU Invalid</div>';
+                                }
                             });
-
-                            // Beri waktu 0.5 detik agar render selesai, lalu panggil Print
-                            setTimeout(() => {
-                                window.print();
-                                // window.close(); // Hapus komentar ini jika ingin tab langsung tertutup
-                            }, 500);
+                            setTimeout(function() { window.print(); }, 600);
                         });
-                    </script>
+                    <\/script>
                 </body>
                 </html>
             `;
 
-            // Tulis dan render ke tab baru
             printWindow.document.write(htmlContent);
             printWindow.document.close();
-            
-            // Kosongkan keranjang setelah dikirim ke printer (opsional)
-            // this.printQueue = []; 
         },
 
         playBeep() {
@@ -164,7 +221,7 @@ document.addEventListener('alpine:init', () => {
                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
                 const osc = ctx.createOscillator();
                 osc.type = 'sine';
-                osc.frequency.value = 1200; // Nada tinggi
+                osc.frequency.value = 1200;
                 osc.connect(ctx.destination);
                 osc.start();
                 setTimeout(() => { osc.stop(); }, 100);
