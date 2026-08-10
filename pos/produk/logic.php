@@ -23,6 +23,7 @@ if ($action === 'read_produk') {
                 p.modal_price, 
                 p.price AS offline_price, 
                 p.online_price, 
+                COALESCE(p.is_custom_price, 0) AS is_custom_price,
                 " . ($wh_id > 0 ? "COALESCE(pws.stock, p.stock)" : "p.stock") . " AS stock,
                 COALESCE(w.name, CASE WHEN p.warehouse_id = 2 THEN 'Store 02' ELSE 'Store 01' END) AS store_name,
                 p.warehouse_id

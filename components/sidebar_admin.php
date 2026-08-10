@@ -120,6 +120,11 @@ function isDropdownActive($paths, $current_uri) {
             <span class="text-sm whitespace-nowrap transition-all duration-300">Stok Opname</span>
         </a>
 
+        <a href="<?= BASE_URL ?>pos/produk/custom_items/" title="Item & Harga Dinamis" class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all mb-1 <?= getNavClass('/pos/produk/custom_items/', $current_uri) ?>">
+            <i class="fa-solid fa-sliders w-5 text-center text-lg shrink-0"></i> 
+            <span class="text-sm whitespace-nowrap transition-all duration-300">Item & Harga Dinamis</span>
+        </a>
+
         <?php 
             $paths = ['/pos/mitra/supplier/', '/pos/mitra/pelanggan/']; 
             $isActive = isDropdownActive($paths, $current_uri);

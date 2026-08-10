@@ -72,8 +72,8 @@ if ($action === 'get_master_data') {
     }
     unset($prod);
     $customers = $pdo->query("SELECT id, name, points, phone FROM customers_pos ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
-    $saved_customs = $pdo->query("SELECT * FROM saved_custom_items_pos ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
-    $saved_customs_reguler = $pdo->query("SELECT * FROM saved_custom_reguler_pos ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
+    $saved_customs = $pdo->query("SELECT *, COALESCE(is_custom_price, 0) as is_custom_price FROM saved_custom_items_pos ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
+    $saved_customs_reguler = $pdo->query("SELECT *, COALESCE(is_custom_price, 0) as is_custom_price FROM saved_custom_reguler_pos ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
     $payment_methods = $pdo->query("SELECT * FROM payment_methods WHERE is_active = 1 ORDER BY type ASC, name ASC")->fetchAll(PDO::FETCH_ASSOC);
     // Gunakan try-catch untuk mencegah JSON rusak jika tabel tidak ada
     try {

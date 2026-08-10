@@ -558,19 +558,46 @@ document.addEventListener('alpine:init', () => {
 
         // --- FUNGSI ITEM CUSTOM BARU ---
         addCustomItem() {
-            this.customItemForm = { template: '', name: '', price: '' };
+            this.customItemForm = { template: '', name: '', price: '', is_custom_price: 1, showSuggestions: false, searchQuery: '' };
             if (this.activeTab === 'po') {
                 this.showCustomItemModal = true;
             } else {
                 this.showCustomRegulerModal = true;
             }
         },
+        getFilteredTemplates(type) {
+            const list = type === 'reguler' ? this.savedCustomsReguler : this.savedCustoms;
+            const q = (this.customItemForm.searchQuery || this.customItemForm.name || '').toLowerCase().trim();
+            if (!q) return list;
+            return list.filter(t => (t.name || '').toLowerCase().includes(q));
+        },
+        chooseTemplate(t) {
+            if (!t) {
+                this.customItemForm.template = '';
+                this.customItemForm.is_custom_price = 1;
+                this.customItemForm.showSuggestions = false;
+                return;
+            }
+            this.customItemForm.template = t.id;
+            this.customItemForm.name = t.name;
+            this.customItemForm.price = t.price;
+            this.customItemForm.is_custom_price = (parseInt(t.is_custom_price) === 1 ? 1 : 0);
+            this.customItemForm.showSuggestions = false;
+        },
         selectCustomTemplate(e, type) {
             const id = e.target.value;
-            if (!id) { this.customItemForm.name = ''; this.customItemForm.price = ''; return; }
+            if (!id) { 
+                this.customItemForm.name = ''; 
+                this.customItemForm.price = ''; 
+                this.customItemForm.is_custom_price = 1;
+                this.customItemForm.showSuggestions = false;
+                return; 
+            }
             const list = type === 'reguler' ? this.savedCustomsReguler : this.savedCustoms;
             const t = list.find(x => x.id == id);
-            if (t) { this.customItemForm.name = t.name; this.customItemForm.price = t.price; }
+            if (t) { 
+                this.chooseTemplate(t);
+            }
         },
         async saveCustomItem() {
             if (!this.customItemForm.name || !this.customItemForm.price) { Swal.fire('Error', 'Nama & Harga wajib diisi!', 'error'); return; }
@@ -587,8 +614,8 @@ document.addEventListener('alpine:init', () => {
                     if (result.status === 'success') {
                         this.showCustomRegulerModal = false;
                         
-                        // Kembalikan logic masuk ke transaksi (cart) dengan tambahan (c)
                         const customPrice = parseFloat(this.customItemForm.price);
+                        const isDynamic = (this.customItemForm.is_custom_price == 1);
                         this.cart.push({
                             id: 'custom_reg_' + Date.now(),
                             name: this.customItemForm.name,
@@ -596,7 +623,7 @@ document.addEventListener('alpine:init', () => {
                             qty: 1,
                             subtotal: customPrice,
                             is_custom: true,
-                            is_custom_price: false,
+                            is_custom_price: isDynamic ? 1 : 0,
                             discount_type: 'none',
                             discount_value: 0
                         });
@@ -608,7 +635,6 @@ document.addEventListener('alpine:init', () => {
                     } else { Swal.fire('Error', result.message, 'error'); }
                 } else {
                     // Logic PO (Dapur)
-                    // Pengecekan resep/BOM untuk PO
                     if (this.customItemForm.template) {
                         try {
                             const fdCek = new FormData();
@@ -632,7 +658,8 @@ document.addEventListener('alpine:init', () => {
                     const result = await res.json();
                     if (result.status === 'success') {
                         this.showCustomItemModal = false;
-                        this.cart.push({ id: result.custom_id, name: this.customItemForm.name + ' (c)', price: parseFloat(this.customItemForm.price), qty: 1, subtotal: parseFloat(this.customItemForm.price), is_custom: true, is_po: true, template_id: result.custom_id, discount_type: 'none', discount_value: 0 });
+                        const isDynamic = (this.customItemForm.is_custom_price == 1);
+                        this.cart.push({ id: result.custom_id, name: this.customItemForm.name + ' (c)', price: parseFloat(this.customItemForm.price), qty: 1, subtotal: parseFloat(this.customItemForm.price), is_custom: true, is_po: true, template_id: result.custom_id, is_custom_price: isDynamic ? 1 : 0, discount_type: 'none', discount_value: 0 });
                         this.applyAutoPromos();
                         Swal.fire({ icon: 'success', title: 'Berhasil', text: 'Item Custom PO masuk ke keranjang!', timer: 1000, showConfirmButton: false });
                         fetch(`logic_kasir.php?action=get_master_data&nocache=${Date.now()}`)
