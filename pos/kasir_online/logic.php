@@ -1,242 +1,235 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-require_once '../../config/auth.php';
+ini_set('display_errors', 0);
+if (session_status() === PHP_SESSION_NONE) { session_start(); }
 require_once '../../config/database.php';
 
 header('Content-Type: application/json');
 
-// Pastikan kolom penunjang pesanan online tersedia
-try { $pdo->exec("ALTER TABLE sales_pos ADD COLUMN order_status VARCHAR(20) DEFAULT 'new' AFTER payment_status"); } catch (Exception $e) {}
-try { $pdo->exec("ALTER TABLE sales_pos ADD COLUMN driver_name VARCHAR(100) NULL AFTER notes"); } catch (Exception $e) {}
-try { $pdo->exec("ALTER TABLE sales_pos ADD COLUMN driver_phone VARCHAR(50) NULL AFTER driver_name"); } catch (Exception $e) {}
-try { $pdo->exec("ALTER TABLE sales_pos ADD COLUMN external_order_id VARCHAR(100) NULL AFTER invoice_no"); } catch (Exception $e) {}
+// Ensure auxiliary columns exist in sales_pos
+try { $pdo->exec("ALTER TABLE sales_pos ADD COLUMN IF NOT EXISTS order_status VARCHAR(20) DEFAULT 'completed' AFTER payment_status"); } catch (Exception $e) {}
+try { $pdo->exec("ALTER TABLE sales_pos ADD COLUMN IF NOT EXISTS driver_name VARCHAR(100) NULL AFTER notes"); } catch (Exception $e) {}
+try { $pdo->exec("ALTER TABLE sales_pos ADD COLUMN IF NOT EXISTS driver_phone VARCHAR(50) NULL AFTER driver_name"); } catch (Exception $e) {}
+try { $pdo->exec("ALTER TABLE sales_pos ADD COLUMN IF NOT EXISTS external_order_id VARCHAR(100) NULL AFTER invoice_no"); } catch (Exception $e) {}
 
 $action = $_REQUEST['action'] ?? '';
-$wh_id = !empty($_SESSION['pos_warehouse_id']) ? intval($_SESSION['pos_warehouse_id']) : 0;
+$selected_store_id = !empty($_REQUEST['store_id']) ? intval($_REQUEST['store_id']) : (!empty($_SESSION['pos_warehouse_id']) ? intval($_SESSION['pos_warehouse_id']) : 1);
+$_SESSION['pos_warehouse_id'] = $selected_store_id;
+
+$user_id = $_SESSION['user_id'] ?? 1;
 
 // ===================================================
-// 1. GET LIST ORDERS (FETCH REALTIME ONLINE ORDERS)
+// 1. GET MASTER DATA (PRODUK, STOK STORE, CHANNEL, PRICES)
 // ===================================================
-if ($action === 'get_orders') {
+if ($action === 'get_master_data') {
     try {
-        $channel_filter = $_REQUEST['channel'] ?? '';
-        $status_filter  = $_REQUEST['status'] ?? '';
-        
-        $where = ["s.order_type = 'online'"];
-        $params = [];
-
-        if ($wh_id > 0) {
-            $where[] = "(s.warehouse_id = ? OR s.warehouse_id IS NULL)";
-            $params[] = $wh_id;
+        $warehouses = [];
+        try {
+            $warehouses = $pdo->query("SELECT id, name FROM warehouses ORDER BY id ASC")->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {}
+        if (empty($warehouses)) {
+            $warehouses = [
+                ['id' => 1, 'name' => 'Store 01'],
+                ['id' => 2, 'name' => 'Store 02']
+            ];
         }
-
-        if (!empty($channel_filter) && $channel_filter !== 'all') {
-            $where[] = "s.channel = ?";
-            $params[] = $channel_filter;
+        foreach ($warehouses as &$w) {
+            $w['name'] = str_ireplace('gudang', 'Store', $w['name']);
         }
+        unset($w);
 
-        if (!empty($status_filter) && $status_filter !== 'all') {
-            $where[] = "COALESCE(s.order_status, 'new') = ?";
-            $params[] = $status_filter;
+        $prod_sql = "
+            SELECT p.*, 
+                   COALESCE(pws.stock, p.stock) AS stock,
+                   COALESCE(w.name, CASE WHEN p.warehouse_id = 2 THEN 'Store 02' ELSE 'Store 01' END) AS store_name
+            FROM products p
+            LEFT JOIN product_warehouse_stocks pws ON p.id = pws.product_id AND pws.warehouse_id = $selected_store_id
+            LEFT JOIN warehouses w ON w.id = $selected_store_id
+            WHERE 1=1 AND (p.warehouse_id = $selected_store_id OR p.warehouse_id IS NULL OR $selected_store_id = 1)
+            ORDER BY p.name ASC
+        ";
+        $products = $pdo->query($prod_sql)->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($products as &$prod) {
+            $prod['store_name'] = str_ireplace('gudang', 'Store', $prod['store_name']);
+            $prod['item_type'] = 'product';
+            $prod['is_custom'] = 0;
         }
+        unset($prod);
 
-        $where_str = implode(" AND ", $where);
+        $saved_customs = [];
+        try { $saved_customs = $pdo->query("SELECT *, COALESCE(is_custom_price, 0) as is_custom_price FROM saved_custom_items_pos ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC); } catch (Exception $e) {}
 
-        $sql = "SELECT s.*, c.name as customer_name_db, c.phone as customer_phone
-                FROM sales_pos s
-                LEFT JOIN customers_pos c ON s.customer_id = c.id
-                WHERE $where_str
-                ORDER BY s.id DESC LIMIT 100";
+        $saved_customs_reguler = [];
+        try { $saved_customs_reguler = $pdo->query("SELECT *, COALESCE(is_custom_price, 0) as is_custom_price FROM saved_custom_reguler_pos ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC); } catch (Exception $e) {}
 
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($params);
-        $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        // Merge catalog products, custom reguler, and custom PO for complete catalog view
+        $all_items = $products;
 
-        // Fetch detail items for each order
-        foreach ($orders as &$order) {
-            $stmt_items = $pdo->prepare("
-                SELECT sd.*, COALESCE(p.name, sd.custom_name) as item_name
-                FROM sale_details_pos sd
-                LEFT JOIN products p ON sd.product_id = p.id
-                WHERE sd.sale_id = ?
-            ");
-            $stmt_items->execute([$order['id']]);
-            $order['items'] = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
-
-            // Fallback display names
-            if (empty($order['customer_name'])) {
-                $order['customer_name'] = !empty($order['customer_name_db']) ? $order['customer_name_db'] : 'Pelanggan Online';
-            }
-            if (empty($order['order_status'])) {
-                $order['order_status'] = 'new';
-            }
-        }
-
-        // Return API env info
-        $grab_env = [
-            'merchant_id' => env('GRAB_MERCHANT_ID', 'GF-MERCHANT-88219'),
-            'env'         => env('GRAB_ENV', 'sandbox'),
-            'api_url'     => env('GRAB_API_BASE_URL', 'https://partner-api.stg-grab.com'),
-            'is_active'   => !empty(env('GRAB_CLIENT_ID'))
-        ];
-
-        echo json_encode([
-            'status' => 'success',
-            'orders' => $orders,
-            'grab_config' => $grab_env
-        ]);
-    } catch (Exception $e) {
-        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
-    }
-    exit;
-}
-
-// ===================================================
-// 2. UPDATE ORDER STATUS (TERIMA, DAPUR, READY, CANCEL)
-// ===================================================
-if ($action === 'update_status') {
-    try {
-        $data = json_decode(file_get_contents('php://input'), true);
-        $order_id   = intval($data['order_id'] ?? 0);
-        $new_status = trim($data['status'] ?? '');
-
-        if ($order_id <= 0 || empty($new_status)) {
-            throw new Exception("Parameter order_id atau status tidak valid.");
-        }
-
-        $stmt = $pdo->prepare("UPDATE sales_pos SET order_status = ? WHERE id = ?");
-        $stmt->execute([$new_status, $order_id]);
-
-        echo json_encode([
-            'status' => 'success',
-            'message' => "Status pesanan berhasil diperbarui menjadi '" . strtoupper($new_status) . "'"
-        ]);
-    } catch (Exception $e) {
-        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
-    }
-    exit;
-}
-
-// ===================================================
-// 3. SIMULATE INCOMING GRAB/GOFOOD ORDER (FOR TESTING)
-// ===================================================
-if ($action === 'simulate_incoming') {
-    try {
-        $channel = $_REQUEST['channel'] ?? 'grab';
-        $pdo->beginTransaction();
-
-        $prefix = strtoupper($channel) === 'GRAB' ? 'GF' : (strtoupper($channel) === 'GOJEK' ? 'GFD' : 'WA');
-        $ext_id = $prefix . '-' . rand(10000, 99999);
-        $invoice_no = 'ONL-' . date('YmdHis') . '-' . rand(100, 999);
-
-        // Fetch random products
-        $stmt_p = $pdo->query("SELECT id, name, offline_price, online_price FROM products ORDER BY RAND() LIMIT 2");
-        $products = $stmt_p->fetchAll(PDO::FETCH_ASSOC);
-
-        if (empty($products)) {
-            $products = [
-                ['id' => 0, 'name' => 'Bolu Tar Keju Special', 'offline_price' => 45000, 'online_price' => 50000],
-                ['id' => 0, 'name' => 'Brownies Coklat Lumer', 'offline_price' => 35000, 'online_price' => 40000]
+        foreach ($saved_customs_reguler as $cr) {
+            $all_items[] = [
+                'id' => $cr['id'],
+                'code' => 'CR-' . $cr['id'],
+                'name' => $cr['name'],
+                'category' => 'Custom Reguler',
+                'price' => $cr['price'],
+                'stock' => 999,
+                'item_type' => 'custom_reguler',
+                'is_custom' => 1,
+                'image' => null,
+                'store_name' => 'Store 01'
             ];
         }
 
-        $subtotal = 0;
-        $items = [];
-        foreach ($products as $p) {
-            $qty = rand(1, 2);
-            $price = floatval(!empty($p['online_price']) ? $p['online_price'] : $p['offline_price']);
-            $item_subtotal = $price * $qty;
-            $subtotal += $item_subtotal;
-            $items[] = [
-                'id' => $p['id'],
-                'name' => $p['name'],
-                'price' => $price,
-                'qty' => $qty,
-                'subtotal' => $item_subtotal,
-                'is_custom' => ($p['id'] == 0 ? 1 : 0)
+        foreach ($saved_customs as $cp) {
+            $all_items[] = [
+                'id' => $cp['id'],
+                'code' => 'CPO-' . $cp['id'],
+                'name' => $cp['name'],
+                'category' => 'Custom PO',
+                'price' => $cp['price'],
+                'stock' => 999,
+                'item_type' => 'custom_po',
+                'is_custom' => 1,
+                'is_po' => 1,
+                'image' => null,
+                'store_name' => 'Store 01'
             ];
         }
 
-        $shipping_cost = 0; // Grab handles shipping directly
-        $total_amount = $subtotal;
+        $payment_methods = [];
+        try { $payment_methods = $pdo->query("SELECT * FROM payment_methods WHERE is_active = 1 ORDER BY type ASC, name ASC")->fetchAll(PDO::FETCH_ASSOC); } catch (Exception $e) {}
 
-        $customer_names = ['Siti Rahmawati', 'Budi Santoso', 'Anisa Putri', 'Rizky Pratama', 'Dewi Lestari'];
-        $driver_names   = ['Pak Joko (GrabDriver)', 'Mas Hendra (Gojek)', 'Bang Asep (Express)', 'Pak Supri (Grab)'];
+        $customers = [];
+        try { $customers = $pdo->query("SELECT id, name, phone, points FROM customers_pos ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC); } catch (Exception $e) {}
 
-        $cust_name   = $customer_names[array_rand($customer_names)];
-        $driver_name = $driver_names[array_rand($driver_names)];
-        $driver_phone = '0812' . rand(10000000, 99999999);
-        $notes = "Tanpa lilin, tolong potong 8 bagian rapi. Makasih!";
+        $platforms = [];
+        try { $platforms = $pdo->query("SELECT * FROM food_delivery_platforms_pos WHERE is_active = 1 ORDER BY id ASC")->fetchAll(PDO::FETCH_ASSOC); } catch (Exception $e) {}
 
-        $stmt = $pdo->prepare("
-            INSERT INTO sales_pos 
-            (invoice_no, external_order_id, warehouse_id, order_type, channel, notes, driver_name, driver_phone, subtotal, shipping_cost, total_amount, payment_method, payment_status, order_status, amount_paid, change_amount) 
-            VALUES (?, ?, ?, 'online', ?, ?, ?, ?, ?, ?, ?, 'app', 'lunas', 'new', ?, 0)
-        ");
-        $stmt->execute([
-            $invoice_no, $ext_id, ($wh_id > 0 ? $wh_id : 1), $channel, $notes, $driver_name, $driver_phone,
-            $subtotal, $shipping_cost, $total_amount, $total_amount
-        ]);
-        $sale_id = $pdo->lastInsertId();
+        $food_delivery_prices = [];
+        try { 
+            $food_delivery_prices = $pdo->query("
+                SELECT * FROM food_delivery_prices_pos 
+                WHERE is_active = 1 
+                  AND (warehouse_id = $selected_store_id OR warehouse_id IS NULL OR warehouse_id = 0)
+            ")->fetchAll(PDO::FETCH_ASSOC); 
+        } catch (Exception $e) {}
 
-        $stmt_detail = $pdo->prepare("INSERT INTO sale_details_pos (sale_id, product_id, is_custom, custom_name, price, qty, subtotal) VALUES (?, ?, ?, ?, ?, ?, ?)");
-        foreach ($items as $item) {
-            $stmt_detail->execute([$sale_id, $item['id'], $item['is_custom'], $item['name'], $item['price'], $item['qty'], $item['subtotal']]);
-        }
-
-        $pdo->commit();
+        $settings = [];
+        try {
+            $settings_rows = $pdo->query("SELECT setting_key, setting_value FROM pos_settings")->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($settings_rows as $r) { $settings[$r['setting_key']] = $r['setting_value']; }
+        } catch (Exception $e) {}
 
         echo json_encode([
             'status' => 'success',
-            'message' => "Simulasi pesanan masuk $channel ($ext_id) berhasil dimasukkan!",
-            'invoice' => $invoice_no
+            'store_id' => $selected_store_id,
+            'warehouses' => $warehouses,
+            'products' => $all_items,
+            'customers' => $customers,
+            'saved_customs' => $saved_customs,
+            'saved_customs_reguler' => $saved_customs_reguler,
+            'payment_methods' => $payment_methods,
+            'platforms' => $platforms,
+            'food_delivery_prices' => $food_delivery_prices,
+            'settings' => $settings
         ]);
     } catch (Exception $e) {
-        $pdo->rollBack();
         echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
     }
     exit;
 }
 
 // ===================================================
-// 4. CHECKOUT (MANUAL ONLINE CHECKOUT FROM POS)
+// 2. CHECKOUT TRANSAKSI KASIR ONLINE
 // ===================================================
 if ($action === 'checkout') {
     $data = json_decode(file_get_contents('php://input'), true);
-    
+    if (empty($data['items'])) {
+        echo json_encode(['status' => 'error', 'message' => 'Keranjang kosong!']);
+        exit;
+    }
+
     try {
         $pdo->beginTransaction();
-
-        $invoice_no = 'ONL-' . date('YmdHis') . '-' . rand(100,999);
-        $customer_id = !empty($data['customer_id']) ? $data['customer_id'] : null;
         
+        $channel = !empty($data['channel']) ? strtolower($data['channel']) : 'grabfood';
+        $invoice_prefix = 'ONL-' . strtoupper(substr($channel, 0, 3));
+        $invoice_no = $invoice_prefix . '-' . date('YmdHis') . '-' . rand(100, 999);
+        
+        $customer_id = !empty($data['customer_id']) ? intval($data['customer_id']) : null;
+        $driver_name = !empty($data['driver_name']) ? trim($data['driver_name']) : null;
+        $driver_phone = !empty($data['driver_phone']) ? trim($data['driver_phone']) : null;
+        $external_order_id = !empty($data['external_order_id']) ? trim($data['external_order_id']) : null;
+        $notes = !empty($data['notes']) ? trim($data['notes']) : null;
+        $payment_method = !empty($data['payment_method']) ? $data['payment_method'] : 'Cash';
+        $payment_status = (!empty($data['payment_status']) && $data['payment_status'] === 'dp') ? 'dp' : 'lunas';
+        
+        $subtotal = floatval($data['subtotal'] ?? 0);
+        $total_amount = floatval($data['total_amount'] ?? $subtotal);
+        $amount_paid = floatval($data['amount_paid'] ?? $total_amount);
+        $change_amount = floatval($data['change_amount'] ?? 0);
+        $warehouse_id = $selected_store_id > 0 ? $selected_store_id : 1;
+
+        // Insert into sales_pos
         $stmt = $pdo->prepare("
-            INSERT INTO sales_pos 
-            (invoice_no, warehouse_id, customer_id, order_type, channel, subtotal, shipping_cost, notes, total_amount, payment_method, payment_status, order_status, amount_paid, change_amount) 
-            VALUES (?, ?, ?, 'online', ?, ?, ?, ?, ?, ?, 'lunas', 'new', ?, ?)
+            INSERT INTO sales_pos (
+                invoice_no, external_order_id, customer_id, order_type, channel, subtotal, 
+                discount_voucher, discount_manual, total_amount, payment_method, payment_status, order_status, 
+                amount_paid, change_amount, is_po, notes, driver_name, driver_phone, warehouse_id
+            ) VALUES (?, ?, ?, 'online', ?, ?, ?, ?, ?, ?, ?, 'completed', ?, ?, ?, ?, ?, ?, ?)
         ");
         $stmt->execute([
-            $invoice_no, ($wh_id > 0 ? $wh_id : 1), $customer_id, $data['channel'], $data['subtotal'], $data['shipping_cost'], $data['notes'],
-            $data['total_amount'], $data['payment_method'], $data['amount_paid'], $data['change_amount']
+            $invoice_no, $external_order_id, $customer_id, $channel, $subtotal,
+            floatval($data['discount_voucher'] ?? 0), floatval($data['discount_manual'] ?? 0),
+            $total_amount, $payment_method, $payment_status, $amount_paid, $change_amount,
+            !empty($data['is_po']) ? 1 : 0, $notes, $driver_name, $driver_phone, $warehouse_id
         ]);
         $sale_id = $pdo->lastInsertId();
 
-        $stmt_detail = $pdo->prepare("INSERT INTO sale_details_pos (sale_id, product_id, is_custom, custom_name, price, qty, subtotal) VALUES (?, ?, ?, ?, ?, ?, ?)");
-        
+        // Insert into sale_payments_pos
+        $stmtPay = $pdo->prepare("INSERT INTO sale_payments_pos (sale_id, amount, payment_method, payment_type) VALUES (?, ?, ?, 'full')");
+        $stmtPay->execute([$sale_id, $total_amount, $payment_method]);
+
+        // Insert line items into sale_details_pos & deduct stock
+        $stmt_detail = $pdo->prepare("
+            INSERT INTO sale_details_pos (
+                sale_id, product_id, is_custom, custom_name, price, qty, subtotal, discount_type, discount_value, created_by_user
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+        $stmt_potong_stok = $pdo->prepare("UPDATE products SET stock = stock - ? WHERE id = ?");
+        $stmt_potong_wh = $pdo->prepare("INSERT INTO product_warehouse_stocks (product_id, warehouse_id, stock) VALUES (?, ?, -?) ON DUPLICATE KEY UPDATE stock = stock - ?");
+
         foreach ($data['items'] as $item) {
-            $prod_id = $item['is_custom'] ? 0 : $item['id'];
-            $is_custom = $item['is_custom'] ? 1 : 0;
+            $is_custom = !empty($item['is_custom']) ? 1 : 0;
+            $prod_id = $is_custom ? 0 : intval($item['id']);
             $custom_name = $item['name'];
-            $stmt_detail->execute([$sale_id, $prod_id, $is_custom, $custom_name, $item['price'], $item['qty'], $item['subtotal']]);
+            $price = floatval($item['price']);
+            $qty = intval($item['qty']);
+            $item_subtotal = floatval($item['subtotal'] ?? ($price * $qty));
+
+            $stmt_detail->execute([
+                $sale_id, $prod_id, $is_custom, $custom_name, $price, $qty, $item_subtotal,
+                $item['discount_type'] ?? 'none', floatval($item['discount_value'] ?? 0), $is_custom ? $user_id : null
+            ]);
+
+            if (!$is_custom && $prod_id > 0) {
+                $stmt_potong_stok->execute([$qty, $prod_id]);
+                $stmt_potong_wh->execute([$prod_id, $warehouse_id, $qty, $qty]);
+            }
         }
 
         $pdo->commit();
-        echo json_encode(['status' => 'success', 'invoice' => $invoice_no, 'message' => 'Pesanan Online Berhasil Dibuat!']);
+
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Pesanan Online berhasil diproses!',
+            'sale_id' => $sale_id,
+            'invoice_no' => $invoice_no
+        ]);
     } catch (Exception $e) {
-        $pdo->rollBack();
-        echo json_encode(['status' => 'error', 'message' => 'Gagal memproses: ' . $e->getMessage()]);
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
     }
     exit;
 }
+
+echo json_encode(['status' => 'error', 'message' => 'Aksi tidak valid.']);

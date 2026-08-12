@@ -184,6 +184,7 @@ document.addEventListener('alpine:init', () => {
                         this.paymentMethods = result.payment_methods || [];
                         this.promosBuyGet = result.promos_buy_get || [];
                         this.promosAutoDisc = result.promos_auto_disc || [];
+                        this.foodDeliveryPrices = result.food_delivery_prices || [];
                         this.posSettings = result.settings || {};
                         this.validSupervisorPins = result.valid_supervisor_pins || [];
                         
@@ -318,6 +319,7 @@ document.addEventListener('alpine:init', () => {
                     this.loyaltyRules = result.loyalty_rules;
                     this.promosBuyGet = result.promos_buy_get || [];
                     this.promosAutoDisc = result.promos_auto_disc || [];
+                    this.foodDeliveryPrices = result.food_delivery_prices || [];
                     this.posSettings = result.settings || {};
                     this.validSupervisorPins = result.valid_supervisor_pins || [];
                     
@@ -416,7 +418,22 @@ document.addEventListener('alpine:init', () => {
 
         // --- FUNGSI KERANJANG ---
         addToCart(product) {
-            const price = parseFloat(product.price || product.offline_price || 0);
+            let price = parseFloat(product.price || product.offline_price || 0);
+
+            // Check if current channel is Food Delivery platform (GrabFood, GoFood, ShopeeFood, etc.)
+            const currentChannel = (this.activeTab === 'po' ? this.poForm.channel : (this.regulerForm.is_delivery ? this.regulerForm.channel : 'toko'));
+            if (currentChannel && !['toko', 'delivery'].includes(currentChannel.toLowerCase())) {
+                const platformCode = currentChannel.toLowerCase();
+                const fdMatch = (this.foodDeliveryPrices || []).find(fd => 
+                    fd.platform_code === platformCode && 
+                    fd.item_id == product.id && 
+                    fd.item_type === (product.is_custom ? 'custom_reguler' : 'product')
+                );
+                if (fdMatch && parseFloat(fdMatch.final_price) > 0) {
+                    price = parseFloat(fdMatch.final_price);
+                }
+            }
+
             const isCustomPrice = product.is_custom_price == 1;
             const existing = this.cart.find(item => item.id === product.id && !item.is_custom && !item.is_promo_free);
             if (existing) { 

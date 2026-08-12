@@ -87,14 +87,27 @@ try {
     <div class="divider"></div>
     
     <table class="info-table">
-        <tr><td style="width: 35px;">Tgl</td><td>: <?= date('d/m/y H:i', strtotime($sale['created_at'])) ?></td></tr>
+        <tr><td style="width: 45px;">Tgl</td><td>: <?= date('d/m/y H:i', strtotime($sale['created_at'])) ?></td></tr>
         <tr><td>Inv</td><td>: <?= htmlspecialchars($invoice) ?></td></tr>
-        <?php if($is_po): ?>
+        <?php 
+            $order_type = strtolower($sale['order_type'] ?? '');
+            $channel_name = strtoupper($channel);
+        ?>
+        <?php if($order_type === 'online' || in_array(strtolower($channel), ['grabfood', 'gofood', 'shopeefood', 'travelokaeats', 'wa'])): ?>
+            <tr><td>Sumber</td><td>: <strong style="font-weight: 900; font-size: 11px;">ONLINE (<?= htmlspecialchars($channel_name) ?>)</strong></td></tr>
+            <?php if(!empty($sale['external_order_id'])): ?>
+            <tr><td>Order ID</td><td>: <span class="text-bold"><?= htmlspecialchars($sale['external_order_id']) ?></span></td></tr>
+            <?php endif; ?>
+            <?php if(!empty($sale['driver_name'])): ?>
+            <tr><td>Driver</td><td>: <?= htmlspecialchars($sale['driver_name']) ?> <?= !empty($sale['driver_phone']) ? '('.htmlspecialchars($sale['driver_phone']).')' : '' ?></td></tr>
+            <?php endif; ?>
+        <?php elseif($is_po): ?>
             <tr><td>Tipe</td><td>: <span class="text-bold">PO (<?= strtoupper($channel) ?>)</span></td></tr>
             <tr><td>Ambil</td><td>: <span class="text-bold"><?= $pickup_date ?> <?= $pickup_time ?></span></td></tr>
         <?php else: ?>
-            <tr><td>Tipe</td><td>: REGULER</td></tr>
+            <tr><td>Tipe</td><td>: REGULER (OFFLINE)</td></tr>
         <?php endif; ?>
+
         <?php if(!empty($sale['customer_name'])): ?>
         <tr><td>Cust</td><td>: <?= htmlspecialchars($sale['customer_name']) ?></td></tr>
         <?php if(!empty($sale['customer_phone'])): ?>
@@ -136,7 +149,7 @@ try {
         <?php if(!empty($sale['discount_auto']) && $sale['discount_auto'] > 0): ?><tr><td>Promo Otomatis</td><td class="text-right">-<?= number_format($sale['discount_auto'], 0, ',', '.') ?></td></tr><?php endif; ?>
         <?php if($sale['discount_manual'] > 0): ?><tr><td>Disc. Manual</td><td class="text-right">-<?= number_format($sale['discount_manual'], 0, ',', '.') ?></td></tr><?php endif; ?>
         <tr><td class="text-bold" style="font-size: 13px; padding-top: 5px;">TOTAL</td><td class="text-bold text-right" style="font-size: 13px; padding-top: 5px;"><?= number_format($sale['total_amount'], 0, ',', '.') ?></td></tr>
-        <tr><td style="padding-top: 5px;">Dibayar (<?= strtoupper($sale['payment_method']) ?>)</td><td class="text-right" style="padding-top: 5px;"><?= number_format($sale['amount_paid'], 0, ',', '.') ?></td></tr>
+        <tr><td style="padding-top: 5px;"> (<?= strtoupper($sale['payment_method']) ?>)</td><td class="text-right" style="padding-top: 5px;"><?= number_format($sale['amount_paid'], 0, ',', '.') ?></td></tr>
         <?php if(!empty($sale['payment_reference'])): ?>
         <tr><td colspan="2" style="font-size: 9px;">Ref: <?= htmlspecialchars($sale['payment_reference']) ?></td></tr>
         <?php endif; ?>

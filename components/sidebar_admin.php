@@ -215,7 +215,7 @@ function isDropdownActive($paths, $current_uri) {
         </div>
 
         <?php 
-            $paths = ['/pos/online/pemesanan/', '/pos/online/toko/', '/pos/online/marketplace/']; 
+            $paths = ['/pos/online/food_delivery/', '/pos/online/pemesanan/', '/pos/online/toko/', '/pos/online/marketplace/']; 
             $isActive = isDropdownActive($paths, $current_uri);
         ?>
         <div class="mb-1">
@@ -227,9 +227,7 @@ function isDropdownActive($paths, $current_uri) {
                 <i id="icon-online" class="fa-solid fa-chevron-<?= $isActive ? 'down' : 'right' ?> text-[10px] transition-transform duration-200"></i>
             </button>
             <div id="sub-online" class="<?= $isActive ? 'flex' : 'hidden' ?> flex-col gap-1 mt-1 pl-11 pr-2">
-                <a href="<?= BASE_URL ?>pos/online/pemesanan/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/online/pemesanan/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Order Online</a>
-                <a href="<?= BASE_URL ?>pos/online/toko/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/online/toko/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Toko / Web</a>
-                <a href="<?= BASE_URL ?>pos/online/marketplace/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/online/marketplace/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Integrasi Grab/Gojek</a>
+                <a href="<?= BASE_URL ?>pos/online/food_delivery/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/online/food_delivery/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Food Delivery</a>
             </div>
         </div>
 

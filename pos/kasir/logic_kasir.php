@@ -114,6 +114,11 @@ if ($action === 'get_master_data') {
         $valid_pins = $stmt_pins->fetchAll(PDO::FETCH_COLUMN);
     } catch (Exception $e) {}
 
+    $food_delivery_prices = [];
+    try {
+        $food_delivery_prices = $pdo->query("SELECT * FROM food_delivery_prices_pos WHERE is_active = 1")->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {}
+
     echo json_encode([
         'status' => 'success',
         'products' => $products,
@@ -124,6 +129,7 @@ if ($action === 'get_master_data') {
         'loyalty' => $loyalty,
         'promos_buy_get' => $promos_buy_get,
         'promos_auto_disc' => $promos_auto_disc,
+        'food_delivery_prices' => $food_delivery_prices,
         'default_start_cash' => $default_start_cash,
         'settings' => $settings,
         'valid_supervisor_pins' => $valid_pins
