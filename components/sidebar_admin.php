@@ -238,10 +238,15 @@ function isDropdownActive($paths, $current_uri) {
             <span class="text-sm whitespace-nowrap transition-all duration-300">Kemitraan/Modal</span>
         </a>
 
-       <a href="<?= BASE_URL ?>pos/pengaturan/global/" title="Setelan Global" class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all mb-1 <?= getNavClass('/pos/setelan/global/', $current_uri) ?>">
-            <i class="fa-solid fa-sliders w-5 text-center text-lg shrink-0"></i> 
-            <span class="text-sm whitespace-nowrap transition-all duration-300">Setelan Global</span>
-        </a>
+        <a href="<?= BASE_URL ?>pos/pengaturan/global/" title="Setelan Global" class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all mb-1 <?= getNavClass('/pos/pengaturan/global/', $current_uri) ?>">
+             <i class="fa-solid fa-sliders w-5 text-center text-lg shrink-0"></i> 
+             <span class="text-sm whitespace-nowrap transition-all duration-300">Setelan Global</span>
+         </a>
+
+        <a href="<?= BASE_URL ?>pos/pengaturan/perangkat/" title="Perangkat Kasir" class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all mb-1 <?= getNavClass('/pos/pengaturan/perangkat/', $current_uri) ?>">
+             <i class="fa-solid fa-mobile-screen-button w-5 text-center text-lg shrink-0"></i> 
+             <span class="text-sm whitespace-nowrap transition-all duration-300">Perangkat Kasir</span>
+         </a>
 
         <a href="<?= BASE_URL ?>pos/pengaturan/toko/" title="Identitas Toko" class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all mb-1 <?= getNavClass('/pos/pengaturan/toko/', $current_uri) ?>">
             <i class="fa-solid fa-store w-5 text-center text-lg shrink-0"></i> 

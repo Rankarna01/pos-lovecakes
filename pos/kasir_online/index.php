@@ -449,6 +449,7 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
         </div>
     </div>
 
+    <script src="../js/device_lock.js?v=<?= time() ?>"></script>
     <script src="ajax.js?v=<?= time() ?>"></script>
 </body>
 </html>
