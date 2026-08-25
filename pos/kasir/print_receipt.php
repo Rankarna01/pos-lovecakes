@@ -70,10 +70,13 @@ try {
         .barcode-container { margin-top: 10px; text-align: center; }
         .barcode-container svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
         @media print { .no-print { display: none !important; } }
-        .btn { padding: 10px 15px; cursor: pointer; border-radius: 5px; font-weight:bold; width:100%; margin-bottom:5px; border:none; display: block; box-sizing: border-box; }
-        .btn-bt { background: #3b82f6; color: #ffffff; }
-        .btn-usb { background: #e2e8f0; color: #0f172a; border: 1px solid #cbd5e1; }
-        .btn-close { background: #fee2e2; color: #991b1b; border: 1px solid #f87171; }
+        .btn { padding: 9px 12px; cursor: pointer; border-radius: 8px; font-weight: bold; width: 100%; margin-bottom: 6px; border: none; display: flex; align-items: center; justify-content: center; gap: 6px; box-sizing: border-box; font-family: inherit; font-size: 11px; transition: all 0.2s; }
+        .btn:hover { opacity: 0.92; transform: translateY(-1px); }
+        .btn-print { background: #2563eb; color: #ffffff; font-size: 12px; padding: 11px 14px; box-shadow: 0 2px 5px rgba(37,99,235,0.25); }
+        .btn-usb { background: #10b981; color: #ffffff; }
+        .btn-serial { background: #059669; color: #ffffff; }
+        .btn-bt { background: #6366f1; color: #ffffff; }
+        .btn-close { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; margin-top: 8px; }
     </style>
 </head>
 <body>
@@ -99,43 +102,29 @@ try {
             <tr><td>Order ID</td><td>: <span class="text-bold"><?= htmlspecialchars($sale['external_order_id']) ?></span></td></tr>
             <?php endif; ?>
             <?php if(!empty($sale['driver_name'])): ?>
-            <tr><td>Driver</td><td>: <?= htmlspecialchars($sale['driver_name']) ?> <?= !empty($sale['driver_phone']) ? '('.htmlspecialchars($sale['driver_phone']).')' : '' ?></td></tr>
+            <tr><td>Driver</td><td>: <?= htmlspecialchars($sale['driver_name']) ?> (<?= htmlspecialchars($sale['driver_phone'] ?? '-') ?>)</td></tr>
             <?php endif; ?>
-        <?php elseif($is_po): ?>
-            <tr><td>Tipe</td><td>: <span class="text-bold">PO (<?= strtoupper($channel) ?>)</span></td></tr>
-            <tr><td>Ambil</td><td>: <span class="text-bold"><?= $pickup_date ?> <?= $pickup_time ?></span></td></tr>
         <?php else: ?>
-            <tr><td>Tipe</td><td>: REGULER (OFFLINE)</td></tr>
-        <?php endif; ?>
-
-        <?php if(!empty($sale['customer_name'])): ?>
-        <tr><td>Cust</td><td>: <?= htmlspecialchars($sale['customer_name']) ?></td></tr>
-        <?php if(!empty($sale['customer_phone'])): ?>
-        <tr><td>Telp</td><td>: <?= htmlspecialchars($sale['customer_phone']) ?></td></tr>
-        <?php endif; ?>
-        <?php endif; ?>
-        <?php if(strtolower($channel) == 'delivery'): ?>
-        <tr><td colspan="2" class="text-bold text-center" style="padding-top: 5px;">[ DELIVERY - <?= $pickup_date ?> <?= $pickup_time ?> ]</td></tr>
-        <?php endif; ?>
-        <?php if(!empty($sale['notes'])): ?>
-        <tr><td colspan="2" style="padding-top: 5px; font-style: italic;">Catatan: <br><?= nl2br(htmlspecialchars($sale['notes'])) ?></td></tr>
+            <tr><td>Kasir</td><td>: <?= htmlspecialchars($sale['cashier_name'] ?? 'Kasir') ?></td></tr>
+            <tr><td>Plg</td><td>: <?= htmlspecialchars($sale['customer_name'] ?? 'Umum') ?></td></tr>
+            <?php if($is_po): ?>
+            <tr><td>Tipe</td><td>: <span style="background:#000; color:#fff; padding:1px 3px; border-radius:2px;">PESANAN PO</span></td></tr>
+            <tr><td>Ambil</td><td>: <?= $pickup_date ?> <?= $pickup_time ?></td></tr>
+            <?php endif; ?>
         <?php endif; ?>
     </table>
     
     <div class="divider"></div>
     
     <table class="item-table">
-        <?php foreach($items as $i): ?>
-        <tr><td colspan="2" class="item-name"><?= ($i['is_custom'] && $is_po ? '🛠️ ' : '') . htmlspecialchars($i['product_name']) ?></td></tr>
-        <tr class="item-row">
-            <td style="width: 60%;">
-                <?= $i['qty'] ?> x <?= number_format($i['price'], 0, ',', '.') ?>
-                <?php if(!empty($i['discount_type']) && $i['discount_type'] !== 'none' && $i['discount_value'] > 0): ?>
-                    <br><small style="font-style:italic;">(Disc: <?= $i['discount_type'] == 'percent' ? $i['discount_value'].'%' : 'Rp '.number_format($i['discount_value'], 0, ',', '.') ?>)</small>
-                <?php endif; ?>
-            </td>
-            <td class="text-right"><?= number_format($i['subtotal'], 0, ',', '.') ?></td>
-        </tr>
+        <?php foreach ($items as $item): ?>
+            <tr class="item-row">
+                <td colspan="2" class="item-name"><?= htmlspecialchars($item['product_name']) ?></td>
+            </tr>
+            <tr class="item-row">
+                <td style="padding-left: 5px; color: #333; font-weight: normal;"><?= $item['qty'] ?> x <?= number_format($item['price'], 0, ',', '.') ?></td>
+                <td class="text-right text-bold"><?= number_format($item['subtotal'], 0, ',', '.') ?></td>
+            </tr>
         <?php endforeach; ?>
     </table>
     
@@ -143,10 +132,9 @@ try {
     
     <table class="summary-table">
         <tr><td>Subtotal</td><td class="text-right"><?= number_format($sale['subtotal'], 0, ',', '.') ?></td></tr>
-        <?php if($calculated_ongkir > 0): ?><tr><td>Ongkir/Markup</td><td class="text-right">+<?= number_format($calculated_ongkir, 0, ',', '.') ?></td></tr><?php endif; ?>
-        <?php if($sale['discount_voucher'] > 0): ?><tr><td>Disc. Vcr</td><td class="text-right">-<?= number_format($sale['discount_voucher'], 0, ',', '.') ?></td></tr><?php endif; ?>
-        <?php if($sale['discount_points'] > 0): ?><tr><td>Disc. Poin</td><td class="text-right">-<?= number_format($sale['discount_points'], 0, ',', '.') ?></td></tr><?php endif; ?>
-        <?php if(!empty($sale['discount_auto']) && $sale['discount_auto'] > 0): ?><tr><td>Promo Otomatis</td><td class="text-right">-<?= number_format($sale['discount_auto'], 0, ',', '.') ?></td></tr><?php endif; ?>
+        <?php if($calculated_ongkir > 0): ?><tr><td>Ongkir</td><td class="text-right"><?= number_format($calculated_ongkir, 0, ',', '.') ?></td></tr><?php endif; ?>
+        <?php if($sale['discount_voucher'] > 0): ?><tr><td>Voucher</td><td class="text-right">-<?= number_format($sale['discount_voucher'], 0, ',', '.') ?></td></tr><?php endif; ?>
+        <?php if($sale['discount_points'] > 0): ?><tr><td>Poin</td><td class="text-right">-<?= number_format($sale['discount_points'], 0, ',', '.') ?></td></tr><?php endif; ?>
         <?php if($sale['discount_manual'] > 0): ?><tr><td>Disc. Manual</td><td class="text-right">-<?= number_format($sale['discount_manual'], 0, ',', '.') ?></td></tr><?php endif; ?>
         <tr><td class="text-bold" style="font-size: 13px; padding-top: 5px;">TOTAL</td><td class="text-bold text-right" style="font-size: 13px; padding-top: 5px;"><?= number_format($sale['total_amount'], 0, ',', '.') ?></td></tr>
         <tr><td style="padding-top: 5px;"> (<?= strtoupper($sale['payment_method']) ?>)</td><td class="text-right" style="padding-top: 5px;"><?= number_format($sale['amount_paid'], 0, ',', '.') ?></td></tr>
@@ -168,26 +156,32 @@ try {
     <div class="barcode-container"><svg id="barcode"></svg></div>
 
     <!-- PANDUAN & AKSI PRINT (TIDAK IKUT TERCETAK) -->
-    <div class="no-print" style="margin-top: 25px; border-top: 2px dashed #cbd5e1; padding-top: 15px;" id="action-buttons">
+    <div class="no-print" style="margin-top: 20px; border-top: 2px dashed #cbd5e1; padding-top: 14px;" id="action-buttons">
         
-        <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 10px; line-height: 1.4; color: #334155;">
-            <div style="font-weight: bold; color: #2563eb; margin-bottom: 4px;">❓ Kenapa Masih Muncul Popup Pilihan Cetak?</div>
-            <div>Browser standar (Chrome/Edge) memiliki keamanan yang selalu menampilkan layar konfirmasi cetak ini. Agar struk <b>langsung keluar otomatis dalam 1 detik tanpa klik apapun</b>:</div>
-            <div style="margin-top: 5px;">
-                <b>🚀 Solusi 1 (Rekomendasi POS Kasir):</b><br>
-                Tambahkan kode <code>--kiosk-printing</code> pada shortcut Chrome / Microsoft Edge Anda di Desktop. Saat kasir klik Cetak, struk akan langsung tercetak ke printer TM-T82X tanpa melewati popup ini!
+        <!-- RINGKASAN KONFIGURASI + BUTTON TOGGLE DETAIL -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px 10px; border-radius: 8px; margin-bottom: 12px; font-size: 10px; line-height: 1.4; color: #475569;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+                <span>💡 <b>Tips Cetak Cepat:</b> Kiosk Mode langsung keluar struk.</span>
+                <button type="button" onclick="toggleConfigGuide()" id="btn-guide-toggle" style="background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; border-radius: 6px; padding: 3px 8px; font-size: 9px; font-weight: bold; cursor: pointer; white-space: nowrap;">
+                    ℹ️ Panduan
+                </button>
             </div>
-            <div style="margin-top: 5px;">
-                <b>⚡ Solusi 2 (Print ESC/POS Langsung):</b><br>
-                Klik tombol <b>Print WebUSB</b> atau <b>Print WebSerial</b> di bawah untuk mengirim data langsung ke printer tanpa melalui dialog browser!
+            <div id="config-guide-details" style="display: none; margin-top: 8px; border-top: 1px dashed #cbd5e1; padding-top: 8px; font-size: 9.5px;">
+                <div style="font-weight: bold; color: #1e293b; margin-bottom: 2px;">🚀 1. Auto-Print Kiosk Mode (1 Detik Tanpa Popup):</div>
+                <p style="margin: 0 0 6px 0;">Tambahkan <code>--kiosk-printing</code> di shortcut Google Chrome/Edge di desktop kasir agar struk otomatis tercetak tanpa dialog konfirmasi.</p>
+                <div style="font-weight: bold; color: #1e293b; margin-bottom: 2px;">⚡ 2. Print Direct (WebUSB / Bluetooth / COM):</div>
+                <p style="margin: 0 0 6px 0;">Kirim data ESC/POS langsung ke printer thermal menggunakan tombol direct di bawah.</p>
+                <div style="font-weight: bold; color: #1e293b; margin-bottom: 2px;">📄 3. Ukuran Kertas:</div>
+                <p style="margin: 0;">Gunakan <b>58mm Roll</b> (atau 80mm) dan set Margin ke <b>None</b>.</p>
             </div>
         </div>
 
-        <button onclick="window.print()" class="btn btn-usb" style="background:#2563eb; color:white; font-size:12px; padding:12px;">🖨️ Cetak Struk (Browser / Default)</button>
-        <button onclick="printWebUSB()" class="btn btn-usb" id="btn-usb" style="background:#10b981; color:white; font-size:12px;">⚡ Print Langsung WebUSB (ESC/POS)</button>
-        <button onclick="printSerial()" class="btn btn-usb" id="btn-serial" style="background:#059669; color:white; font-size:12px;">🔌 Print Langsung WebSerial (COM/RS232)</button>
-        <button onclick="printBluetooth()" class="btn btn-bt" id="btn-bt" style="background:#3b82f6; color:white; font-size:12px;">📶 Print Bluetooth (GATT)</button>
-        <button onclick="window.close()" class="btn btn-close" style="margin-top:10px;">❌ Tutup Jendela</button>
+        <!-- TOMBOL AKSI UTAMA -->
+        <button onclick="window.print()" class="btn btn-print">🖨️ Cetak / Cetak Ulang Struk</button>
+        <button onclick="printWebUSB()" class="btn btn-usb" id="btn-usb">⚡ Print Langsung WebUSB (ESC/POS)</button>
+        <button onclick="printSerial()" class="btn btn-serial" id="btn-serial">🔌 Print Langsung WebSerial (COM)</button>
+        <button onclick="printBluetooth()" class="btn btn-bt" id="btn-bt">📶 Print Bluetooth (GATT)</button>
+        <button onclick="window.close()" class="btn btn-close">❌ Tutup Halaman</button>
     </div>
 
     <script>
@@ -201,6 +195,19 @@ try {
             change: "<?= number_format($sale['change_amount'], 0, ',', '.') ?>",
             footer: <?= json_encode($toko['receipt_footer']) ?>
         };
+
+        // Toggle Panduan Konfigurasi
+        function toggleConfigGuide() {
+            const el = document.getElementById('config-guide-details');
+            const btn = document.getElementById('btn-guide-toggle');
+            if (el.style.display === 'none' || el.style.display === '') {
+                el.style.display = 'block';
+                btn.innerHTML = '✖️ Tutup';
+            } else {
+                el.style.display = 'none';
+                btn.innerHTML = 'ℹ️ Panduan';
+            }
+        }
 
         // Fungsi merakit teks ESC/POS mentah
         function buildEscPosText() {
@@ -234,16 +241,12 @@ try {
             const params = new URLSearchParams(window.location.search);
             const isAutoBt = params.get('auto_print_bt');
             const isAutoUsb = params.get('auto_print_usb');
-            const actionBtns = document.getElementById('action-buttons');
 
             // Cek Bluetooth Auto Print
             if (isAutoBt) {
                 const savedPrinter = localStorage.getItem('pos_printer_name');
                 if(savedPrinter && navigator.bluetooth) {
-                    if (actionBtns) actionBtns.style.display = 'none';
                     setTimeout(() => { printBluetooth(true); }, 500);
-                } else {
-                    if (actionBtns) actionBtns.style.display = 'block';
                 }
             } 
             // Default ke USB / Thermal Printer (Cek WebUSB / WebSerial Otomatis dulu!)
@@ -256,7 +259,6 @@ try {
                         try {
                             const usbDevices = await navigator.usb.getDevices();
                             if (usbDevices && usbDevices.length > 0) {
-                                if (actionBtns) actionBtns.style.display = 'none';
                                 autoPrinted = await printWebUSB(true, usbDevices[0]);
                             }
                         } catch(e) { console.warn("Auto WebUSB bypass", e); }
@@ -267,21 +269,15 @@ try {
                         try {
                             const serialPorts = await navigator.serial.getPorts();
                             if (serialPorts && serialPorts.length > 0) {
-                                if (actionBtns) actionBtns.style.display = 'none';
                                 autoPrinted = await printSerial(true, serialPorts[0]);
                             }
                         } catch(e) { console.warn("Auto WebSerial bypass", e); }
                     }
 
-                    // 3. 🛡️ FALLBACK OTOMATIS: Jika WebUSB/Serial gagal (karena SecurityError/Access Denied), LANGSUNG gunakan Print Browser (window.print)!
-                    if (!autoPrinted) {
-                        if (actionBtns) actionBtns.style.display = 'block';
-                        window.print(); 
-                        if (isAutoUsb) {
-                            window.onafterprint = function() { 
-                                setTimeout(() => { window.close(); }, 500); 
-                            };
-                        }
+                    // 3. 🛡️ FALLBACK OTOMATIS: Print Browser (window.print)
+                    if (!autoPrinted && isAutoUsb) {
+                        window.print();
+                        // Jangan tutup otomatis agar kasir bisa cetak ulang jika kertas macet/habis
                     }
                 }, 500);
             }
@@ -335,22 +331,20 @@ try {
                 if (btn) { btn.innerHTML = 'Berhasil Dicetak WebUSB! ✅'; }
                 setTimeout(() => { 
                     if (btn) { btn.innerHTML = '⚡ Print Langsung WebUSB (ESC/POS)'; btn.disabled = false; }
-                    if(isAutoPrint) window.close(); 
-                }, 1500);
+                }, 2000);
                 return true;
             } catch (err) {
                 console.error("WebUSB Error:", err);
                 if (btn) { btn.innerHTML = '⚡ Print Langsung WebUSB (ESC/POS)'; btn.disabled = false; }
                 
-                // 🛡️ PENJELASAN ERROR KHUSUS WINDOWS (SecurityError / Access Denied)
                 if (!isAutoPrint) {
                     let msg = "Gagal mencetak via WebUSB: " + err.message;
                     if (err.name === 'SecurityError' || err.message.includes('Access denied') || err.message.includes('claimed')) {
                         msg = "⚠️ AKSES WEBUSB DITOLAK (SecurityError)\n\n" +
                               "💡 PENJELASAN:\n" +
-                              "Printer Epson TM-T82X Anda sedang dikunci oleh Driver Windows (Spooler). Pada Windows, jika printer sudah terinstal di 'Printers & Scanners', browser tidak diizinkan mengakses port USB secara langsung.\n\n" +
+                              "Printer Anda sedang dikunci oleh Driver Windows (Spooler).\n\n" +
                               "🚀 SOLUSI MUDAH:\n" +
-                              "Silakan gunakan tombol biru '🖨️ Cetak Struk (Browser / Default)' di atas!";
+                              "Silakan gunakan tombol biru '🖨️ Cetak / Cetak Ulang Struk' di atas!";
                     }
                     alert(msg);
                 }
@@ -388,13 +382,12 @@ try {
 
                 if (btn) { btn.innerHTML = 'Berhasil Dicetak WebSerial! ✅'; }
                 setTimeout(() => { 
-                    if (btn) { btn.innerHTML = '🔌 Print Langsung WebSerial (COM/RS232)'; btn.disabled = false; }
-                    if(isAutoPrint) window.close(); 
-                }, 1500);
+                    if (btn) { btn.innerHTML = '🔌 Print Langsung WebSerial (COM)'; btn.disabled = false; }
+                }, 2000);
                 return true;
             } catch (err) {
                 console.error("WebSerial Error:", err);
-                if (btn) { btn.innerHTML = '🔌 Print Langsung WebSerial (COM/RS232)'; btn.disabled = false; }
+                if (btn) { btn.innerHTML = '🔌 Print Langsung WebSerial (COM)'; btn.disabled = false; }
                 if (!isAutoPrint) alert("Gagal mencetak via WebSerial: " + err.message);
                 return false;
             }
@@ -406,8 +399,10 @@ try {
             const savedPrinter = localStorage.getItem('pos_printer_name');
             let device;
 
-            btn.innerHTML = 'Menghubungkan Printer...';
-            btn.disabled = true;
+            if (btn) {
+                btn.innerHTML = 'Menghubungkan Printer...';
+                btn.disabled = true;
+            }
 
             try {
                 if (savedPrinter && navigator.bluetooth.getDevices) {
@@ -417,10 +412,10 @@ try {
 
                 if (!device) {
                     if (isAutoPrint) {
-                        const actionBtns = document.getElementById('action-buttons');
-                        if (actionBtns) actionBtns.style.display = 'block';
-                        btn.innerHTML = '📶 Print Bluetooth (GATT)';
-                        btn.disabled = false;
+                        if (btn) {
+                            btn.innerHTML = '📶 Print Bluetooth (GATT)';
+                            btn.disabled = false;
+                        }
                         return;
                     }
                     device = await navigator.bluetooth.requestDevice({
@@ -438,20 +433,21 @@ try {
                 const printText = buildEscPosText();
                 await characteristic.writeValue(encoder.encode(printText));
                 
-                btn.innerHTML = 'Berhasil Dicetak! ✅';
+                if (btn) { btn.innerHTML = 'Berhasil Dicetak! ✅'; }
                 setTimeout(() => { 
-                    btn.innerHTML = '📶 Print Bluetooth (GATT)'; 
-                    btn.disabled = false; 
-                    if (isAutoPrint) window.close();
+                    if (btn) {
+                        btn.innerHTML = '📶 Print Bluetooth (GATT)'; 
+                        btn.disabled = false; 
+                    }
                 }, 2000);
 
             } catch (error) {
                 console.error("Gagal Print:", error);
-                const actionBtns = document.getElementById('action-buttons');
-                if (actionBtns) actionBtns.style.display = 'block';
+                if (btn) {
+                    btn.innerHTML = '📶 Print Bluetooth (GATT)';
+                    btn.disabled = false;
+                }
                 if (!isAutoPrint) alert('Gagal menghubungkan ke Printer Bluetooth. Pastikan printer menyala.');
-                btn.innerHTML = '📶 Print Bluetooth (GATT)';
-                btn.disabled = false;
             }
         }
     </script>

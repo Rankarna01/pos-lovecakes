@@ -35,6 +35,20 @@ if ($action === 'get_sales') {
             $wh_params = [$wh_id, $wh_id];
         }
 
+        $channel = trim($_REQUEST['channel'] ?? '');
+        $channel_filter = "";
+        $channel_params = [];
+        if (!empty($channel)) {
+            if ($channel === 'offline' || $channel === 'toko') {
+                $channel_filter = " AND (s.order_type = 'offline' OR s.order_type IS NULL OR s.channel = 'toko' OR s.channel = 'offline' OR s.channel IS NULL) ";
+            } elseif ($channel === 'online') {
+                $channel_filter = " AND (s.order_type = 'online' OR s.channel IN ('grabfood', 'gofood', 'shopeefood', 'travelokaeats')) ";
+            } else {
+                $channel_filter = " AND LOWER(s.channel) = ? ";
+                $channel_params = [strtolower($channel)];
+            }
+        }
+
         $payment = $_REQUEST['payment_method'] ?? '';
         $pay_filter = "";
         $pay_params = [];
@@ -61,16 +75,18 @@ if ($action === 'get_sales') {
             $status_params = [strtolower($payment_status)];
         }
 
+        $all_params = array_merge([$start_date, $end_date], $wh_params, $channel_params, $pay_params, $status_params);
+
         // 1. Rincian Detail Penjualan (History List)
         $sql1 = "
             SELECT s.*, c.name as customer_name 
             FROM sales_pos s 
             LEFT JOIN customers_pos c ON s.customer_id = c.id 
-            WHERE DATE(s.created_at) BETWEEN ? AND ? $wh_filter $pay_filter $status_filter
+            WHERE DATE(s.created_at) BETWEEN ? AND ? $wh_filter $channel_filter $pay_filter $status_filter
             ORDER BY s.created_at DESC
         ";
         $stmt = $pdo->prepare($sql1);
-        $stmt->execute(array_merge([$start_date, $end_date], $wh_params, $pay_params, $status_params));
+        $stmt->execute($all_params);
         $sales = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         // 2. Global Payment Summary (Omset Sistem)
@@ -79,11 +95,11 @@ if ($action === 'get_sales') {
             FROM sale_payments_pos sp
             JOIN sales_pos s ON sp.sale_id = s.id
             LEFT JOIN payment_methods pm ON sp.payment_method = pm.name
-            WHERE DATE(sp.created_at) BETWEEN ? AND ? $wh_filter $pay_filter $status_filter
+            WHERE DATE(sp.created_at) BETWEEN ? AND ? $wh_filter $channel_filter $pay_filter $status_filter
             GROUP BY sp.payment_method, pm.type
         ";
         $stmt_pay = $pdo->prepare($sql2);
-        $stmt_pay->execute(array_merge([$start_date, $end_date], $wh_params, $pay_params, $status_params));
+        $stmt_pay->execute($all_params);
         $pay_results = $stmt_pay->fetchAll(PDO::FETCH_ASSOC);
         
         $paymentData = ['cash' => 0, 'qris' => 0, 'total' => 0];
@@ -92,7 +108,7 @@ if ($action === 'get_sales') {
             $dbType = strtolower($row['type'] ?? '');
             
             // Dinamiskan: Jika nama metode mengandung qris/transfer, atau tipenya non-cash
-            if (strpos($pm, 'qris') !== false || strpos($pm, 'transfer') !== false || in_array($dbType, ['qris', 'transfer', 'non-cash'])) {
+            if (strpos($pm, 'qris') !== false || strpos($pm, 'transfer') !== false || in_array($dbType, ['qris', 'transfer', 'non-cash']) || strpos($pm, 'saldo') !== false || strpos($pm, 'ovo') !== false || strpos($pm, 'gopay') !== false || strpos($pm, 'shopeepay') !== false) {
                 $paymentData['qris'] += (float)$row['total'];
             } else {
                 // Sisanya masuk ke Cash
@@ -106,12 +122,12 @@ if ($action === 'get_sales') {
             SELECT sp.payment_method, SUM(sp.amount) as total_amount
             FROM sale_payments_pos sp
             JOIN sales_pos s ON sp.sale_id = s.id
-            WHERE DATE(sp.created_at) BETWEEN ? AND ? $wh_filter $pay_filter $status_filter
+            WHERE DATE(sp.created_at) BETWEEN ? AND ? $wh_filter $channel_filter $pay_filter $status_filter
             GROUP BY sp.payment_method
             ORDER BY total_amount DESC
         ";
         $stmt_pay_breakdown = $pdo->prepare($sql3);
-        $stmt_pay_breakdown->execute(array_merge([$start_date, $end_date], $wh_params, $pay_params, $status_params));
+        $stmt_pay_breakdown->execute($all_params);
         $payment_breakdown = $stmt_pay_breakdown->fetchAll(PDO::FETCH_ASSOC);
 
         // 4. Pembayaran DP dan Pelunasan
@@ -119,11 +135,11 @@ if ($action === 'get_sales') {
             SELECT sp.payment_type, SUM(sp.amount) as total_amount, COUNT(sp.id) as total_transactions
             FROM sale_payments_pos sp
             JOIN sales_pos s ON sp.sale_id = s.id
-            WHERE sp.payment_type IN ('dp', 'pelunasan') AND DATE(sp.created_at) BETWEEN ? AND ? $wh_filter $pay_filter $status_filter
+            WHERE sp.payment_type IN ('dp', 'pelunasan') AND DATE(sp.created_at) BETWEEN ? AND ? $wh_filter $channel_filter $pay_filter $status_filter
             GROUP BY sp.payment_type
         ";
         $stmt_dp = $pdo->prepare($sql4);
-        $stmt_dp->execute(array_merge([$start_date, $end_date], $wh_params, $pay_params, $status_params));
+        $stmt_dp->execute($all_params);
         $dp_pelunasan = $stmt_dp->fetchAll(PDO::FETCH_ASSOC);
 
         // 5. Penjualan per Kategori
@@ -132,12 +148,12 @@ if ($action === 'get_sales') {
             FROM sale_details_pos sd
             JOIN sales_pos s ON sd.sale_id = s.id
             LEFT JOIN products p ON sd.product_id = p.id
-            WHERE DATE(s.created_at) BETWEEN ? AND ? $wh_filter $pay_filter $status_filter
+            WHERE DATE(s.created_at) BETWEEN ? AND ? $wh_filter $channel_filter $pay_filter $status_filter
             GROUP BY p.category
             ORDER BY total_amount DESC
         ";
         $stmt_cat = $pdo->prepare($sql5);
-        $stmt_cat->execute(array_merge([$start_date, $end_date], $wh_params, $pay_params, $status_params));
+        $stmt_cat->execute($all_params);
         $sales_by_category = $stmt_cat->fetchAll(PDO::FETCH_ASSOC);
 
         // 6. Penjualan per Barang (Terlaris)
@@ -146,12 +162,12 @@ if ($action === 'get_sales') {
             FROM sale_details_pos sd
             JOIN sales_pos s ON sd.sale_id = s.id
             LEFT JOIN products p ON sd.product_id = p.id
-            WHERE DATE(s.created_at) BETWEEN ? AND ? $wh_filter $pay_filter $status_filter
+            WHERE DATE(s.created_at) BETWEEN ? AND ? $wh_filter $channel_filter $pay_filter $status_filter
             GROUP BY COALESCE(p.name, sd.custom_name)
             ORDER BY total_amount DESC
         ";
         $stmt_item = $pdo->prepare($sql6);
-        $stmt_item->execute(array_merge([$start_date, $end_date], $wh_params, $pay_params, $status_params));
+        $stmt_item->execute($all_params);
         $sales_by_item = $stmt_item->fetchAll(PDO::FETCH_ASSOC);
 
         // 7. Penjualan per Konsumen
@@ -159,12 +175,12 @@ if ($action === 'get_sales') {
             SELECT s.customer_id, COALESCE(c.name, 'Pelanggan Umum') as customer_name, COUNT(s.id) as total_transactions, SUM(s.total_amount) as total_spent
             FROM sales_pos s
             LEFT JOIN customers_pos c ON s.customer_id = c.id
-            WHERE DATE(s.created_at) BETWEEN ? AND ? $wh_filter $pay_filter $status_filter
+            WHERE DATE(s.created_at) BETWEEN ? AND ? $wh_filter $channel_filter $pay_filter $status_filter
             GROUP BY s.customer_id, COALESCE(c.name, 'Pelanggan Umum')
             ORDER BY total_spent DESC
         ";
         $stmt_cust = $pdo->prepare($sql7);
-        $stmt_cust->execute(array_merge([$start_date, $end_date], $wh_params, $pay_params, $status_params));
+        $stmt_cust->execute($all_params);
         $sales_by_customer = $stmt_cust->fetchAll(PDO::FETCH_ASSOC);
 
         // 8. Riwayat Pembatalan Transaksi
@@ -173,11 +189,11 @@ if ($action === 'get_sales') {
             FROM sale_cancellations_pos sc
             JOIN sales_pos s ON sc.sale_id = s.id
             LEFT JOIN supervisor_pins_pos sp ON sc.authorized_by_pin = sp.pin
-            WHERE DATE(sc.created_at) BETWEEN ? AND ? $wh_filter
+            WHERE DATE(sc.created_at) BETWEEN ? AND ? $wh_filter $channel_filter
             ORDER BY sc.created_at DESC
         ";
         $stmt_cancel = $pdo->prepare($sql8);
-        $stmt_cancel->execute(array_merge([$start_date, $end_date], $wh_params));
+        $stmt_cancel->execute(array_merge([$start_date, $end_date], $wh_params, $channel_params));
         $cancellations = $stmt_cancel->fetchAll(PDO::FETCH_ASSOC);
 
         echo json_encode([

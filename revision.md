@@ -1,0 +1,2 @@
+channel display online untuk penjualan nya itu bisa diset metode pembayaran nya apa saja
+di menu customer tambahkan custom data untk pencatatan ulang tahun dan nomor whatsapp yg bisa langsung blast bukan blast si lebih ke redirect dari nomor admin ke nomor wa pelanggan tapi untk scripting dinamis bisa di set dari menu blast wa tersebut

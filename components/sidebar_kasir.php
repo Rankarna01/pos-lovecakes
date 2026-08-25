@@ -31,11 +31,20 @@ function isDropdownActive($paths, $current_uri) {
     #main-sidebar {
         position: fixed;
         inset-y: 0;
+        top: 0;
+        bottom: 0;
         left: 0;
+        height: 100vh;
+        height: 100dvh;
+        max-height: 100vh;
+        max-height: 100dvh;
         z-index: 9999;
         transform: translateX(-100%);
         transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        width: 270px;
+        width: 280px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
     }
     #main-sidebar.sidebar-open {
         transform: translateX(0);
@@ -93,7 +102,7 @@ function isDropdownActive($paths, $current_uri) {
 </button>
 
 <!-- ===== SIDEBAR KASIR ===== -->
-<aside id="main-sidebar" class="bg-white border-r border-slate-200 flex-col shadow-xl flex">
+<aside id="main-sidebar" class="bg-white border-r border-slate-200 flex-col shadow-2xl flex h-screen max-h-screen">
 
     <div class="h-16 flex items-center justify-between px-5 border-b border-slate-100 shrink-0 bg-white">
         <h1 class="font-black text-primary text-lg flex items-center gap-2 tracking-tight">
@@ -118,7 +127,7 @@ function isDropdownActive($paths, $current_uri) {
     </div>
     <?php endif; ?>
 
-    <nav class="flex-1 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar bg-white">
+    <nav class="flex-1 min-h-0 px-4 py-5 space-y-1 overflow-y-auto custom-scrollbar bg-white" style="-webkit-overflow-scrolling: touch;">
 
         <div class="px-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Menu Utama (Kasir)</div>
 
@@ -199,7 +208,7 @@ function isDropdownActive($paths, $current_uri) {
         </div>
 
         <!-- ===== TOMBOL LOGOUT KASIR ===== -->
-        <div class="mt-4 px-2 pb-4">
+        <div class="mt-4 px-2 pb-8">
             <div class="border-t border-slate-100 pt-4">
                 <div class="flex items-center gap-3 px-3 py-2.5 mb-3">
                     <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">

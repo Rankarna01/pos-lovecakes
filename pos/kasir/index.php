@@ -751,13 +751,19 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                     <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Nama Lengkap</label>
                     <input type="text" x-model="newCustomerForm.name" required placeholder="Nama Pelanggan" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-500 font-bold text-sm text-slate-800">
                 </div>
-                <div>
-                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Nomor Handphone (Opsional)</label>
-                    <input type="text" x-model="newCustomerForm.phone" placeholder="081234..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-500 font-bold text-sm text-slate-800">
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">No. Handphone / WA</label>
+                        <input type="text" x-model="newCustomerForm.phone" placeholder="081234..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:border-blue-500 font-bold text-xs text-slate-800">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">🎂 Tgl Lahir / Ultah</label>
+                        <input type="date" x-model="newCustomerForm.birth_date" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:border-blue-500 font-bold text-xs text-slate-800">
+                    </div>
                 </div>
                 <div>
                     <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Alamat (Opsional)</label>
-                    <textarea x-model="newCustomerForm.address" rows="2" placeholder="Alamat Pengiriman..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-500 font-bold text-sm text-slate-800"></textarea>
+                    <textarea x-model="newCustomerForm.address" rows="2" placeholder="Alamat Pengiriman..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-blue-500 font-bold text-xs text-slate-800"></textarea>
                 </div>
                 <div class="pt-2 flex gap-3">
                     <button type="button" @click="showAddCustomerModal = false" class="py-3 px-5 rounded-xl font-black text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors">Batal</button>

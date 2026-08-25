@@ -7,6 +7,7 @@ document.addEventListener('alpine:init', () => {
         filters: {
             start_date: new Date().toISOString().split('T')[0],
             end_date: new Date().toISOString().split('T')[0],
+            channel: '',
             payment_method: '',
             payment_status: '',
             discount_filter: ''
@@ -97,6 +98,7 @@ document.addEventListener('alpine:init', () => {
                 formData.append('action', 'get_sales');
                 formData.append('start_date', this.filters.start_date);
                 formData.append('end_date', this.filters.end_date);
+                formData.append('channel', this.filters.channel || '');
                 formData.append('payment_method', this.filters.payment_method || '');
                 formData.append('payment_status', this.filters.payment_status || '');
 

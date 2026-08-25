@@ -28,7 +28,7 @@ function isDropdownActive($paths, $current_uri) {
     .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 </style>
 
-<aside id="main-sidebar" class="w-[260px] bg-white border-r border-slate-200 flex-col shadow-sm fixed inset-y-0 left-0 z-[70] transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 flex">
+<aside id="main-sidebar" class="w-[260px] bg-white border-r border-slate-200 flex-col shadow-sm fixed inset-y-0 left-0 z-[70] transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 flex h-screen max-h-screen">
 
     <div class="h-16 flex items-center justify-between px-6 border-b border-slate-100 shrink-0 bg-white">
         <h1 class="font-black text-primary text-xl flex items-center gap-2 tracking-tight">
@@ -102,7 +102,7 @@ function isDropdownActive($paths, $current_uri) {
     }
     </script>
 
-    <nav class="flex-1 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar bg-white">
+    <nav class="flex-1 min-h-0 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar bg-white" style="-webkit-overflow-scrolling: touch;">
 
         <div class="px-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Menu Utama (Admin)</div>
 
@@ -215,19 +215,20 @@ function isDropdownActive($paths, $current_uri) {
         </div>
 
         <?php 
-            $paths = ['/pos/online/food_delivery/', '/pos/online/pemesanan/', '/pos/online/toko/', '/pos/online/marketplace/']; 
+            $paths = ['/pos/online/food_delivery/', '/pos/online/pembayaran/']; 
             $isActive = isDropdownActive($paths, $current_uri);
         ?>
         <div class="mb-1">
             <button onclick="toggleSubmenu('sub-online', 'icon-online')" class="w-full flex items-center justify-between px-4 py-2.5 rounded-xl transition-all <?= $isActive ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600 font-medium' ?>">
                 <div class="flex items-center gap-3">
                     <i class="fa-solid fa-globe w-5 text-center text-lg shrink-0"></i>
-                    <span class="text-sm whitespace-nowrap">Manaj. Online</span>
+                    <span class="text-sm whitespace-nowrap">Settings Channel Online</span>
                 </div>
                 <i id="icon-online" class="fa-solid fa-chevron-<?= $isActive ? 'down' : 'right' ?> text-[10px] transition-transform duration-200"></i>
             </button>
             <div id="sub-online" class="<?= $isActive ? 'flex' : 'hidden' ?> flex-col gap-1 mt-1 pl-11 pr-2">
                 <a href="<?= BASE_URL ?>pos/online/food_delivery/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/online/food_delivery/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Food Delivery</a>
+                <a href="<?= BASE_URL ?>pos/online/pembayaran/" class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-all <?= getSubNavClass('/pos/online/pembayaran/', $current_uri) ?>"><i class="fa-solid fa-circle text-[5px] opacity-50"></i> Metode Pembayaran</a>
             </div>
         </div>
 

@@ -165,20 +165,22 @@ if ($action === 'add_customer') {
     $name = trim($_POST['name'] ?? '');
     $phone = trim($_POST['phone'] ?? '');
     $address = trim($_POST['address'] ?? '');
+    $birth_date = !empty($_POST['birth_date']) ? trim($_POST['birth_date']) : null;
+    $custom_notes = trim($_POST['custom_notes'] ?? '');
 
     if (empty($name)) {
         echo json_encode(['status' => 'error', 'message' => 'Nama pelanggan wajib diisi!']); exit;
     }
 
     try {
-        $stmt = $pdo->prepare("INSERT INTO customers_pos (name, phone, address) VALUES (?, ?, ?)");
-        $stmt->execute([$name, $phone, $address]);
+        $stmt = $pdo->prepare("INSERT INTO customers_pos (name, phone, address, birth_date, custom_notes) VALUES (?, ?, ?, ?, ?)");
+        $stmt->execute([$name, $phone, $address, $birth_date, $custom_notes]);
         $new_id = $pdo->lastInsertId();
 
-        $customers = $pdo->query("SELECT id, name, points, phone FROM customers_pos ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
+        $customers = $pdo->query("SELECT id, name, points, phone, birth_date FROM customers_pos ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
         echo json_encode(['status' => 'success', 'message' => 'Pelanggan baru ditambahkan!', 'new_id' => $new_id, 'customers' => $customers]); exit;
     } catch (Exception $e) {
-        echo json_encode(['status' => 'error', 'message' => 'Gagal menyimpan pelanggan.']); exit;
+        echo json_encode(['status' => 'error', 'message' => 'Gagal menyimpan pelanggan: ' . $e->getMessage()]); exit;
     }
 }
 

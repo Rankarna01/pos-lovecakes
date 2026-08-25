@@ -116,7 +116,7 @@ document.addEventListener('alpine:init', () => {
 
         // --- TAMBAH PELANGGAN ---
         showAddCustomerModal: false, isSavingCustomer: false,
-        newCustomerForm: { name: '', phone: '', address: '' },
+        newCustomerForm: { name: '', phone: '', address: '', birth_date: '' },
 
         // --- MODAL STATUS & SUCCESS ---
         showStatusModal: false, isFetchingStatus: false, activeOrders: [],
@@ -386,8 +386,9 @@ document.addEventListener('alpine:init', () => {
             try {
                 const fd = new FormData();
                 fd.append('name', this.newCustomerForm.name);
-                fd.append('phone', this.newCustomerForm.phone);
-                fd.append('address', this.newCustomerForm.address);
+                fd.append('phone', this.newCustomerForm.phone || '');
+                fd.append('birth_date', this.newCustomerForm.birth_date || '');
+                fd.append('address', this.newCustomerForm.address || '');
                 
                 const res = await fetch('logic_kasir.php?action=add_customer', { method: 'POST', body: fd });
                 const result = await res.json();
@@ -396,7 +397,7 @@ document.addEventListener('alpine:init', () => {
                     this.customers = result.customers;
                     this.selectCustomer(result.new_id);
                     this.showAddCustomerModal = false;
-                    this.newCustomerForm = { name: '', phone: '', address: '' };
+                    this.newCustomerForm = { name: '', phone: '', address: '', birth_date: '' };
                     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: result.message, showConfirmButton: false, timer: 1500 });
                 } else {
                     Swal.fire('Error', result.message, 'error');

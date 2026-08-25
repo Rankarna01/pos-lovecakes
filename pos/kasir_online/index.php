@@ -77,10 +77,6 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                 <button @click="selectChannel('travelokaeats')" :class="activeChannel === 'travelokaeats' ? 'bg-sky-600 text-white shadow-md font-black' : 'bg-slate-800 text-slate-300 hover:bg-slate-700 font-bold'" class="px-3.5 py-1.5 rounded-xl text-xs transition-all flex items-center gap-1.5 shrink-0">
                     <i class="fa-solid fa-plane-departure text-sky-400"></i> TravelokaEats
                 </button>
-
-                <button @click="selectChannel('wa')" :class="activeChannel === 'wa' ? 'bg-green-600 text-white shadow-md font-black' : 'bg-slate-800 text-slate-300 hover:bg-slate-700 font-bold'" class="px-3.5 py-1.5 rounded-xl text-xs transition-all flex items-center gap-1.5 shrink-0">
-                    <i class="fa-brands fa-whatsapp text-green-400"></i> WA / Web
-                </button>
             </div>
         </header>
 
@@ -143,10 +139,6 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                                         <div>
                                             <!-- Platform Price -->
                                             <p class="font-black text-emerald-600 text-xs" x-text="'Rp ' + formatRupiah(getProductPlatformPrice(product))"></p>
-                                            <!-- Base Price (if different) -->
-                                            <template x-if="getProductPlatformPrice(product) !== parseFloat(product.price || 0)">
-                                                <p class="text-[9px] text-slate-400 line-through" x-text="'Rp ' + formatRupiah(product.price)"></p>
-                                            </template>
                                         </div>
                                         <div class="w-5 h-5 rounded bg-emerald-50 text-emerald-600 flex items-center justify-center text-[10px] font-black group-hover:bg-emerald-500 group-hover:text-white transition-colors">
                                             <i class="fa-solid fa-plus"></i>
@@ -284,14 +276,25 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
                         </div>
                     </div>
 
-                    <!-- Metode Pembayaran Dinamis -->
+                    <!-- Metode Pembayaran Dinamis Berdasarkan Channel Aktif -->
                     <div>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">METODE PEMBAYARAN</label>
-                        <div class="grid grid-cols-3 gap-2 p-1.5 bg-slate-100 rounded-xl">
-                            <template x-for="item in paymentMethods" :key="item.id">
-                                <button type="button" @click="paymentMethod = item.name" :class="paymentMethod === item.name ? 'bg-white shadow-xs text-slate-800 border-blue-400 font-black' : 'text-slate-500 hover:text-slate-800 border-transparent font-bold'" class="py-2 px-1 rounded-lg text-xs transition-all flex flex-col items-center justify-center gap-1 border">
-                                    <i :class="item.type === 'Cash' ? 'fa-solid fa-money-bill-wave text-emerald-500' : (item.type === 'QRIS' ? 'fa-solid fa-qrcode text-blue-500' : (item.type === 'Debit' ? 'fa-solid fa-credit-card text-indigo-500' : 'fa-solid fa-wallet text-amber-500'))"></i>
-                                    <span x-text="item.name" class="text-[10px]"></span>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">METODE PEMBAYARAN (<span class="uppercase text-primary" x-text="activeChannel"></span>)</label>
+                        <div class="grid grid-cols-2 gap-2 p-1.5 bg-slate-100 rounded-2xl max-h-48 overflow-y-auto custom-scrollbar">
+                            <template x-for="item in activePlatformPaymentMethods" :key="item.id || item.name">
+                                <button type="button" @click="paymentMethod = item.name" :class="paymentMethod === item.name ? 'bg-white shadow-xs text-slate-800 border-blue-500 ring-2 ring-blue-500/20 font-black' : 'text-slate-600 hover:text-slate-900 border-transparent font-bold bg-white/60'" class="p-2.5 rounded-xl text-xs transition-all flex items-center gap-2.5 border text-left">
+                                    <div class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xs shrink-0">
+                                        <i class="fa-solid" :class="{
+                                            'fa-wallet': item.type === 'E-Wallet',
+                                            'fa-qrcode': item.type === 'QRIS',
+                                            'fa-building-columns': item.type === 'Transfer',
+                                            'fa-money-bill-transfer': item.type === 'Digital',
+                                            'fa-money-bill': item.type === 'Cash'
+                                        }"></i>
+                                    </div>
+                                    <div class="overflow-hidden">
+                                        <span x-text="item.name" class="block text-[11px] font-black truncate"></span>
+                                        <span x-text="item.type" class="block text-[9px] text-slate-400 font-medium"></span>
+                                    </div>
                                 </button>
                             </template>
                         </div>

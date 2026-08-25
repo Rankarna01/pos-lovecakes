@@ -11,6 +11,7 @@ document.addEventListener('alpine:init', () => {
         foodDeliveryPrices: [],
         platforms: [],
         paymentMethods: [],
+        foodDeliveryPaymentMethods: [],
         
         cart: [],
         customerName: '',
@@ -26,19 +27,28 @@ document.addEventListener('alpine:init', () => {
         
         // Form Pembayaran Kasir POS
         paymentStatus: 'lunas',
-        paymentMethod: 'Cash',
+        paymentMethod: '',
         inputUang: 0,
         paymentReference: '',
         
         customRegulerForm: { name: '', price: 100000 },
         customPOForm: { name: '', price: 150000 },
-        lastReceipt: { invoice_no: '', driver_name: '', external_order_id: '', items: [], total_amount: 0, amount_paid: 0, change_amount: 0, payment_method: 'Cash' },
+        lastReceipt: { invoice_no: '', driver_name: '', external_order_id: '', items: [], total_amount: 0, amount_paid: 0, change_amount: 0, payment_method: 'Digital' },
 
-        async initApp() {
-            this.$watch('searchQuery', () => this.applyFilters());
-            this.$watch('selectedCategory', () => this.applyFilters());
+        async init() {
+            // Restore draft if any
+            const savedDraft = localStorage.getItem('kasir_online_cart');
+            if (savedDraft) {
+                try { this.cart = JSON.parse(savedDraft); } catch(e) {}
+            }
 
             await this.loadMasterData();
+        },
+
+        get activePlatformPaymentMethods() {
+            const list = this.foodDeliveryPaymentMethods.filter(m => m.platform_code === this.activeChannel && parseInt(m.is_active) === 1);
+            if (list.length > 0) return list;
+            return this.paymentMethods.filter(m => m.name.toLowerCase() !== 'cash' && m.name.toLowerCase() !== 'tunai');
         },
 
         async loadMasterData() {
@@ -52,9 +62,11 @@ document.addEventListener('alpine:init', () => {
                     this.foodDeliveryPrices = result.food_delivery_prices || [];
                     this.platforms = result.platforms || [];
                     this.paymentMethods = result.payment_methods || [];
+                    this.foodDeliveryPaymentMethods = result.food_delivery_payment_methods || [];
 
-                    if (this.paymentMethods.length > 0 && !this.paymentMethod) {
-                        this.paymentMethod = this.paymentMethods[0].name;
+                    const available = this.activePlatformPaymentMethods;
+                    if (available.length > 0) {
+                        this.paymentMethod = available[0].name;
                     }
 
                     // Extract categories
@@ -74,6 +86,10 @@ document.addEventListener('alpine:init', () => {
 
         selectChannel(channelCode) {
             this.activeChannel = channelCode;
+            const available = this.activePlatformPaymentMethods;
+            if (available.length > 0) {
+                this.paymentMethod = available[0].name;
+            }
             
             // Recalculate cart items with new channel price
             this.cart.forEach(item => {
@@ -268,6 +284,12 @@ document.addEventListener('alpine:init', () => {
         // --- PEMBAYARAN & CHECKOUT ---
         openPaymentModal() {
             if (this.cart.length === 0) return;
+            const available = this.activePlatformPaymentMethods;
+            if (available.length > 0) {
+                if (!available.some(m => m.name === this.paymentMethod)) {
+                    this.paymentMethod = available[0].name;
+                }
+            }
             this.inputUang = this.cartTotal;
             this.showPaymentModal = true;
         },
@@ -295,8 +317,8 @@ document.addEventListener('alpine:init', () => {
                     driver_phone: this.driverPhone,
                     external_order_id: this.externalOrderId,
                     notes: this.notes,
-                    payment_method: this.paymentMethod,
-                    payment_status: this.paymentStatus === 'lunas' ? 'paid' : 'dp',
+                    payment_method: this.paymentMethod || 'Saldo Merchant',
+                    payment_status: this.paymentStatus === 'lunas' ? 'lunas' : 'dp',
                     payment_reference: this.paymentReference,
                     subtotal: this.cartSubtotal,
                     total_amount: this.cartTotal,

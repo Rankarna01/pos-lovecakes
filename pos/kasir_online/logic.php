@@ -98,6 +98,11 @@ if ($action === 'get_master_data') {
         $payment_methods = [];
         try { $payment_methods = $pdo->query("SELECT * FROM payment_methods WHERE is_active = 1 ORDER BY type ASC, name ASC")->fetchAll(PDO::FETCH_ASSOC); } catch (Exception $e) {}
 
+        $food_delivery_payment_methods = [];
+        try { 
+            $food_delivery_payment_methods = $pdo->query("SELECT * FROM food_delivery_payment_methods_pos WHERE is_active = 1 ORDER BY platform_code ASC, sort_order ASC, id ASC")->fetchAll(PDO::FETCH_ASSOC); 
+        } catch (Exception $e) {}
+
         $customers = [];
         try { $customers = $pdo->query("SELECT id, name, phone, points FROM customers_pos ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC); } catch (Exception $e) {}
 
@@ -128,6 +133,7 @@ if ($action === 'get_master_data') {
             'saved_customs' => $saved_customs,
             'saved_customs_reguler' => $saved_customs_reguler,
             'payment_methods' => $payment_methods,
+            'food_delivery_payment_methods' => $food_delivery_payment_methods,
             'platforms' => $platforms,
             'food_delivery_prices' => $food_delivery_prices,
             'settings' => $settings

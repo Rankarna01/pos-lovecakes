@@ -43,21 +43,39 @@ $page_title = "Riwayat Penjualan - Love Cakes POS";
                         <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
                         <input type="text" x-model="searchQuery" placeholder="Cari No. Invoice / Pelanggan..." class="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 font-bold text-sm">
                     </div>
+                    <!-- FILTER CHANNEL / TIPE ORDER (OFFLINE VS ONLINE) -->
+                    <select x-model="filters.channel" @change="fetchSales()" class="w-full md:w-auto bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary font-bold text-sm text-slate-600 cursor-pointer">
+                        <option value="">🌐 Semua Channel</option>
+                        <option value="offline">🏪 Kasir Offline (Toko)</option>
+                        <option value="online">🛵 Kasir Online (Semua Online)</option>
+                        <option value="grabfood">🛵 GrabFood</option>
+                        <option value="gofood">🍴 GoFood</option>
+                        <option value="shopeefood">🛍️ ShopeeFood</option>
+                        <option value="travelokaeats">✈️ TravelokaEats</option>
+                    </select>
+
                     <select x-model="filters.payment_method" @change="fetchSales()" class="w-full md:w-auto bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary font-bold text-sm text-slate-600 cursor-pointer">
                         <option value="">💳 Semua Metode Bayar</option>
-                        <option value="cash">💵 Cash / Tunai</option>
+                        <option value="cash">💵 Cash / Tunai (Toko)</option>
                         <option value="qris">📱 QRIS / Digital</option>
                         <option value="transfer">🏦 Transfer Bank</option>
                         <option value="split">🔄 Split Payment</option>
                         <?php
                         try {
                             if (!isset($pdo)) require_once '../../../config/database.php';
+                            // 1. Offline Payment Methods
                             $stmt_pm = $pdo->query("SELECT name FROM payment_methods WHERE is_active = 1 ORDER BY name ASC");
                             while ($pm_row = $stmt_pm->fetch(PDO::FETCH_ASSOC)) {
                                 $pm_name = htmlspecialchars($pm_row['name']);
                                 if (!in_array(strtolower($pm_name), ['cash', 'qris', 'transfer bank', 'split'])) {
                                     echo '<option value="' . strtolower($pm_name) . '">💳 ' . $pm_name . '</option>';
                                 }
+                            }
+                            // 2. Online Payment Methods
+                            $stmt_fdpm = $pdo->query("SELECT DISTINCT name FROM food_delivery_payment_methods_pos WHERE is_active = 1 ORDER BY name ASC");
+                            while ($fdpm_row = $stmt_fdpm->fetch(PDO::FETCH_ASSOC)) {
+                                $fdpm_name = htmlspecialchars($fdpm_row['name']);
+                                echo '<option value="' . strtolower($fdpm_name) . '">🛵 ' . $fdpm_name . '</option>';
                             }
                         } catch (Exception $e) {}
                         ?>
