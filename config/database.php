@@ -2,9 +2,9 @@
 require_once __DIR__ . '/env.php';
 
 $host   = env('DB_HOST', 'localhost');
-$user   = env('DB_USER', 'u672726995_lovecakes2');
+$user   = env('DB_USER', 'u672726995_lovecakes21');
 $pass   = env('DB_PASS', 'Randy2005_');
-$dbname = env('DB_NAME', 'u672726995_lovecakes2');
+$dbname = env('DB_NAME', 'u672726995_lovecakes21');
 
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname", $user, $pass);
