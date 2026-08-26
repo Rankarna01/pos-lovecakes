@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/env.php';
 
-// Cek apakah lingkungan lokal atau server produksi
+// Deteksi otomatis apakah sedang di Localhost XAMPP atau Server Hosting Produksi
 $is_local_host = (
     isset($_SERVER['HTTP_HOST']) && 
     (strpos($_SERVER['HTTP_HOST'], 'localhost') !== false || strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false)
@@ -16,9 +16,20 @@ if ($is_local_host) {
 } else {
     // 🌐 Konfigurasi Server Produksi (Hostinger / cPanel)
     $host   = env('DB_HOST', 'localhost');
-    $user   = env('DB_USER', 'u672726995_lovecakes21');
-    $pass   = env('DB_PASS', 'Randy2005_');
-    $dbname = env('DB_NAME', 'u672726995_lovecakes21');
+    $env_u  = env('DB_USER');
+    $env_p  = env('DB_PASS');
+    $env_d  = env('DB_NAME');
+
+    // Jika .env di server masih berisi user lokal 'root' atau kosong, paksa gunakan user database hosting
+    if (empty($env_u) || $env_u === 'root') {
+        $user   = 'u672726995_lovecakes21';
+        $pass   = 'Randy2005_';
+        $dbname = 'u672726995_lovecakes21';
+    } else {
+        $user   = $env_u;
+        $pass   = $env_p;
+        $dbname = $env_d;
+    }
 }
 
 try {
