@@ -1,10 +1,12 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
+ob_start();
+ini_set('display_errors', 0);
 error_reporting(E_ALL);
 
-session_set_cookie_params(0);
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params(0);
+    session_start();
+}
 
 require_once '../config/database.php'; 
 
@@ -16,6 +18,7 @@ if ($action === 'login_pos') {
     $password = $_POST['password'] ?? '';
 
     if (empty($username) || empty($password)) {
+        if (ob_get_length()) ob_clean();
         echo json_encode(['status' => 'error', 'message' => 'Username dan Password wajib diisi!']);
         exit;
     }
@@ -41,17 +44,20 @@ if ($action === 'login_pos') {
             $_SESSION['pos_store_code'] = $user['store_code'] ?? 'GLOBAL';
 
             // Setup URL
-            $is_localhost = (strpos($_SERVER['HTTP_HOST'], 'localhost') !== false || strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false);
-            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
-            $folder = $is_localhost ? '/pos-lovecakes/' : '/';
-            $full_base_url = $protocol . $_SERVER['HTTP_HOST'] . $folder;
+            $full_base_url = defined('BASE_URL') ? BASE_URL : '';
+            if (empty($full_base_url)) {
+                $is_localhost = (strpos($_SERVER['HTTP_HOST'] ?? '', 'localhost') !== false || strpos($_SERVER['HTTP_HOST'] ?? '', '127.0.0.1') !== false);
+                $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || ($_SERVER['SERVER_PORT'] ?? 80) == 443) ? "https://" : "http://";
+                $folder = $is_localhost ? '/pos-lovecakes/' : '/';
+                $full_base_url = $protocol . ($_SERVER['HTTP_HOST'] ?? 'localhost') . $folder;
+            }
 
             // 🎯 REDIRECT BERDASARKAN ROLE
-            $role_name_lower = strtolower($user['role_name']);
+            $role_name_lower = strtolower($user['role_name'] ?? '');
             if (in_array($role_name_lower, ['kasir', 'cashier'])) {
-                $redirect_url = $full_base_url . 'pos/kasir/'; 
+                $redirect_url = rtrim($full_base_url, '/') . '/pos/kasir/'; 
             } else {
-                $redirect_url = $full_base_url . 'pos/dashboard/'; 
+                $redirect_url = rtrim($full_base_url, '/') . '/pos/dashboard/'; 
             }
 
             // Data untuk PWA (Offline)
@@ -62,6 +68,7 @@ if ($action === 'login_pos') {
                 'role' => $user['role_name']
             ];
 
+            if (ob_get_length()) ob_clean();
             echo json_encode([
                 'status' => 'success', 
                 'message' => 'Login berhasil!', 
@@ -69,15 +76,19 @@ if ($action === 'login_pos') {
                 'data' => $userData
             ]);
         } else {
+            if (ob_get_length()) ob_clean();
             echo json_encode(['status' => 'error', 'message' => 'Username atau Password salah!']);
         }
     } catch (PDOException $e) {
+        if (ob_get_length()) ob_clean();
         echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()]);
     } catch (Exception $e) {
+        if (ob_get_length()) ob_clean();
         echo json_encode(['status' => 'error', 'message' => 'System error: ' . $e->getMessage()]);
     }
     exit;
 } else {
+    if (ob_get_length()) ob_clean();
     echo json_encode(['status' => 'error', 'message' => 'Aksi tidak valid!']);
     exit;
 }
