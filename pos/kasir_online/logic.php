@@ -124,11 +124,17 @@ if ($action === 'get_master_data') {
             foreach ($settings_rows as $r) { $settings[$r['setting_key']] = $r['setting_value']; }
         } catch (Exception $e) {}
 
+        $categories = [];
+        try {
+            $categories = $pdo->query("SELECT name FROM categories ORDER BY name ASC")->fetchAll(PDO::FETCH_COLUMN);
+        } catch (Exception $e) {}
+
         echo json_encode([
             'status' => 'success',
             'store_id' => $selected_store_id,
             'warehouses' => $warehouses,
             'products' => $all_items,
+            'categories' => $categories,
             'customers' => $customers,
             'saved_customs' => $saved_customs,
             'saved_customs_reguler' => $saved_customs_reguler,

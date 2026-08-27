@@ -29,8 +29,7 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
             .no-print { display: none !important; }
         }
     </style>
-</head>
-<body class="bg-slate-100 flex h-screen overflow-hidden text-slate-800 antialiased font-sans" x-data="kasirOnlineApp()" x-init="initApp()" x-cloak>
+<body class="bg-slate-100 flex h-screen overflow-hidden text-slate-800 antialiased font-sans" x-data="kasirOnlineApp()" x-cloak>
 
     <?php include '../../components/sidebar.php'; ?>
 
@@ -113,11 +112,11 @@ if(!$toko) { $toko = ['store_name' => 'LOVE CAKES', 'store_address' => '-', 'sto
 
                     <!-- Category Pills -->
                     <div class="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1">
-                        <button @click="selectedCategory = 'all'" :class="selectedCategory === 'all' ? 'bg-primary text-white font-black' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 font-bold'" class="px-3 py-1 rounded-lg text-xs whitespace-nowrap transition-all">
+                        <button @click="selectCategory('all')" :class="selectedCategory === 'all' ? 'bg-primary text-white font-black shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 font-bold'" class="px-3.5 py-1.5 rounded-xl text-xs whitespace-nowrap transition-all">
                             Semua Produk
                         </button>
                         <template x-for="cat in categories" :key="cat">
-                            <button @click="selectedCategory = cat" :class="selectedCategory === cat ? 'bg-primary text-white font-black' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 font-bold'" class="px-3 py-1 rounded-lg text-xs whitespace-nowrap transition-all" x-text="cat"></button>
+                            <button @click="selectCategory(cat)" :class="selectedCategory.toLowerCase().trim() === cat.toLowerCase().trim() ? 'bg-primary text-white font-black shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 font-bold'" class="px-3.5 py-1.5 rounded-xl text-xs whitespace-nowrap transition-all" x-text="cat"></button>
                         </template>
                     </div>
                 </div>

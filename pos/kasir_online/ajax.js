@@ -4,7 +4,6 @@ document.addEventListener('alpine:init', () => {
         selectedStoreId: 1,
         warehouses: [],
         products: [],
-        filteredProducts: [],
         categories: [],
         selectedCategory: 'all',
         searchQuery: '',
@@ -69,11 +68,11 @@ document.addEventListener('alpine:init', () => {
                         this.paymentMethod = available[0].name;
                     }
 
-                    // Extract categories
-                    const cats = new Set(this.products.map(p => p.category).filter(Boolean));
-                    this.categories = Array.from(cats);
-
-                    this.applyFilters();
+                    // Extract categories (dari database categories + produk katalog)
+                    const backendCats = result.categories || [];
+                    const prodCats = (this.products || []).map(p => (p.category || '').trim()).filter(Boolean);
+                    const combinedCats = new Set([...backendCats, ...prodCats]);
+                    this.categories = Array.from(combinedCats);
                 }
             } catch(e) {
                 console.error("Gagal memuat master data Kasir Online:", e);
@@ -99,7 +98,10 @@ document.addEventListener('alpine:init', () => {
                     item.subtotal = item.price * item.qty;
                 }
             });
-            this.applyFilters();
+        },
+
+        selectCategory(cat) {
+            this.selectedCategory = cat;
         },
 
         getProductPlatformPrice(product) {
@@ -140,10 +142,10 @@ document.addEventListener('alpine:init', () => {
             return 'Harga Normal / Standard';
         },
 
-        applyFilters() {
+        get filteredProducts() {
             let list = this.products || [];
 
-            // FILTER PER PLATFORM: Produk Katalog selalu muncul, Custom Item hanya yang diatur & aktif per platform
+            // 1. FILTER PER PLATFORM: Produk Katalog selalu muncul, Custom Item hanya yang diatur & aktif per platform
             if (this.activeChannel && !['wa', 'toko', 'delivery'].includes(this.activeChannel.toLowerCase())) {
                 const pCode = this.activeChannel.toLowerCase();
                 
@@ -169,8 +171,9 @@ document.addEventListener('alpine:init', () => {
                 });
             }
 
+            // 2. FILTER SEARCH QUERY
             if (this.searchQuery && this.searchQuery.trim() !== '') {
-                const q = this.searchQuery.toLowerCase();
+                const q = this.searchQuery.toLowerCase().trim();
                 list = list.filter(p => 
                     (p.name && p.name.toLowerCase().includes(q)) ||
                     (p.code && p.code.toLowerCase().includes(q)) ||
@@ -178,11 +181,13 @@ document.addEventListener('alpine:init', () => {
                 );
             }
 
-            if (this.selectedCategory !== 'all') {
-                list = list.filter(p => p.category === this.selectedCategory);
+            // 3. FILTER KATEGORI (Case-Insensitive & Trimmed)
+            if (this.selectedCategory && this.selectedCategory !== 'all') {
+                const selCat = this.selectedCategory.toLowerCase().trim();
+                list = list.filter(p => (p.category || '').toLowerCase().trim() === selCat);
             }
 
-            this.filteredProducts = list;
+            return list;
         },
 
         // --- FUNGSI KERANJANG ---
